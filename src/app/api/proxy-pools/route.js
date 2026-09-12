@@ -91,3 +91,20 @@ export async function POST(request) {
     return NextResponse.json({ error: "Failed to create proxy pool" }, { status: 500 });
   }
 }
+
+// PUT /api/proxy-pools - Ensure the bundled Tor pool exists (idempotent).
+// Extracts + starts the bundled Tor daemon on 127.0.0.1:9051 if needed,
+// then creates/returns the "Tor (bundled)" pool. No apt/docker required.
+export async function PUT() {
+  try {
+    const { ensureTorPool } = await import("@/lib/network/torAutosetup.js");
+    const result = await ensureTorPool();
+    if (!result.ok) {
+      return NextResponse.json({ error: result.reason || "Tor auto-setup failed" }, { status: 500 });
+    }
+    return NextResponse.json({ proxyPool: result.pool });
+  } catch (error) {
+    console.log("Error ensuring Tor pool:", error);
+    return NextResponse.json({ error: "Failed to ensure Tor pool" }, { status: 500 });
+  }
+}

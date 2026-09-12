@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import fs from "fs";
 import { getSettings } from "@/lib/localDb";
 import { startHeadroomProxy } from "@/lib/headroom/process";
+import { installNativeHeadroom, VENV_CLI } from "@/lib/headroom/native";
+import { findHeadroomBinary } from "@/lib/headroom/detect";
 import { DEFAULT_HEADROOM_URL, isLoopbackHeadroomUrl } from "@/lib/headroom/detect";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +17,7 @@ function parsePortFromUrl(url) {
   return null;
 }
 
-export async function POST() {
+export async function POST(request) {
   try {
     const settings = await getSettings();
     const url = settings.headroomUrl || DEFAULT_HEADROOM_URL;
@@ -22,12 +25,20 @@ export async function POST() {
       return NextResponse.json({ error: "External Headroom proxies must be started outside 9Router", code: "EXTERNAL_PROXY" }, { status: 400 });
     }
     const port = parsePortFromUrl(url) || 8787;
+
+    // Native one-click install: if the managed venv doesn't exist yet, create it
+    // and pip-install headroom-ai[proxy] into it before starting the proxy.
+    let installSteps = null;
+    if (!fs.existsSync(VENV_CLI) && !findHeadroomBinary()) {
+      installSteps = await installNativeHeadroom();
+    }
+
     const result = await startHeadroomProxy({
       port,
       codeAware: settings.headroomCodeAware === true,
       kompress: settings.headroomKompress !== false,
     });
-    return NextResponse.json({ success: true, ...result });
+    return NextResponse.json({ success: true, nativeInstall: installSteps, ...result });
   } catch (error) {
     const status = error.code === "NOT_INSTALLED" ? 400 : 500;
     return NextResponse.json({ error: error.message, code: error.code || null }, { status });

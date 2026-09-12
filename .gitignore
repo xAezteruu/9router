@@ -101,3 +101,7 @@ graphify-out/*
 .start-dev.ps1
 start-dev-silent.cjs
 debug.log
+
+# local build artifacts
+/^9r$
+*.tar.gz

@@ -1,6 +1,7 @@
 import { Readable } from "stream";
 import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
 import { dbg } from "./debugLog.js";
+import { isSocksProxyUrl, createSocksDispatcher } from "../../src/lib/network/socksDispatcher.js";
 
 const originalFetch = globalThis.fetch;
 const proxyDispatchers = new Map();
@@ -213,9 +214,7 @@ function resolveConnectionProxyUrl(targetUrl, proxyOptions) {
   return normalizeProxyUrl(proxyUrlRaw);
 }
 
-/**
- * Create proxy dispatcher lazily (undici-compatible)
- */
+// SOCKS5 (e.g. Tor 127.0.0.1:9050) needs a socks dispatcher — undici ProxyAgent is HTTP CONNECT only.
 async function getDispatcher(proxyUrl) {
   const normalized = normalizeProxyUrl(proxyUrl);
   if (!normalized) return null;
@@ -225,8 +224,14 @@ async function getDispatcher(proxyUrl) {
     if (proxyDispatchers.size >= MEMORY_CONFIG.proxyDispatchersMaxSize) {
       proxyDispatchers.delete(proxyDispatchers.keys().next().value);
     }
-    const { ProxyAgent } = await import("undici");
-    proxyDispatchers.set(normalized, new ProxyAgent({ uri: normalized }));
+    let dispatcher;
+    if (isSocksProxyUrl(normalized)) {
+      dispatcher = await createSocksDispatcher(normalized);
+    } else {
+      const { ProxyAgent } = await import("undici");
+      dispatcher = new ProxyAgent({ uri: normalized });
+    }
+    proxyDispatchers.set(normalized, dispatcher);
   }
 
   return proxyDispatchers.get(normalized);

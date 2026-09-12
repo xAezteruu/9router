@@ -3,6 +3,8 @@ import { getSettings, validateApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
 import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer";
+import { getClientIp } from "@/lib/auth/loginLimiter";
+import { recordIpHit } from "@/lib/usageDb";
 
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
 const CLI_TOKEN_SALT = "9r-cli-auth";
@@ -159,8 +161,24 @@ async function canAccessPublicLlmApi(request) {
 }
 
 async function canAccessLocalOnlyRoute(request) {
+  // Any authenticated dashboard session (JWT cookie) may use these routes,
+  // regardless of where the browser is. The LOCAL_ONLY concept only made sense
+  // for a laptop app; on a VPS the dashboard is reached over the network by
+  // design, and tunnel/tailscale/headroom management must work from there.
+  // Security posture: the JWT cookie is SameSite=Lax (cross-origin browser
+  // POSTs cannot carry it), plus an explicit same-origin check below for
+  // defense in depth against clients that force cookies (curl/SSRF).
   if (await hasValidCliToken(request)) return true;
-  // Browser on host: loopback Host + Origin (blocks tunnel/CSRF) + auth (JWT or requireLogin=false)
+  if (await hasValidToken(request)) {
+    const origin = request.headers.get("origin");
+    if (!origin) return false; // same-origin fetch always sends Origin on POST
+    try {
+      const originHost = new URL(origin).host;
+      const host = request.headers.get("host") || "";
+      return originHost === host;
+    } catch { return false; }
+  }
+  // requireLogin=false mode: same-origin only (no session to prove identity)
   if (isLocalRequest(request) && await isAuthenticated(request)) return true;
   return false;
 }
@@ -217,6 +235,15 @@ export async function proxy(request) {
   }
 
   if (isPublicLlmApi(pathname)) {
+    // Record every hit on the LLM API surface (success or rejection) so the IP
+    // access log is complete. Fire-and-forget: must never slow down requests.
+    const settings = await loadSettings();
+    const clientIp = getClientIp(request);
+    if (settings?.blockedIps?.length && clientIp !== "unknown" && settings.blockedIps.includes(clientIp)) {
+      recordIpHit({ ip: clientIp, endpoint: pathname, status: "blocked" }).catch(() => {});
+      return NextResponse.json({ error: "Your IP address has been blocked" }, { status: 403 });
+    }
+    recordIpHit({ ip: clientIp, endpoint: pathname, status: "hit" }).catch(() => {});
     if (await canAccessPublicLlmApi(request)) return NextResponse.next();
     return NextResponse.json({ error: "API key required for remote API access" }, { status: 401 });
   }

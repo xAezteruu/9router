@@ -99,6 +99,12 @@ function getInputTokens(tokens) {
   return prompt < cache ? cache : prompt;
 }
 
+// Masked API key for display (same convention as server-side maskKey: first4...last4)
+function maskKey(key) {
+  if (!key || key.length < 8) return "***";
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+}
+
 export default function RequestDetailsTab() {
   const [details, setDetails] = useState([]);
   const [pagination, setPagination] = useState({
@@ -115,7 +121,8 @@ export default function RequestDetailsTab() {
   const [filters, setFilters] = useState({
     provider: "",
     startDate: "",
-    endDate: ""
+    endDate: "",
+    v1Only: true
   });
 
   const fetchProviders = useCallback(async () => {
@@ -141,6 +148,7 @@ export default function RequestDetailsTab() {
       if (filters.provider) params.append("provider", filters.provider);
       if (filters.startDate) params.append("startDate", filters.startDate);
       if (filters.endDate) params.append("endDate", filters.endDate);
+      if (filters.v1Only) params.append("endpoint", "v1");
 
       const res = await fetch(`/api/usage/request-details?${params}`);
       const data = await res.json();
@@ -245,6 +253,15 @@ export default function RequestDetailsTab() {
             </Button>
           </div>
         </div>
+        <label className="mt-3 flex items-center gap-2 text-xs text-text-muted cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={filters.v1Only}
+            onChange={(e) => setFilters({ ...filters, v1Only: e.target.checked })}
+            className="size-4 rounded border-black/20 dark:border-white/20"
+          />
+          Only show /v1 LLM API requests
+        </label>
       </Card>
 
       <Card padding="none">
@@ -255,6 +272,8 @@ export default function RequestDetailsTab() {
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Timestamp</th>
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Model</th>
                 <th className="text-left p-4 text-sm font-semibold text-text-main">Provider</th>
+                <th className="text-left p-4 text-sm font-semibold text-text-main">IP</th>
+                <th className="text-left p-4 text-sm font-semibold text-text-main">API Key</th>
                 <th className="text-right p-4 text-sm font-semibold text-text-main">Input Tokens</th>
                 <th className="text-right p-4 text-sm font-semibold text-text-main">Cached</th>
                 <th className="text-right p-4 text-sm font-semibold text-text-main">Cache Creation</th>
@@ -296,6 +315,12 @@ export default function RequestDetailsTab() {
                          {getProviderName(detail.provider, providerNameCache)}
                        </span>
                      </td>
+                    <td className="max-w-[140px] truncate p-4 font-mono text-sm text-text-muted">
+                      {detail.ip || "—"}
+                    </td>
+                    <td className="max-w-[120px] truncate p-4 font-mono text-sm text-text-muted">
+                      {detail.apiKey ? maskKey(detail.apiKey) : "—"}
+                    </td>
                     <td className="p-4 text-sm text-text-main text-right font-mono">
                       {getInputTokens(detail.tokens).toLocaleString()}
                     </td>
@@ -382,6 +407,14 @@ export default function RequestDetailsTab() {
                 <span className="text-text-main font-mono">
                   TTFT {selectedDetail.latency?.ttft || 0}ms / Total {selectedDetail.latency?.total || 0}ms
                 </span>
+              </div>
+              <div>
+                <span className="text-text-muted">IP:</span>{" "}
+                <span className="text-text-main font-mono">{selectedDetail.ip || "—"}</span>
+              </div>
+              <div>
+                <span className="text-text-muted">API Key:</span>{" "}
+                <span className="text-text-main font-mono">{selectedDetail.apiKey ? maskKey(selectedDetail.apiKey) : "—"}</span>
               </div>
               <div>
                 <span className="text-text-muted">Input Tokens:</span>{" "}

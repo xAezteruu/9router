@@ -36,6 +36,9 @@ export default function APIPageClient({ machineId }) {
   const [tunnelReachable, setTunnelReachable] = useState(false);
   const [tunnelUrl, setTunnelUrl] = useState("");
   const [tunnelPublicUrl, setTunnelPublicUrl] = useState("");
+  const [tunnelMode, setTunnelMode] = useState("quick");
+  const [tunnelTokenInput, setTunnelTokenInput] = useState("");
+  const [tunnelModeChoice, setTunnelModeChoice] = useState("quick");
   const [tunnelLoading, setTunnelLoading] = useState(false);
   const [tunnelProgress, setTunnelProgress] = useState("");
   const [tunnelStatus, setTunnelStatus] = useState(null);
@@ -180,6 +183,7 @@ export default function APIPageClient({ machineId }) {
       const tUrl = data.tunnel?.tunnelUrl || "";
       setTunnelUrl(tUrl);
       setTunnelPublicUrl(data.tunnel?.publicUrl || "");
+      setTunnelMode(data.tunnel?.mode || "quick");
       setTunnelEnabled(tEnabled);
       updateReachable(null, tunnelClientReachableRef, tunnelMissRef, setTunnelReachable, tunnelEverReachableRef, setTunnelEverReachable);
 
@@ -298,6 +302,7 @@ export default function APIPageClient({ machineId }) {
       })).catch(() => false);
       if (ok) {
         setTunnelEnabled(true);
+        setTunnelReachable(true);
         setTunnelLoading(false);
         setTunnelProgress("");
         return true;
@@ -324,11 +329,12 @@ export default function APIPageClient({ machineId }) {
     return false;
   };
 
-  const handleEnableTunnel = async () => {
+  const handleEnableTunnel = async (tunnelToken = null) => {
     setShowEnableTunnelModal(false);
     setTunnelLoading(true);
     setTunnelStatus(null);
-    setTunnelProgress("Creating tunnel...");
+    setTunnelProgress(tunnelToken ? "Connecting named tunnel..." : "Creating tunnel...");
+    setTunnelMode(tunnelToken ? "token" : "quick");
 
     // Poll download progress while enable request is pending
     let polling = true;
@@ -341,7 +347,7 @@ export default function APIPageClient({ machineId }) {
             if (s.download?.downloading) {
               setTunnelProgress(`Downloading cloudflared... ${s.download.progress}%`);
             } else if (polling) {
-              setTunnelProgress("Creating tunnel...");
+              setTunnelProgress(tunnelToken ? "Connecting named tunnel..." : "Creating tunnel...");
             }
           }
         } catch { /* ignore */ }
@@ -351,11 +357,24 @@ export default function APIPageClient({ machineId }) {
     pollProgress();
 
     try {
-      const res = await fetch("/api/tunnel/enable", { method: "POST" });
+      const res = await fetch("/api/tunnel/enable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tunnelToken ? { tunnelToken } : {}),
+      });
       polling = false;
       const data = await res.json();
       if (!res.ok) {
         setTunnelStatus({ type: "error", message: data.error || "Failed to enable tunnel" });
+        return;
+      }
+
+      if (data.mode === "token") {
+        // Named tunnel: hostname lives in the user's Cloudflare account — the
+        // endpoint is their own domain, nothing to ping from here.
+        setTunnelEnabled(true);
+        setTunnelReachable(true);
+        setTunnelStatus({ type: "success", message: "Named tunnel connected. Use your Cloudflare hostname as the endpoint." });
         return;
       }
 
@@ -367,6 +386,13 @@ export default function APIPageClient({ machineId }) {
 
       setTunnelUrl(url);
       setTunnelPublicUrl(data.publicUrl || "");
+      setTunnelEnabled(true);
+      // Optimistically flip to connected as soon as the backend reports running;
+      // pingTunnelHealth only *confirms* — it must never be the thing that gates
+      // the state update, or a browser-side ping failure freezes the UI on
+      // "Creating tunnel..." even though the tunnel is up (logged + registered).
+      setTunnelReachable(true);
+      setTunnelLoading(false);
       await pingTunnelHealth(data.publicUrl, url);
     } catch (error) {
       setTunnelStatus({ type: "error", message: error.message });
@@ -1166,23 +1192,76 @@ export default function APIPageClient({ machineId }) {
             </div>
           </div>
 
+          {/* Mode selection */}
           <div className="grid grid-cols-2 gap-3">
-            {TUNNEL_BENEFITS.map((benefit) => (
-              <div key={benefit.title} className="flex flex-col items-center text-center p-3 rounded-lg bg-sidebar/50">
-                <span className="material-symbols-outlined text-xl text-primary mb-1">{benefit.icon}</span>
-                <p className="text-xs font-semibold">{benefit.title}</p>
-                <p className="text-xs text-text-muted">{benefit.desc}</p>
-              </div>
-            ))}
+            <button
+              type="button"
+              onClick={() => setTunnelModeChoice("quick")}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${
+                tunnelModeChoice === "quick"
+                  ? "border-primary bg-primary/5"
+                  : "border-border-subtle bg-surface-2 hover:border-primary/40"
+              }`}
+            >
+              <span className="material-symbols-outlined text-primary text-xl">bolt</span>
+              <p className="text-sm font-semibold">Quick (Free)</p>
+              <p className="text-xs text-text-muted">Random trycloudflare.com URL, no account needed</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTunnelModeChoice("token")}
+              className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors ${
+                tunnelModeChoice === "token"
+                  ? "border-primary bg-primary/5"
+                  : "border-border-subtle bg-surface-2 hover:border-primary/40"
+              }`}
+            >
+              <span className="material-symbols-outlined text-primary text-xl">vpn_key</span>
+              <p className="text-sm font-semibold">Tunnel Token</p>
+              <p className="text-xs text-text-muted">Your own Cloudflare hostname via named tunnel</p>
+            </button>
           </div>
 
-          <p className="text-xs text-text-muted">
-            Requires outbound port 7844 (TCP/UDP). Connection may take 10-30s.
-          </p>
+          {tunnelModeChoice === "token" && (
+            <div className="flex flex-col gap-2">
+              <Input
+                label="Tunnel Token"
+                value={tunnelTokenInput}
+                onChange={(e) => setTunnelTokenInput(e.target.value)}
+                placeholder="eyJhIjoi..."
+                className="font-mono text-xs"
+              />
+              <p className="text-xs text-text-muted">
+                Cloudflare Dashboard → Zero Trust → Networks → Tunnels → Create tunnel → copy the token. Configure the public hostname (e.g. router.yourdomain.com → http://localhost:PORT) in the same place.
+              </p>
+            </div>
+          )}
+
+          {tunnelModeChoice === "quick" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {TUNNEL_BENEFITS.map((benefit) => (
+                  <div key={benefit.title} className="flex flex-col items-center text-center p-3 rounded-lg bg-sidebar/50">
+                    <span className="material-symbols-outlined text-xl text-primary mb-1">{benefit.icon}</span>
+                    <p className="text-xs font-semibold">{benefit.title}</p>
+                    <p className="text-xs text-text-muted">{benefit.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-text-muted">
+                Requires outbound port 7844 (TCP/UDP). Connection may take 10-30s.
+              </p>
+            </>
+          )}
 
           <div className="flex gap-2">
-            <Button onClick={handleEnableTunnel} fullWidth>
-              Start Tunnel
+            <Button
+              onClick={() => handleEnableTunnel(tunnelModeChoice === "token" ? tunnelTokenInput.trim() : null)}
+              fullWidth
+              disabled={tunnelModeChoice === "token" && !tunnelTokenInput.trim()}
+            >
+              {tunnelModeChoice === "token" ? "Connect with Token" : "Start Tunnel"}
             </Button>
             <Button onClick={() => setShowEnableTunnelModal(false)} variant="ghost" fullWidth>Cancel</Button>
           </div>

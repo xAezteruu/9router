@@ -1,7 +1,16 @@
 import { ProxyAgent, fetch as undiciFetch } from "undici";
+import { isSocksProxyUrl, createSocksDispatcher } from "./socksDispatcher.js";
 
 const DEFAULT_TEST_URL = "https://google.com/";
 const DEFAULT_TIMEOUT_MS = 8000;
+
+// SOCKS5 (e.g. Tor 127.0.0.1:9050) needs a socks dispatcher — undici ProxyAgent is HTTP CONNECT only.
+export async function createDispatcher(proxyUrl) {
+  if (isSocksProxyUrl(proxyUrl)) {
+    return createSocksDispatcher(proxyUrl);
+  }
+  return new ProxyAgent({ uri: proxyUrl });
+}
 
 function getErrorMessage(err) {
   if (!err) return "Unknown error";
@@ -42,7 +51,7 @@ export async function testProxyUrl({ proxyUrl, testUrl, timeoutMs } = {}) {
 
   try {
     try {
-      dispatcher = new ProxyAgent({ uri: normalizedProxyUrl });
+      dispatcher = await createDispatcher(normalizedProxyUrl);
     } catch (err) {
       return {
         ok: false,

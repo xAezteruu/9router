@@ -3,7 +3,7 @@
 // pre-change safety backup in migrate.js: when the stored version is lower,
 // one lightweight DB backup is taken before applying schema changes. Forgetting
 // to bump only skips that backup — it does NOT break the additive auto-sync.
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 4;
 
 export const PRAGMA_SQL = `
 PRAGMA journal_mode = WAL;
@@ -117,6 +117,7 @@ export const TABLES = {
       endpoint: "TEXT",
       promptTokens: "INTEGER DEFAULT 0",
       completionTokens: "INTEGER DEFAULT 0",
+      ip: "TEXT",
       cost: "REAL DEFAULT 0",
       status: "TEXT",
       tokens: "TEXT",
@@ -127,6 +128,7 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_uh_provider ON usageHistory(provider)",
       "CREATE INDEX IF NOT EXISTS idx_uh_model ON usageHistory(model)",
       "CREATE INDEX IF NOT EXISTS idx_uh_conn ON usageHistory(connectionId)",
+      "CREATE INDEX IF NOT EXISTS idx_uh_ip ON usageHistory(ip)",
     ],
   },
   usageDaily: {
@@ -135,6 +137,22 @@ export const TABLES = {
       data: "TEXT NOT NULL",
     },
   },
+  // Every hit on the LLM API surface, success or rejection. Single source of
+  // truth for the IP access log — recorded in dashboardGuard before auth
+  // outcomes are known, so probing/rejected traffic shows up too.
+  ipAccessLog: {
+    columns: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      timestamp: "TEXT NOT NULL",
+      ip: "TEXT NOT NULL",
+      endpoint: "TEXT",
+      status: "TEXT",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_ial_ip ON ipAccessLog(ip)",
+      "CREATE INDEX IF NOT EXISTS idx_ial_ts ON ipAccessLog(timestamp DESC)",
+    ],
+  },
   requestDetails: {
     columns: {
       id: "TEXT PRIMARY KEY",
@@ -142,6 +160,9 @@ export const TABLES = {
       provider: "TEXT",
       model: "TEXT",
       connectionId: "TEXT",
+      ip: "TEXT",
+      apiKey: "TEXT",
+      endpoint: "TEXT",
       status: "TEXT",
       data: "TEXT NOT NULL",
     },
@@ -150,6 +171,8 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_rd_provider ON requestDetails(provider)",
       "CREATE INDEX IF NOT EXISTS idx_rd_model ON requestDetails(model)",
       "CREATE INDEX IF NOT EXISTS idx_rd_conn ON requestDetails(connectionId)",
+      "CREATE INDEX IF NOT EXISTS idx_rd_ip ON requestDetails(ip)",
+      "CREATE INDEX IF NOT EXISTS idx_rd_endpoint ON requestDetails(endpoint)",
     ],
   },
 };

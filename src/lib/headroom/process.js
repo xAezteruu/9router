@@ -2,7 +2,8 @@ import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
 import { DATA_DIR } from "@/lib/dataDir.js";
-import { findHeadroomBinary, findPython310, HEADROOM_COMPRESSION_EXTRAS, EXTRA_MARKERS, getInstalledHeadroomExtras } from "./detect.js";
+import { findPython310, findHeadroomBinary, HEADROOM_COMPRESSION_EXTRAS, EXTRA_MARKERS, getInstalledHeadroomExtras } from "./detect.js";
+import { VENV_CLI } from "./native.js";
 
 const HEADROOM_DIR = path.join(DATA_DIR, "headroom");
 const PID_FILE = path.join(HEADROOM_DIR, "proxy.pid");
@@ -54,7 +55,8 @@ function extrasProxyArgs({ codeAware, kompress } = {}) {
 
 export async function startHeadroomProxy({ port = DEFAULT_PORT, codeAware = false, kompress = true } = {}) {
   const safePort = Number(port) > 0 && Number(port) < 65536 ? Number(port) : DEFAULT_PORT;
-  const binary = findHeadroomBinary();
+  // Native venv CLI first (bundled install), then PATH discovery (external pip).
+  const binary = fs.existsSync(VENV_CLI) ? VENV_CLI : findHeadroomBinary();
   if (!binary) {
     const err = new Error("Headroom CLI not installed");
     err.code = "NOT_INSTALLED";

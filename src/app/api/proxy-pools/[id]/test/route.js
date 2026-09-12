@@ -45,7 +45,20 @@ export async function POST(request, { params }) {
 
     const result = proxyPool.type === "vercel" || proxyPool.type === "cloudflare" || proxyPool.type === "deno"
       ? await testVercelRelay(proxyPool.proxyUrl)
-      : await testProxyUrl({ proxyUrl: proxyPool.proxyUrl });
+      : await (async () => {
+          // Self-healing: the bundled Tor daemon may not be running after a
+          // restart (pool entry persists, process doesn't). Start it on demand
+          // so Test reflects reality instead of ECONNREFUSED.
+          if (proxyPool.proxyUrl?.includes(":9051")) {
+            try {
+              const { startBundledTor } = await import("@/lib/network/bundledTor.js");
+              await startBundledTor();
+            } catch (e) {
+              console.warn(`[ProxyTest] bundled Tor start failed: ${e.message}`);
+            }
+          }
+          return testProxyUrl({ proxyUrl: proxyPool.proxyUrl });
+        })();
     const now = new Date().toISOString();
 
     await updateProxyPool(id, {

@@ -13,7 +13,10 @@ export {
   isCloudflaredRunning,
   ensureCloudflared,
   getDownloadStatus,
-} from "./cloudflare/cloudflared.js";
+  checkCloudflaredUpdate,
+  updateCloudflared,
+  getInstalledCloudflaredVersion,
+} from "./cloudflare/cloudflaredUpdaterReexport.js";
 export { probeUrlAlive as probeCloudflareAlive } from "./cloudflare/healthCheck.js";
 
 // Tailscale service

@@ -19,6 +19,8 @@ export async function GET(request) {
     const status = searchParams.get("status");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    // endpoint=v1 → only requests that came through the LLM API (/v1/* etc.)
+    const endpoint = searchParams.get("endpoint") || (searchParams.get("v1Only") === "true" ? "v1" : null);
     
     if (page < 1) {
       return NextResponse.json(
@@ -45,6 +47,7 @@ export async function GET(request) {
     if (status) filter.status = status;
     if (startDate) filter.startDate = startDate;
     if (endDate) filter.endDate = endDate;
+    if (endpoint) filter.endpoint = endpoint;
     
     const result = await getRequestDetails(filter);
 

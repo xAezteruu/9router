@@ -107,10 +107,13 @@ async function flushToDatabase() {
             provider: item.provider || null,
             model: item.model || null,
             connectionId: item.connectionId || null,
+            ip: item.ip || null,
+            apiKey: item.apiKey || null,
             timestamp: item.timestamp,
             status: item.status || null,
             latency: item.latency || {},
             tokens: item.tokens || {},
+            endpoint: item.endpoint || null,
             request: truncateField(item.request, config.maxJsonSize),
             providerRequest: truncateField(item.providerRequest, config.maxJsonSize),
             providerResponse: truncateField(item.providerResponse, config.maxJsonSize),
@@ -119,8 +122,8 @@ async function flushToDatabase() {
           };
 
           db.run(
-            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, status = excluded.status, data = excluded.data`,
-            [record.id, record.timestamp, record.provider, record.model, record.connectionId, record.status, stringifyJson(record)]
+            `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, ip, apiKey, endpoint, status, data) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, ip = excluded.ip, apiKey = excluded.apiKey, endpoint = excluded.endpoint, status = excluded.status, data = excluded.data`,
+            [record.id, record.timestamp, record.provider, record.model, record.connectionId, record.ip, record.apiKey, record.endpoint, record.status, stringifyJson(record)]
           );
         }
 
@@ -168,6 +171,15 @@ export async function getRequestDetails(filter = {}) {
   if (filter.model) { conds.push("model = ?"); params.push(filter.model); }
   if (filter.connectionId) { conds.push("connectionId = ?"); params.push(filter.connectionId); }
   if (filter.status) { conds.push("status = ?"); params.push(filter.status); }
+  // Only requests that arrived through the LLM API surface. The stored value is
+  // the PUBLIC path the client called (Next rewrites keep it): /v1/*, /v1beta/*,
+  // /codex/*, /responses — and the internal /api/v1* form.
+  if (filter.endpoint === "v1") {
+    conds.push("(endpoint LIKE '/v1/%' OR endpoint LIKE '/api/v1%' OR endpoint LIKE '/v1beta%' OR endpoint LIKE '/api/v1beta%' OR endpoint LIKE '/codex%' OR endpoint LIKE '/responses%')");
+  } else if (filter.endpoint) {
+    conds.push("endpoint = ?");
+    params.push(filter.endpoint);
+  }
   if (filter.startDate) { conds.push("timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
   if (filter.endDate) { conds.push("timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
 

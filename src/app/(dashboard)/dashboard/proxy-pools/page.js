@@ -105,6 +105,31 @@ export default function ProxyPoolsPage() {
     resetForm();
   };
 
+  // One-click bundled Tor: extracts + starts the embedded Tor daemon and creates
+  // the pool automatically — no apt, no docker, no manual config.
+  const handleAddTor = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/proxy-pools", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ensureTor: true }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchProxyPools();
+        notify.success("Tor pool ready (socks5://127.0.0.1:9051)");
+      } else {
+        notify.error(data.error || "Failed to set up Tor");
+      }
+    } catch (error) {
+      console.log("Error setting up Tor:", error);
+      notify.error("Failed to set up Tor");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSave = async () => {
     const payload = {
       name: formData.name.trim(),
@@ -238,6 +263,14 @@ export default function ProxyPoolsPage() {
 
   const bulkDelete = async () => {
     if (selectedIds.length === 0) return;
+    const protectedSelected = selectedIds.filter((id) => {
+      const pool = proxyPools.find((p) => p.id === id);
+      return pool?.name === "Tor (bundled)";
+    });
+    if (protectedSelected.length > 0) {
+      notify.warning(`${protectedSelected.length} Tor pool(s) are managed automatically and cannot be deleted.`);
+      return;
+    }
     setConfirmState({
       title: "Delete Proxy Pools",
       message: `Delete ${selectedIds.length} proxy pool(s)?`,
@@ -632,6 +665,11 @@ export default function ProxyPoolsPage() {
           <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
             Batch Import
           </Button>
+          {!proxyPools.some((p) => p.proxyUrl?.includes(":9051")) && (
+            <Button size="sm" variant="secondary" icon="shield" onClick={handleAddTor} disabled={saving}>
+              Add Tor
+            </Button>
+          )}
           <Button size="sm" icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
         </div>
       </div>
@@ -726,7 +764,7 @@ export default function ProxyPoolsPage() {
                       {pool.boundConnectionCount || 0} bound
                     </Badge>
                   </div>
-                  <p className="text-xs text-text-muted truncate mt-1">{pool.proxyUrl}</p>
+                  <p className="text-xs text-text-muted truncate mt-1">{pool.name === "Tor (bundled)" ? "Built-in Tor daemon · internal" : pool.proxyUrl}</p>
                   {pool.noProxy ? (
                     <p className="text-xs text-text-muted truncate">No proxy: {pool.noProxy}</p>
                   ) : null}
@@ -764,13 +802,15 @@ export default function ProxyPoolsPage() {
                   >
                     <span className="material-symbols-outlined text-[18px]">edit</span>
                   </button>
-                  <button
-                    onClick={() => handleDelete(pool)}
-                    className="p-2 rounded hover:bg-red-500/10 text-red-500"
-                    title="Delete"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
+                  {pool.name !== "Tor (bundled)" && (
+                    <button
+                      onClick={() => handleDelete(pool)}
+                      className="p-2 rounded hover:bg-red-500/10 text-red-500"
+                      title="Delete"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1000,7 +1040,8 @@ export default function ProxyPoolsPage() {
             label="Proxy URL"
             value={formData.proxyUrl}
             onChange={(e) => setFormData((prev) => ({ ...prev, proxyUrl: e.target.value }))}
-            placeholder="http://127.0.0.1:7897"
+            placeholder="http://127.0.0.1:7897 or socks5://127.0.0.1:9050 (Tor)"
+            hint="Supports http:// and socks5:// (Tor SOCKS port)"
           />
           <Input
             label="No Proxy"

@@ -25,6 +25,15 @@ services:
     ports:
       - "8787:8787"
 
+  # Tor SOCKS proxy for the 9router proxy pool: add a pool with
+  # socks5://tor:9050 (SOCKS) or http://tor:8118 (HTTP via Privoxy)
+  tor:
+    image: dperson/torproxy:latest
+    container_name: 9router-tor
+    restart: always
+    ports:
+      - "127.0.0.1:9050:9050"
+
 volumes:
   9router-data:
     name: 9router-data

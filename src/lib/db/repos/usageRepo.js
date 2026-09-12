@@ -78,6 +78,7 @@ function aggregateEntryToDay(day, entry) {
   day.byAccount ||= {};
   day.byApiKey ||= {};
   day.byEndpoint ||= {};
+  day.byIp ||= {};
 
   if (entry.provider) addToCounter(day.byProvider, entry.provider, vals);
 
@@ -95,6 +96,12 @@ function aggregateEntryToDay(day, entry) {
   const endpoint = entry.endpoint || "Unknown";
   const epKey = `${endpoint}|${entry.model}|${entry.provider || "unknown"}`;
   addToCounter(day.byEndpoint, epKey, { ...vals, meta: { endpoint, rawModel: entry.model, provider: entry.provider } });
+
+  // Per-IP access log — always tracked (independent of observability toggle)
+  if (entry.ip) {
+    const ipModelKey = `${entry.ip}|${entry.model}|${entry.provider || "unknown"}`;
+    addToCounter(day.byIp, ipModelKey, { ...vals, meta: { ip: entry.ip, rawModel: entry.model, provider: entry.provider } });
+  }
 }
 
 function pushToRing(entry) {
@@ -261,12 +268,13 @@ export async function saveRequestUsage(entry) {
            AND COALESCE(model, '') = COALESCE(?, '')
            AND COALESCE(connectionId, '') = COALESCE(?, '')
            AND COALESCE(apiKey, '') = COALESCE(?, '')
+           AND COALESCE(ip, '') = COALESCE(?, '')
            AND promptTokens = ?
            AND completionTokens = ?
          ORDER BY id DESC LIMIT 1`,
         [
           entry.timestamp, entry.provider || null, entry.model || null,
-          entry.connectionId || null, entry.apiKey || null,
+          entry.connectionId || null, entry.apiKey || null, entry.ip || null,
           promptTokens, completionTokens,
         ]
       );
@@ -279,10 +287,11 @@ export async function saveRequestUsage(entry) {
       }
 
       db.run(
-        `INSERT INTO usageHistory(timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, status, tokens, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO usageHistory(timestamp, provider, model, connectionId, apiKey, endpoint, ip, promptTokens, completionTokens, cost, status, tokens, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           entry.timestamp, entry.provider || null, entry.model || null,
           entry.connectionId || null, entry.apiKey || null, entry.endpoint || null,
+          entry.ip || null,
           promptTokens, completionTokens, entry.cost || 0, entry.status || "ok",
           stringifyJson(tokens), stringifyJson({}),
         ]
@@ -738,6 +747,60 @@ function formatLogDate(date = new Date()) {
 
 // No-op: request log is now derived from usageHistory table on read.
 export async function appendRequestLog() {}
+
+// Record one hit on the LLM API surface. Always-on (no observability gate):
+// the access log must show probing/rejected traffic too. Fire-and-forget safe.
+export async function recordIpHit({ ip, endpoint = null, status = "hit" } = {}) {
+  try {
+    if (!ip || ip === "unknown") return;
+    const db = await getAdapter();
+    db.run(
+      `INSERT INTO ipAccessLog(timestamp, ip, endpoint, status) VALUES(?, ?, ?, ?)`,
+      [new Date().toISOString(), ip, endpoint || null, status || "hit"]
+    );
+  } catch (e) {
+    console.error("[usageRepo] recordIpHit failed:", e.message);
+  }
+}
+
+// Distinct IPs that have hit the LLM API, with total request count + last seen.
+// Primary source: ipAccessLog (one row per hit, recorded in dashboardGuard for
+// every /v1-family request — success or rejection). Older rows from
+// usageHistory/requestDetails are merged in so pre-existing history still shows.
+export async function getIpAccessLog() {
+  const totals = new Map(); // ip -> { requests, lastSeen }
+  const add = (ip, c, last) => {
+    if (!ip) return;
+    const cur = totals.get(ip);
+    totals.set(ip, {
+      requests: (cur?.requests || 0) + c,
+      lastSeen: last > (cur?.lastSeen || "") ? last : cur?.lastSeen || last,
+    });
+  };
+  try {
+    const db = await getAdapter();
+    const hits = db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM ipAccessLog GROUP BY ip`);
+    for (const r of hits) add(r.ip, r.c, r.last);
+    // Legacy fallback: only when ipAccessLog is still empty (pre-existing rows
+    // from before per-hit logging). Merging always would double-count, since a
+    // successful request lands in both ipAccessLog and usageHistory.
+    if (hits.length === 0) {
+      for (const r of db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM usageHistory WHERE ip IS NOT NULL GROUP BY ip`)) {
+        add(r.ip, r.c, r.last);
+      }
+      try {
+        for (const r of db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM requestDetails WHERE ip IS NOT NULL GROUP BY ip`)) {
+          add(r.ip, r.c, r.last);
+        }
+      } catch { /* requestDetails.ip may not exist on very old DBs */ }
+    }
+  } catch (e) {
+    console.error("[usageRepo] getIpAccessLog failed:", e.message);
+  }
+  return Array.from(totals.entries())
+    .map(([ip, v]) => ({ ip, requests: v.requests, lastSeen: v.lastSeen }))
+    .sort((a, b) => (b.lastSeen || "").localeCompare(a.lastSeen || ""));
+}
 
 export async function getRecentLogs(limit = 200) {
   try {

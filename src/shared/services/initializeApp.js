@@ -99,6 +99,25 @@ async function runHeavyStartup() {
 
   if (settings.tunnelEnabled) ensureCloudflared().catch(() => {});
 
+  // Auto-start bundled Tor daemon when a Tor pool exists (once per process).
+  // Without this, a restart leaves the pool entry pointing at a dead SOCKS
+  // port and the Test button reports ECONNREFUSED until the user re-adds Tor.
+  if (!g.torAutoResumed) {
+    g.torAutoResumed = true;
+    (async () => {
+      try {
+        const { getProxyPools } = await import("@/models");
+        const pools = await getProxyPools();
+        if (pools.some((p) => p.proxyUrl?.includes(":9051"))) {
+          const { startBundledTor } = await import("@/lib/network/bundledTor.js");
+          await startBundledTor();
+        }
+      } catch (e) {
+        console.log("[InitApp] Bundled Tor auto-start skipped:", e.message);
+      }
+    })();
+  }
+
   if (settings.mitmEnabled) {
     // Sync mitmAlias DB → JSON cache so standalone MITM server can read it.
     syncMitmAliasCache().catch(() => {});
@@ -185,7 +204,9 @@ async function safeRestartTunnel(reason) {
 
   console.log(`[Tunnel] safeRestart (${reason}) — tunnel unreachable${force ? " [force]" : ""}`);
   try {
-    await enableTunnel();
+    // Pass settings so enableTunnel can restore a saved token tunnel (auto-start
+    // after restart) instead of downgrading to a quick URL.
+    await enableTunnel(undefined, { settingsRef: settings });
     svc.lastRestartAt = Date.now();
     console.log("[Tunnel] restart success");
   } catch (err) {

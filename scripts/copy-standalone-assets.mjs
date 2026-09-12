@@ -37,6 +37,22 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
     cpSync(serverWrapperSource, serverWrapperDestination, { force: true });
     console.log(`[standalone-assets] Copied custom-server.js to ${serverWrapperDestination}`);
   }
+
+  // Native helper binaries used at runtime by tunnel/network features:
+  //  - cloudflared package binary (tunnel)
+  //  - kmp-tor bundled Tor resources (socks proxy, extracted on demand)
+  const pkgSource = resolve(projectRoot, "node_modules", "cloudflared", "bin");
+  const pkgDest = resolve(standaloneDir, "node_modules", "cloudflared", "bin");
+  if (existsSync(pkgSource)) {
+    cpSync(pkgSource, pkgDest, { recursive: true, force: true });
+    console.log(`[standalone-assets] Copied cloudflared binary to ${pkgDest}`);
+  }
+  const torSource = resolve(projectRoot, "node_modules", "kmp-tor.resource-exec-tor.linux-libc");
+  const torDest = resolve(standaloneDir, "node_modules", "kmp-tor.resource-exec-tor.linux-libc");
+  if (existsSync(torSource)) {
+    cpSync(torSource, torDest, { recursive: true, force: true });
+    console.log(`[standalone-assets] Copied kmp-tor resources to ${torDest}`);
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(dirname(fileURLToPath(import.meta.url)), "copy-standalone-assets.mjs")) {

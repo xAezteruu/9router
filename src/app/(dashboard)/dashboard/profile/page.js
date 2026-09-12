@@ -649,6 +649,41 @@ export default function ProfilePage() {
     }
   };
 
+  // IP access log + block/unblock (LLM API only)
+  const [ipAccessLog, setIpAccessLog] = useState([]);
+  const fetchIpAccessLog = async () => {
+    try {
+      const res = await fetch("/api/usage/ip-access-log");
+      if (!res.ok) return;
+      const data = await res.json();
+      setIpAccessLog(data.ips || []);
+      if (Array.isArray(data.blockedIps)) {
+        setSettings(prev => ({ ...prev, blockedIps: data.blockedIps }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch IP access log:", err);
+    }
+  };
+  useEffect(() => {
+    fetchIpAccessLog();
+  }, []);
+
+  const toggleBlockedIp = async (ip, blocked) => {
+    try {
+      const res = await fetch("/api/usage/ip-access-log", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip, blocked }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSettings(prev => ({ ...prev, blockedIps: data.blockedIps || [] }));
+      fetchIpAccessLog();
+    } catch (err) {
+      console.error("Failed to update IP blocklist:", err);
+    }
+  };
+
   const reloadSettings = async () => {
     try {
       const res = await fetch("/api/settings");
@@ -1619,6 +1654,63 @@ export default function ProfilePage() {
               disabled={loading}
             />
           </div>
+        </Card>
+
+        {/* IP Access Control */}
+        <Card>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-red-500/10 text-red-500 shrink-0">
+              <span className="material-symbols-outlined text-[20px]">block</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-semibold">IP Access Control</h3>
+          </div>
+          <p className="text-xs sm:text-sm text-text-muted mb-4">
+            Client IPs seen on the LLM API. Blocked IPs get HTTP 403 on all /v1 API endpoints (dashboard access is not affected).
+          </p>
+          {ipAccessLog.length === 0 ? (
+            <p className="text-sm text-text-muted">No client IPs recorded yet.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {ipAccessLog.map((entry) => {
+                const blocked = (settings.blockedIps || []).includes(entry.ip);
+                return (
+                  <div key={entry.ip} className="flex items-center justify-between gap-3 rounded-lg border border-black/5 dark:border-white/5 px-3 py-2">
+                    <div className="min-w-0">
+                      <span className="font-mono text-sm text-text-main break-all">{entry.ip}</span>
+                      <span className="ml-2 text-xs text-text-muted">
+                        {entry.requests} req · last {entry.lastSeen ? new Date(entry.lastSeen).toLocaleString() : "—"}
+                      </span>
+                    </div>
+                    <Button
+                      variant={blocked ? "outline" : "ghost"}
+                      size="sm"
+                      onClick={() => toggleBlockedIp(entry.ip, !blocked)}
+                      className={blocked ? "text-red-500 border-red-200 hover:bg-red-50" : "text-text-muted"}
+                    >
+                      {blocked ? "Unblock" : "Block"}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {(settings.blockedIps || []).filter((ip) => !ipAccessLog.some((e) => e.ip === ip)).length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <p className="text-xs text-text-muted mb-2">Manually blocked (not seen yet):</p>
+              <div className="flex flex-col gap-2">
+                {settings.blockedIps
+                  .filter((ip) => !ipAccessLog.some((e) => e.ip === ip))
+                  .map((ip) => (
+                    <div key={ip} className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-sm text-text-main break-all">{ip}</span>
+                      <Button variant="outline" size="sm" onClick={() => toggleBlockedIp(ip, false)} className="text-red-500 border-red-200 hover:bg-red-50">
+                        Unblock
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Account actions */}
