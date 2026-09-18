@@ -803,20 +803,19 @@ export async function getIpAccessLog() {
   try {
     const db = await getAdapter();
     const hits = db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM ipAccessLog GROUP BY ip`);
+    // Merge ipAccessLog, usageHistory, and requestDetails so hits from all
+    // logging layers show up. Keyed by IP, summing counts, tracking latest seen.
     for (const r of hits) add(r.ip, r.c, r.last);
-    // Legacy fallback: only when ipAccessLog is still empty (pre-existing rows
-    // from before per-hit logging). Merging always would double-count, since a
-    // successful request lands in both ipAccessLog and usageHistory.
-    if (hits.length === 0) {
+    try {
       for (const r of db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM usageHistory WHERE ip IS NOT NULL GROUP BY ip`)) {
         add(r.ip, r.c, r.last);
       }
-      try {
-        for (const r of db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM requestDetails WHERE ip IS NOT NULL GROUP BY ip`)) {
-          add(r.ip, r.c, r.last);
-        }
-      } catch { /* requestDetails.ip may not exist on very old DBs */ }
-    }
+    } catch {}
+    try {
+      for (const r of db.all(`SELECT ip, COUNT(*) AS c, MAX(timestamp) AS last FROM requestDetails WHERE ip IS NOT NULL GROUP BY ip`)) {
+        add(r.ip, r.c, r.last);
+      }
+    } catch { /* requestDetails.ip may not exist on very old DBs */ }
   } catch (e) {
     console.error("[usageRepo] getIpAccessLog failed:", e.message);
   }
