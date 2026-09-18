@@ -6,19 +6,43 @@ import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 
-const OPENCODE_UA = "opencode";
+const OPENCODE_UA = "opencode/1.18.30";
 // Models served by /zen/v1/responses; every other model stays on /chat/completions.
 const RESPONSES_MODELS = new Set([
   "muse-spark-1.2-contributor-free",
   "muse-spark-1.3-contributor-free",
 ]);
 
+let _lt = 0;
+let _cnt = 0;
+const _b62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+function generateOpenCodeId(desc, now = Date.now()) {
+  if (now !== _lt) {
+    _lt = now;
+    _cnt = 0;
+  }
+  _cnt++;
+  const val = BigInt(now) * 4096n + BigInt(_cnt);
+  const a = desc ? ~val : val;
+  let hex = "";
+  for (let i = 0; i < 6; i++) {
+    hex += Number((a >> BigInt(40 - 8 * i)) & 255n).toString(16).padStart(2, "0");
+  }
+  const rb = crypto.randomBytes(14);
+  let rs = "";
+  for (let i = 0; i < 14; i++) {
+    rs += _b62[rb[i] % 62];
+  }
+  return hex + rs;
+}
+
 function generateRequestId() {
-  return `msg_${crypto.randomUUID().replace(/-/g, "")}`;
+  return `msg_${generateOpenCodeId(false)}`;
 }
 
 function generateSessionId() {
-  return `ses_${crypto.randomUUID().replace(/-/g, "")}`;
+  return `ses_${generateOpenCodeId(true)}`;
 }
 
 // Strip the thinking suffix "model(level)" so registry lookups hit the base id.
@@ -89,9 +113,14 @@ export class OpenCodeExecutor extends BaseExecutor {
 
   buildUrl(model) {
     const base = this.config.baseUrl;
-    return isResponsesModel(model)
-      ? `${base}/zen/v1/responses`
-      : `${base}/zen/v1/chat/completions`;
+    const cleanModel = baseModelId(model);
+    if (isResponsesModel(model)) {
+      return `${base}/zen/v1/responses`;
+    }
+    if (cleanModel === "union-alpha" || cleanModel === "union-alpha-free") {
+      return `${base}/zen/v1/messages`;
+    }
+    return `${base}/zen/v1/chat/completions`;
   }
 
   buildHeaders(credentials, stream = true) {
@@ -101,11 +130,13 @@ export class OpenCodeExecutor extends BaseExecutor {
 
     const downstreamUa = lower["user-agent"] || "";
     const isOpencodeDownstream = downstreamUa.toLowerCase().includes("opencode");
+    const auth = credentials?.apiKey ? `Bearer ${credentials.apiKey}` : "Bearer public";
 
     return {
       "Content-Type": "application/json",
-      "Authorization": "Bearer public",
-      "User-Agent": isOpencodeDownstream ? downstreamUa : OPENCODE_UA,
+      "Authorization": auth,
+      "anthropic-version": "2023-06-01",
+      "User-Agent": isOpencodeDownstream ? downstreamUa : "opencode/1.18.30",
       "x-opencode-client": lower["x-opencode-client"] || "desktop",
       "x-opencode-session": lower["x-opencode-session"] || this._currentSessionId || generateSessionId(),
       "x-opencode-request": lower["x-opencode-request"] || generateRequestId(),

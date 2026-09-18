@@ -20,6 +20,8 @@ export default {
     noAuth: true,
   },
   models: [
+    { id: "union-alpha", name: "Union Alpha Free", targetFormat: "claude" },
+    { id: "union-alpha-free", name: "Union Alpha Free", targetFormat: "claude", upstreamModelId: "union-alpha" },
     // Muse Spark models are served by /zen/v1/responses; the rest stay on
     // /chat/completions, so the format is declared per-model, not per-provider.
     { id: "muse-spark-1.2-contributor-free", name: "Muse Spark 1.2 Contributor Free", targetFormat: "openai-responses" },

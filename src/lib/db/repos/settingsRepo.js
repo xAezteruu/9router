@@ -23,6 +23,11 @@ const DEFAULT_SETTINGS = {
     audioInput: { enabled: true, roundRobin: false, models: [] },
     videoInput: { enabled: false, roundRobin: false, models: [] },
   },
+  customPlugins: {
+    imageVision: { enabled: false, models: [] },
+    thinkDeeper: { enabled: false, models: [] },
+    unrestrictedMode: { enabled: false, models: [] },
+  },
   requireLogin: true,
   requireApiKey: true,
   tunnelDashboardAccess: true,
