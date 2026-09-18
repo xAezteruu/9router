@@ -2,6 +2,8 @@
 
 ## Custom Features & Enhancements
 - **DeepSeek Web (Cookie) Provider**: added `deepseek-web` under the Web Cookie Providers category (positioned between Free Tier and API Key providers). Supports web session token auth (`userToken` from `chat.deepseek.com`), streaming responses, and reasoning content (`<think>`) for models: `deepseek-chat`, `deepseek-reasoner`, `deepseek-v4.1-flash`, `deepseek-v4.1-pro`, `deepseek-v4.1-reasoner`, `deepseek-v3`, and `deepseek-r1`.
+- **Remove Automatic Backup**: decommissioned the scheduled automatic background backup feature and modal to keep the app lightweight, retaining the standard manual Download Backup and Import Backup tools.
+- **Selective Backup Download**: the Download Backup dialog now lets you pick which sections to include (Settings, Providers, API Keys, Combos, Custom Models, Pricing, Usage History). Each section shows its item count and estimated byte size, and the total selected size updates in realtime. Heavy sections (e.g. Usage History) are unchecked by default. Old full backups remain fully import-compatible.
 
 # v0.5.98-Custom (2026-09-17)
 
