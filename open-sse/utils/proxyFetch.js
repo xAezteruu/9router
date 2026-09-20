@@ -169,6 +169,12 @@ function shouldBypassByNoProxy(targetUrl, noProxyValue) {
  * Get proxy URL from environment
  */
 function getEnvProxyUrl(targetUrl) {
+  // Providers requiring direct connection (no proxy/Tor)
+  try {
+    const hostname = new URL(targetUrl).hostname;
+    if (hostname === "opencode.ai" || hostname === "opencode-go.ai" || hostname === "deepseek.com" || hostname === "ai.teru.my.id") return null;
+  } catch { /* ignore */ }
+
   const noProxy = process.env.NO_PROXY || process.env.no_proxy;
   if (shouldBypassByNoProxy(targetUrl, noProxy)) return null;
 

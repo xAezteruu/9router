@@ -489,6 +489,17 @@ function extractMessageText(content) {
 }
 
 const DEFAULT_AUTO_HISTORY_WINDOW = 20;
+const { execSync } = await import("child_process");
+
+// Execute bash command inline (for DeepSeek tool calling)
+function executeBashCommand(command) {
+  try {
+    const output = execSync(command, { encoding: "utf-8", maxBuffer: 1024 * 1024 });
+    return output.trim();
+  } catch (e) {
+    return `Error executing command: ${e.message || e.stderr || "unknown error"}`;
+  }
+}
 
 export function messagesToPrompt(messages, historyWindow = 0) {
   if (!messages || messages.length === 0) return "";
@@ -504,7 +515,13 @@ export function messagesToPrompt(messages, historyWindow = 0) {
       if (text) conversation.push({ role: m.role, text });
       if (m.role === "user") lastUserContent = text;
     } else if (m.role === "tool") {
-      if (text) conversation.push({ role: "tool", text: `(${m.name || "tool"}) ${text}` });
+      // Execute bash command if tool name is 'bash'
+      let executedText = text;
+      if (m.name === "bash" && text) {
+        const result = executeBashCommand(text);
+        executedText = `Output: ${result}`;
+      }
+      if (executedText) conversation.push({ role: "tool", text: `(${m.name || "tool"}) ${executedText}` });
     }
   }
 

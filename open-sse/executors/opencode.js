@@ -4,7 +4,7 @@ import { PROVIDERS } from "../config/providers.js";
 import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
 import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
-import { resolveSessionId } from "../utils/sessionManager.js";
+import { resolveSessionIdentity } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 import { ANTHROPIC_API_VERSION } from "../providers/shared.js";
 import {
@@ -472,22 +472,13 @@ export class OpenCodeExecutor extends BaseExecutor {
 
   transformRequest(model, body, stream, credentials) {
     if (body && typeof body === "object" && model && !body.model) body.model = model;
-    // Zen rejects non-streaming requests on free models with 403 FreeTierError;
-    // always stream upstream and let the handler layer aggregate for non-stream clients.
     if (body && typeof body === "object") body.stream = true;
     if (isResponsesModel(model || body?.model) && body && typeof body === "object") {
-      // ponytail: chỉ model đã xác nhận auto-only; mở allowlist khi có bằng chứng.
-      if ("tool_choice" in body && body.tool_choice !== "auto"
-        && this.config.quirks?.forceAutoToolChoiceModels?.includes(baseModelId(model))) {
-        body.tool_choice = "auto";
-      }
       const normalized = normalizeResponsesInput(body.input);
       if (normalized) body.input = normalized;
       if (!Array.isArray(body.input) || body.input.length === 0) {
         body.input = [{ type: "message", role: "user", content: [{ type: "input_text", text: "..." }] }];
       }
-      // Responses API names the output cap max_output_tokens and takes thinking
-      // as reasoning:{effort,summary} — normalize the Chat fields at this boundary.
       if (body.max_output_tokens === undefined) {
         if (body.max_completion_tokens !== undefined) body.max_output_tokens = body.max_completion_tokens;
         else if (body.max_tokens !== undefined) body.max_output_tokens = body.max_tokens;
@@ -495,15 +486,36 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_tokens;
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
-      body.stream = true;
       body.store = false;
       normalizeResponsesTools(body);
       sanitizeResponsesItems(body);
-      if (!Array.isArray(body.tools) || body.tools.length === 0) {
-        cloakOpencodeTools(body, true);
-      }
     } else if (body && typeof body === "object") {
-      cloakOpencodeTools(body, false);
+      // Free-tier request contract: upstream /zen/v1 answers 403 FreeTierError
+      // unless the body carries stream:true AND a tools array containing the core
+      // OpenCode tool pair bash+read. The official client always sends these;
+      // a proxied request may not. Inject them here.
+      body.tools = Array.isArray(body.tools) ? body.tools : [];
+      const names = new Set(body.tools.map((t) => t?.name ?? t?.function?.name));
+      const isMessages = body.messages !== undefined;
+      const isResponses = body.input !== undefined;
+      const coreTools = isResponses
+        ? [
+            { type: "function", name: "bash", description: "Run a bash command", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } },
+            { type: "function", name: "read", description: "Read a file", parameters: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } },
+          ]
+        : isMessages
+          ? [
+              { name: "bash", description: "Run a bash command", input_schema: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } },
+              { name: "read", description: "Read a file", input_schema: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } },
+            ]
+          : [
+              { type: "function", function: { name: "bash", description: "Run a bash command", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } } },
+              { type: "function", function: { name: "read", description: "Read a file", parameters: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } } },
+            ];
+      for (const tool of coreTools) {
+        const name = tool.name ?? tool.function?.name;
+        if (!names.has(name)) body.tools.push(tool);
+      }
     }
     return injectReasoningContent({ provider: this.provider, model, body });
   }
@@ -533,7 +545,7 @@ export class OpenCodeExecutor extends BaseExecutor {
 
     const headers = {
       "Content-Type": "application/json",
-      "Authorization": auth,
+      "Authorization": credentials?.apiKey || credentials?.password || "Bearer public",
       "anthropic-version": "2023-06-01",
       "User-Agent": isOpencodeDownstream ? downstreamUa : "opencode/1.18.30",
       "x-opencode-client": lower["x-opencode-client"] || "desktop",

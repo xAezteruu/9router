@@ -29,7 +29,7 @@ const DEFAULT_SETTINGS = {
     unrestrictedMode: { enabled: false, models: [] },
   },
   requireLogin: true,
-  requireApiKey: true,
+  requireApiKey: false,
   tunnelDashboardAccess: true,
   authMode: "password",
   ssoType: "oidc",
