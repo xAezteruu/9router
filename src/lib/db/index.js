@@ -138,6 +138,10 @@ export async function exportDb(options = null) {
     for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'modelOverrides'`)) out.modelOverrides[r.key] = parseJson(r.value);
     for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'disabledModels'`)) out.disabledModels[r.key] = parseJson(r.value, []);
   }
+  if (isIncluded("autoBackup")) {
+    out.autoBackup = {};
+    for (const r of db.all(`SELECT key, value FROM kv WHERE scope = 'autoBackup'`)) out.autoBackup[r.key] = parseJson(r.value);
+  }
 
   return out;
 }
@@ -337,7 +341,6 @@ export async function importDb(payload) {
         db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('mitmAlias', ?, ?)`, [tool, stringifyJson(mappings || {})]);
       }
     }
-
     if (payload.pricing !== undefined) {
       db.run(`DELETE FROM kv WHERE scope = 'pricing'`);
       for (const [provider, models] of Object.entries(payload.pricing || {})) {
@@ -356,6 +359,15 @@ export async function importDb(payload) {
       db.run(`DELETE FROM kv WHERE scope = 'disabledModels'`);
       for (const [provider, ids] of Object.entries(payload.disabledModels || {})) {
         db.run(`INSERT INTO kv(scope, key, value) VALUES('disabledModels', ?, ?) ON CONFLICT(scope, key) DO UPDATE SET value = excluded.value`, [provider, stringifyJson(ids || [])]);
+      }
+    }
+
+    // autoBackup rides in its own KV scope. Only touch it when the backup actually
+    // carries the section: an old or partial backup must not reset the schedule.
+    if (payload.autoBackup !== undefined) {
+      db.run(`DELETE FROM kv WHERE scope = 'autoBackup'`);
+      for (const [key, value] of Object.entries(payload.autoBackup || {})) {
+        db.run(`INSERT OR REPLACE INTO kv(scope, key, value) VALUES('autoBackup', ?, ?)`, [key, stringifyJson(value)]);
       }
     }
   });
