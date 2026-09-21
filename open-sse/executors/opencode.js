@@ -508,15 +508,12 @@ export class OpenCodeExecutor extends BaseExecutor {
       body.store = false;
       normalizeResponsesTools(body);
       sanitizeResponsesItems(body);
-<<<<<<< HEAD
-=======
       // Free tier gates on both 'bash' and 'read' being present in the tools
       // payload (verified live: any Responses request without both returns 403
       // FreeTierError "can only be used from within OpenCode", with both +
       // tool_choice auto it returns 200). Cloak on every request, not just
       // empty ones, so external clients sending 1..N tools still pass.
       cloakOpencodeTools(body, true);
->>>>>>> serenhope/master
     } else if (body && typeof body === "object") {
       // Free-tier request contract: upstream /zen/v1 answers 403 FreeTierError
       // unless the body carries stream:true AND a tools array containing the core
@@ -566,10 +563,9 @@ export class OpenCodeExecutor extends BaseExecutor {
 
     const downstreamUa = lower["user-agent"] || "";
     const isOpencodeDownstream = hasValidOpencodeVersion(downstreamUa);
-<<<<<<< HEAD
-=======
-    const auth = credentials?.apiKey ? `Bearer ${credentials.apiKey}` : "Bearer public";
->>>>>>> serenhope/master
+
+    // Auth fallback priority: downstream Authorization > apiKey > password > public
+    const auth = credentials?.apiKey ? `Bearer ${credentials.apiKey}` : credentials?.password || "Bearer public";
 
     const session = credentials?.[SESSION_FIELD] || this.prepareRequestCredentials({ credentials })[SESSION_FIELD];
     const downstreamReq = normalizeRequestId(lower["x-opencode-request"]);
@@ -577,14 +573,8 @@ export class OpenCodeExecutor extends BaseExecutor {
 
     const headers = {
       "Content-Type": "application/json",
-<<<<<<< HEAD
-      "Authorization": credentials?.apiKey || credentials?.password || "Bearer public",
-      "anthropic-version": "2023-06-01",
-      "User-Agent": isOpencodeDownstream ? downstreamUa : "opencode/1.18.30",
-=======
       "Authorization": auth,
       "User-Agent": isOpencodeDownstream ? downstreamUa : OPENCODE_UA,
->>>>>>> serenhope/master
       "x-opencode-client": lower["x-opencode-client"] || "desktop",
       "x-opencode-session": session,
       "x-opencode-request": requestId,
