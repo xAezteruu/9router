@@ -123,6 +123,7 @@ import p120 from "./fish-audio.js";
 import p121 from "./alitp-intl.js";
 import p122 from "./xquik.js";
 import pFreebuff from "./freebuff.js";
+import pTokentable from "./tokentable.js";
 
 export default [
   p0,
@@ -247,4 +248,5 @@ export default [
   p121,
   p122,
   pFreebuff,
+  pTokentable,
 ];
