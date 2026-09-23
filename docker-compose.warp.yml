@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  warp-rotate:
+    build:
+      context: .
+      dockerfile: Dockerfile.warp
+    container_name: 9router-warp
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - WARP_SOCKS5_PORT=40000

@@ -181,6 +181,14 @@ function getEnvProxyUrl(targetUrl) {
   let protocol;
   try { protocol = new URL(targetUrl).protocol; } catch { return null; }
 
+  // WARP proxy (SOCKS5) via warp-rotate: https://github.com/ochpgit/warp-rotate
+  // Uses port 40000 by default
+  const warpProxy = process.env.WARP_PROXY || process.env.warp_proxy;
+  if (warpProxy) {
+    // Allow warp-rotate proxy unless explicitly bypassed
+    if (shouldBypassByNoProxy(targetUrl, warpProxy + ", " + (noProxy || ""))) return null;
+  }
+
   if (protocol === "https:") {
     return process.env.HTTPS_PROXY || process.env.https_proxy ||
       process.env.ALL_PROXY || process.env.all_proxy;
@@ -302,8 +310,22 @@ async function createBypassRequest(parsedUrl, realIP, options) {
   });
 }
 
+// Warp Pool for auto-rotate per request
+import warpPool from "../../scripts/warpPool.js";
+
 export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
   const targetUrl = typeof url === "string" ? url : url.toString();
+
+  // Warp Pool: auto-rotate WARP IP before each request for fresh IP
+  const warpProxy = normalizeString(process.env.WARP_PROXY || process.env.warp_proxy);
+  if (warpProxy && proxyOptions?.useWarpPool !== false) {
+    try {
+      const freshUrl = await warpPool.getFreshProxyUrl();
+      console.log(`[ProxyFetch] WARP pool rotate: ${freshUrl}`);
+    } catch (rotateError) {
+      console.warn(`[ProxyFetch] WARP rotate failed: ${rotateError.message}`);
+    }
+  }
 
   // Vercel relay: forward request via relay headers
   const vercelRelayUrl = normalizeString(proxyOptions?.vercelRelayUrl);

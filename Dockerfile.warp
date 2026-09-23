@@ -1,0 +1,32 @@
+FROM alpine:latest
+
+RUN apk add --no-cache wireguard-tools curl build-base git
+
+# Install wgcf
+RUN curl -fsSL git.io/wgcf.sh | bash
+
+# Install microsocks
+RUN git clone https://github.com/rofl0r/microsocks.git /tmp/microsocks && \
+    cd /tmp/microsocks && make && make install && cd / && rm -rf /tmp/microsocks
+
+# Create startup script
+RUN mkdir -p /usr/local/bin && \
+    echo '#!/bin/sh' > /usr/local/bin/start-warp.sh && \
+    echo 'if [ ! -f /etc/wgcf/wgcf-account.toml ]; then' >> /usr/local/bin/start-warp.sh && \
+    echo '  echo "Registering WARP account..."' >> /usr/local/bin/start-warp.sh && \
+    echo '  wgcf register' >> /usr/local/bin/start-warp.sh && \
+    echo 'fi' >> /usr/local/bin/start-warp.sh && \
+    echo 'wgcf generate' >> /usr/local/bin/start-warp.sh && \
+    echo 'wgcf run &' >> /usr/local/bin/start-warp.sh && \
+    echo 'sleep 5' >> /usr/local/bin/start-warp.sh && \
+    echo 'microsocks -p 40000 &' >> /usr/local/bin/start-warp.sh && \
+    echo 'sleep 2' >> /usr/local/bin/start-warp.sh && \
+    echo 'echo "WARP + SOCKS5 proxy ready on :40000"' >> /usr/local/bin/start-warp.sh && \
+    echo 'tail -f /dev/null' >> /usr/local/bin/start-warp.sh && \
+    chmod +x /usr/local/bin/start-warp.sh
+
+ENV WARP_SOCKS5_PORT=40000
+
+EXPOSE ${WARP_SOCKS5_PORT}
+
+CMD ["/usr/local/bin/start-warp.sh"]
