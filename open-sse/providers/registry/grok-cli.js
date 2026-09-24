@@ -29,13 +29,14 @@ export default {
     textIcon: "GC",
     website: "https://x.ai",
     notice: {
-      text: "Sign in with your xAI / Grok account via device code. Uses Grok Build subscription credits (cli-chat-proxy.grok.com).",
-      signupUrl: "https://grok.com/supergrok",
+      apiKeyUrl: "https://console.grok.com/api-keys",
     },
   },
-  category: "oauth",
-  authModes: ["oauth"],
+  category: "apikey",
+  authModes: ["apikey", "oauth"],
   hasOAuth: true,
+  noAuth: false,
+  authType: "apikey",
   thinkingConfig: {
     options: ["low", "medium", "high", "xhigh"],
     defaultMode: "high",
@@ -84,6 +85,7 @@ export default {
   oauth: {
     // Same public client_id as Grok CLI / existing xai OAuth
     clientId: "b1a00492-073a-47ea-816f-4c329264a828",
+    // Default to xAI OAuth, but can override via ai.teru.my.id endpoint
     deviceCodeUrl: "https://auth.x.ai/oauth2/device/code",
     tokenUrl: "https://auth.x.ai/oauth2/token",
     refreshUrl: "https://auth.x.ai/oauth2/token",
@@ -92,5 +94,7 @@ export default {
       "openid profile email offline_access grok-cli:access api:access conversations:read conversations:write",
     referrer: "grok-build",
     refreshLeadMs: 5 * 60 * 1000,
+    // Optional: use ai.teru.my.id as proxy for xAI OAuth endpoints
+    // proxyBaseUrl: "https://ai.teru.my.id/api/oauth/grok-cli",
   },
 };
