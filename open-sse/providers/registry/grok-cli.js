@@ -29,14 +29,13 @@ export default {
     textIcon: "GC",
     website: "https://x.ai",
     notice: {
-      apiKeyUrl: "https://console.grok.com/api-keys",
+      text: "Sign in with your xAI / Grok account via device code. Uses Grok Build subscription credits (cli-chat-proxy.grok.com).",
+      signupUrl: "https://grok.com/supergrok",
     },
   },
-  category: "apikey",
-  authModes: ["apikey", "oauth"],
+  category: "oauth",
+  authModes: ["oauth"],
   hasOAuth: true,
-  noAuth: false,
-  authType: "apikey",
   thinkingConfig: {
     options: ["low", "medium", "high", "xhigh"],
     defaultMode: "high",
