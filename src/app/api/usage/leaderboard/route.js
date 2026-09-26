@@ -10,12 +10,18 @@ export async function GET(request) {
     const period = searchParams.get("period") || "7d";
 
     const now = new Date();
-    let cutoffDays = 7;
-    if (period === "24h") cutoffDays = 1;
-    else if (period === "30d") cutoffDays = 30;
-    else if (period === "60d") cutoffDays = 60;
-
-    const cutoff = new Date(now.getTime() - cutoffDays * 86400000).toISOString();
+    let cutoff = null;
+    if (period === "today") {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      cutoff = startOfDay.toISOString();
+    } else if (period !== "all") {
+      let cutoffDays = 7;
+      if (period === "24h") cutoffDays = 1;
+      else if (period === "30d") cutoffDays = 30;
+      else if (period === "60d") cutoffDays = 60;
+      cutoff = new Date(now.getTime() - cutoffDays * 86400000).toISOString();
+    }
 
     const db = await getAdapter();
     const rows = db.all(
@@ -26,9 +32,9 @@ export async function GET(request) {
               SUM(completionTokens) as completionTokens,
               SUM(promptTokens + completionTokens) as totalTokens,
               SUM(cost) as totalCost
-       FROM usageHistory WHERE timestamp >= ?
+       FROM usageHistory ${cutoff ? "WHERE timestamp >= ?" : ""}
        GROUP BY model ORDER BY requests DESC`,
-      [cutoff]
+      cutoff ? [cutoff] : []
     );
 
     const leaderboard = rows

@@ -1,10 +1,29 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 # v0.5.81 (2026-09-18)
 =======
 =======
 =======
+=======
+# v0.5.115-Custom (2026-09-26)
+
+## Custom Features & Enhancements
+- **Custom Domain Endpoint Support**: Added Custom Domain option on the API Endpoint card alongside Local, Cloudflare Tunnel, and Tailscale. Users can configure their own reverse proxy or custom domain URL (e.g. `https://api.my-domain.com`), easily copy the `/v1` endpoint, edit the domain, and enable/disable it with persistent settings stored in the database.
+- **304+ Providers Integration**: Merged the massive provider library from ExtremeRouter. Added over 200+ API-key providers, 25 OAuth providers, and 39 Web-cookie providers (including Qwen Web, Claude Web, ChatGPT Web, Grok Web, Notion AI, HyperAgent, Conol, DouBao, Adapta, and more) into 9Router.
+- **Provider Capabilities & Prices**: Fully synchronized model metadata, token limits, capabilities, tool-calling flags, and token cost pricing with ExtremeRouter's definitions.
+- **Frontend Modals & UI**: Updated Add API Key modal to automatically suggest specific cookie capturing instructions for new Web-cookie providers. Added `FeloCaptureButton` and `CookieCaptureButton` helper components. 
+- **Preserved 9Router-specific Providers**: Kept exclusive 9Router providers and aliases intact (like OpenCode Zen, CodeBuddy Intl, Qoder CN, Devin CLI, Grok CLI, DeepSeek Web Tool Bridge).
+
+# v0.5.114-Custom (2026-09-25)
+
+## Fixes & Enhancements
+- **Usage calculation accuracy for Today and 24h periods**: fixed an issue where selecting Today or 24h incorrectly overlaid up to 60 days of historical daily aggregates onto the current stats, causing token counts to jump from 1M to over 1B. Historical daily data before the cutoff date is no longer added into Today and 24h metrics.
+- **Model Leaderboard period filter**: fixed Leaderboard route ignoring Today and All Time filters and defaulting to 7 days.
+- **Real-time Usage sync**: SSE `/api/usage/stream` now accepts the active period parameter and streams complete stats updates when requests finish. The frontend Usage overview cards, charts, and breakdown tables now automatically update in real-time without requiring a page reload.
+
+>>>>>>> serenhope/master
 # v0.5.113-Custom (2026-09-23)
 
 ## Custom Features & Enhancements

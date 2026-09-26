@@ -1,8 +1,26 @@
 import { ensureDirs, DATA_FILE } from "./paths.js";
+import { createD1Adapter } from "./adapters/d1Adapter.js";
 
 // Use global to survive Next.js dev hot-reload (module state resets on reload)
 if (!global._dbAdapter) global._dbAdapter = { instance: null, initPromise: null, logged: false };
 const state = global._dbAdapter;
+
+// Try D1 first if running on Cloudflare Workers
+async function tryD1() {
+  // Cloudflare Workers injects D1 binding via globalThis.D1
+  const d1 = globalThis?.D1 || process.env.D1_DATABASE;
+  if (!d1) return null;
+  try {
+    // If string (from env), treat as D1 binding name
+    const binding = typeof d1 === 'string' ? globalThis[d1] : d1;
+    if (binding?.prepare) {
+      return createD1Adapter(binding);
+    }
+  } catch (e) {
+    console.warn(`[DB] D1 unavailable: ${e.message}`);
+  }
+  return null;
+}
 
 async function tryBunSqlite() {
   // Bun runtime only — built-in, no install needed
@@ -59,13 +77,15 @@ async function trySqlJs() {
 async function initAdapter() {
   ensureDirs();
   // Order per runtime:
-  //   Bun:  bun:sqlite → sql.js
-  //   Node: better-sqlite3 → node:sqlite (≥22.5) → sql.js
-  let adapter = await tryBunSqlite();
+  //   Workers: D1 → sql.js (fallback via D1 or external fetch)
+  //   Bun:     bun:sqlite → sql.js
+  //   Node:    better-sqlite3 → node:sqlite (≥22.5) → sql.js
+  let adapter = await tryD1();
+  if (!adapter) adapter = await tryBunSqlite();
   if (!adapter) adapter = await tryBetterSqlite();
   if (!adapter) adapter = await tryNodeSqlite();
   if (!adapter) adapter = await trySqlJs();
-  if (!adapter) throw new Error("[DB] No SQLite driver available (bun/better/node/sql.js all failed)");
+  if (!adapter) throw new Error("[DB] No SQLite driver available (d1/bun/better/node/sql.js all failed)");
 
   if (!state.logged) {
     console.log(`[DB] Driver: ${adapter.driver} | file: ${DATA_FILE}`);
