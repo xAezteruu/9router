@@ -1,5 +1,7 @@
 // Auto-generated: static imports for all registry entries
 import pFreebuff from "./freebuff.js";
+import p319 from "./agnes.js";
+import p320 from "./atria.js";
 import pTokentable from "./tokentable.js";
 import p0 from "./adapta-web.js";
 import p1 from "./agentrouter.js";
@@ -641,4 +643,6 @@ export default [
   p318,
   pFreebuff,
   pTokentable,
+  p319,
+  p320,
 ];
