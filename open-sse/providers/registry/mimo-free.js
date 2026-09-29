@@ -22,4 +22,6 @@ export default {
   models: [
     { id: "mimo-auto", name: "MiMo Auto" },
   ],
+  modelsFetcher: { url: "https://models.dev/api.json", type: "mimo-free" },
+  passthroughModels: true,
 };

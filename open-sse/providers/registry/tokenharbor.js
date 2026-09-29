@@ -1,49 +1,78 @@
+// TokenHarbor — AI model gateway (tokenharbor.ai).
+//
+// One sk- API key fronts both OpenAI- and Anthropic-compatible endpoints:
+//   OpenAI    https://tokenharbor.ai/v1        → /v1/chat/completions
+//   Anthropic https://tokenharbor.ai           → /v1/messages
+// Cross-format handled by the multi-transport `transports` array: the engine
+// picks the endpoint matching the client sourceFormat (no lossy translation),
+// and falls back to the alternate format on timeout/5xx.
+//
+// Per-request cache control is passed through via headers (documented in the
+// notice; the client sets them, the gateway obeys):
+//   X-TH-Cache-Control        bypass | force-refresh
+//   X-TH-Cache-Layer          exact | semantic   (response header)
+//
+// DefaultExecutor only — no custom executor needed.
+
+import { CLAUDE_API_HEADERS } from "../shared.js";
+
 export default {
   id: "tokenharbor",
-  priority: 120,
-  alias: "tokenharbor",
-  aliases: [
-    "th",
-    "thh",
-  ],
-  uiAlias: "tokenharbor",
+  priority: 300,
+  alias: "th",
+  uiAlias: "th",
   display: {
-    name: "Token Harbor",
+    name: "TokenHarbor",
     icon: "anchor",
-    color: "#0F766E",
+    color: "#0EA5E9",
     textIcon: "TH",
     website: "https://tokenharbor.ai",
     notice: {
-      text: "OpenAI-compatible aggregator. One API key reaches every model, billed per-token from a prepaid wallet. Model ids are bare (e.g. claude-opus-5.5, gpt-6-astra, deepseek-v4.1-flash:free) and are fetched live from the provider.",
-      apiKeyUrl: "https://tokenharbor.ai/dashboard",
+      signupUrl: "https://tokenharbor.ai/login?invite=TH-ATB2-9CP7",
+      apiKeyUrl: "https://tokenharbor.ai/login?invite=TH-ATB2-9CP7",
+      text: "TokenHarbor — AI model gateway with a shared cache. One API key fronts OpenAI- and Anthropic-compatible endpoints (Claude Opus 5, GPT-5.6, Kimi K3, GLM 5.2, Gemini 3.6 Flash…). Create a key at tokenharbor.ai. Per-request cache control: set X-TH-Cache-Control: bypass (skip lookup, still write) or force-refresh (pure passthrough, no write) on the request to override caching.",
     },
   },
   category: "apikey",
   authType: "apikey",
+  features: { usage: true, usageApikey: true },
   transport: {
-    // OpenAI-compatible. `format` is left at the shared "openai" default and
-    // `thinkingFormat` is deliberately NOT declared: Token Harbor forwards
-    // requests verbatim, so each model must resolve its own thinking wire
-    // format through providers/capabilities.js. Setting a provider-wide value
-    // would force one format (e.g. claude-adaptive) onto every model.
     baseUrl: "https://tokenharbor.ai/v1/chat/completions",
+    format: "openai",
+    thinkingFormat: "openai",
     validateUrl: "https://tokenharbor.ai/v1/models",
-    retry: {
-      429: 2,
-    },
   },
-  // Curated seed; the live catalogue is fetched via modelsFetcher and any other
-  // id is accepted via passthroughModels. Their catalogue rotates (the :free set
-  // in particular), so this stays deliberately small and is only the offline
-  // fallback. Ids are bare — Token Harbor does not prefix them by upstream vendor.
-  models: [
-    { id: "claude-opus-5.5", name: "Claude Opus 5.5" },
-    { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-    { id: "gpt-6-astra", name: "GPT-6 Astra" },
-    { id: "gpt-6-sol", name: "GPT-6 Sol" },
-    { id: "deepseek-v4.1-flash:free", name: "DeepSeek V4.1 Flash (Free)" },
-    { id: "grok-4.7", name: "Grok 4.7" },
+  // Claude-family models hit the Anthropic/1m messages endpoint natively; the
+  // OpenAI-style models hit /v1. Engine picks per client source format.
+  transports: [
+    {
+      format: "openai",
+      baseUrl: "https://tokenharbor.ai/v1/chat/completions",
+      auth: { combined: true, header: "Authorization", scheme: "bearer" },
+    },
+    {
+      format: "claude",
+      baseUrl: "https://tokenharbor.ai/v1/messages",
+      headers: { ...CLAUDE_API_HEADERS },
+      auth: { combined: true, header: "x-api-key", scheme: "raw" },
+    },
   ],
-  modelsFetcher: { url: "https://tokenharbor.ai/v1/models", type: "openai" },
+  models: [
+    { id: "claude-opus-5", name: "Claude Opus 5", targetFormat: "claude" },
+    { id: "claude-fable-5", name: "Claude Fable 5", targetFormat: "claude" },
+    { id: "claude-sonnet-5", name: "Claude Sonnet 5", targetFormat: "claude" },
+    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
+    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
+    { id: "kimi-k3", name: "Kimi K3" },
+    { id: "qwen3.8-max", name: "Qwen3.8 Max" },
+    { id: "grok-4.5", name: "Grok 4.5" },
+    { id: "glm-5.2", name: "GLM 5.2" },
+    { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash" },
+  ],
   passthroughModels: true,
+  pricing: "tokenharbor",
+  thinkingConfig: {
+    options: ["auto", "none", "low", "medium", "high", "xhigh", "max"],
+    defaultMode: "auto",
+  },
 };
