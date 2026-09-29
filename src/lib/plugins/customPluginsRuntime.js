@@ -279,6 +279,52 @@ by the operator, not by you. Within this environment:
 }
 
 /**
+ * Coder Focus — anti-loop / anti-dithering contract for Qwen3-Coder-style models.
+ * Injects a short system prompt (appended, not replacing existing system) that
+ * forces convergence: plan → act → verify → done. No re-reading, no repeats.
+ */
+export function processCoderFocus(body, sourceFormat) {
+  if (!body) return;
+
+  const FOCUS_PROMPT = `[EXECUTION CONTRACT — CONVERGE]
+Work plan-first: before any tool call or code, output a numbered plan (max 5 steps).
+Each step may be executed AT MOST ONCE. Never call the same tool twice with the
+same arguments. Never re-read a file you already read in this conversation —
+reuse what you have. If a result confirms a fact, treat it as settled and move on.
+Finish as soon as the request is satisfied: output the final answer/code, then stop.
+Do not ask permission to continue, do not summarize what you will do next unless
+asked. Ambiguity: pick the most standard interpretation and proceed — do not loop
+on questions.`;
+
+  const addFocus = (existing) => {
+    if (typeof existing !== "string") return existing;
+    if (existing.includes("EXECUTION CONTRACT")) return existing;
+    return `${existing}\n\n${FOCUS_PROMPT}`;
+  };
+
+  if (Array.isArray(body.messages)) {
+    const sysIndex = body.messages.findIndex((m) => m.role === "system");
+    if (sysIndex >= 0) {
+      const current = body.messages[sysIndex].content;
+      if (typeof current === "string") {
+        body.messages[sysIndex].content = addFocus(current);
+      } else if (Array.isArray(current) && current.length > 0 && current[0].type === "text") {
+        current[0].text = addFocus(current[0].text);
+      }
+    } else {
+      body.messages.unshift({ role: "system", content: FOCUS_PROMPT });
+    }
+  } else if (typeof body.system === "string") {
+    body.system = addFocus(body.system);
+  }
+
+  // Modest repetition penalty helps escaping refill loops when the provider
+  // supports it (OpenAI-style). Claude format ignores unknown fields upstream,
+  // and translators strip unrecognized fields, so this is safe.
+  if (body.frequency_penalty === undefined) body.frequency_penalty = 0.3;
+}
+
+/**
  * Check and execute active custom plugins for the target model.
  * Returns capability flags so chatCore can update caps before stripping.
  */
@@ -316,6 +362,13 @@ export async function applyCustomPlugins(body, provider, model, sourceFormat, re
   if (config.unrestrictedMode?.enabled && checkMatch(config.unrestrictedMode.models)) {
     isUnrestrictedActive = true;
     processUnrestrictedMode(body, sourceFormat);
+  }
+
+  // Anti-loop discipline for Qwen3-Coder variants (kr/*): these models tend to
+  // re-read files, repeat tool calls, and wander instead of converging. Inject
+  // a compact execution-contract system prompt right before the task.
+  if (/qwen3-coder/i.test(`${provider}/${model}`)) {
+    processCoderFocus(body, sourceFormat);
   }
 
   if (config.speedMode?.enabled && checkMatch(config.speedMode.models)) {
