@@ -34,6 +34,7 @@ const workshopItems = [
   { href: "/dashboard/arena", label: "Compare Models", icon: "swords" },
   { href: "/dashboard/model-editor", label: "Custom Models", icon: "auto_awesome" },
   { href: "/dashboard/plugins", label: "Custom Plugins", icon: "widgets" },
+  { href: "/dashboard/prompts", label: "System Prompts", icon: "description" },
 ];
 
 const debugItems = [
@@ -117,6 +118,7 @@ export default function Sidebar({ onClose }) {
       return permissions.manageModels;
     }
     if (item.href === "/dashboard/plugins") return permissions.managePlugins;
+    if (item.href === "/dashboard/prompts") return permissions.managePlugins;
     return false;
   });
 
