@@ -1,3 +1,4 @@
+import { MIMO_FREE_BASE_URL } from "../shared.js";
 // Xiaomi ended the free MiMo channel ("MiMo free API service has ended").
 // Hidden until/unless a replacement (OAuth MiMo Platform) is wired.
 export default {
@@ -16,7 +17,7 @@ export default {
   category: "free",
   noAuth: true,
   transport: {
-    baseUrl: "https://api.xiaomimimo.com/api/free-ai/openai/chat",
+    baseUrl: MIMO_FREE_BASE_URL,
     noAuth: true,
   },
   models: [

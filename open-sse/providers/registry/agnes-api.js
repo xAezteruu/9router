@@ -1,3 +1,4 @@
+import { AGNES_API_BASE_URL } from "../shared.js";
 // Agnes AI (API) — official API key access to Agnes models via apihub.agnes-ai.com.
 //
 // Sibling of the cookie/JWT provider ("agnes-web"). This variant uses the
@@ -29,7 +30,7 @@ export default {
   category: "apikey",
   authType: "apikey",
   transport: {
-    baseUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
+    baseUrl: AGNES_API_BASE_URL,
     format: "openai",
     validateUrl: "https://apihub.agnes-ai.com/v1/models",
     auth: {

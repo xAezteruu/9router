@@ -1,3 +1,4 @@
+import { DASHSCOPE_INTL_COMPAT_BASE_URL } from "../shared.js";
 // Model Studio Intl — standard DashScope API keys (sk-...), NOT Coding Plan keys.
 // Sibling of alicode-intl (Coding Plan). Two key types use two different hosts.
 export default {
@@ -16,7 +17,7 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+    baseUrl: DASHSCOPE_INTL_COMPAT_BASE_URL,
     headers: {},
     quirks: { preserveCacheControl: true },
   },

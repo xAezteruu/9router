@@ -1,3 +1,4 @@
+import { VERTEX_AI_PLATFORM_BASE_URL } from "../shared.js";
 export default {
   id: "vertex",
   priority: 40,
@@ -19,7 +20,7 @@ export default {
   },
   category: "freeTier",
   transport: {
-    baseUrl: "https://aiplatform.googleapis.com",
+    baseUrl: VERTEX_AI_PLATFORM_BASE_URL,
     format: "vertex",
   },
   models: [
@@ -35,5 +36,5 @@ export default {
   serviceKinds: ["llm","imageToText","video"],
   // Veo via predictLongRunning + fetchPredictOperation (adapter: handlers/videoProviders/vertex.js).
   // Docs: https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/veo-video-generation
-  videoConfig: { baseUrl: "https://aiplatform.googleapis.com" },
+  videoConfig: { baseUrl: VERTEX_AI_PLATFORM_BASE_URL },
 };

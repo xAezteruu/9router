@@ -1,3 +1,4 @@
+import { CLINE_API_BASE_URL } from "../shared.js";
 export default {
   id: "clinepass",
   priority: 85,
@@ -20,7 +21,7 @@ export default {
   authModes: ["apikey", "oauth"],
   hasOAuth: true,
   transport: {
-    baseUrl: "https://api.cline.bot/api/v1/chat/completions",
+    baseUrl: CLINE_API_BASE_URL,
     headers: {
       "HTTP-Referer": "https://cline.bot",
       "X-Title": "Cline",

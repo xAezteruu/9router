@@ -1,3 +1,4 @@
+import { LLAMA_CPP_LOCAL_BASE_URL } from "../shared.js";
 // llama.cpp — local OpenAI-compatible inference server.
 // Imported from OmniRoute catalog (2026-08). Default base URL is the localhost
 // default; override per connection via providerSpecificData.baseUrl when the
@@ -18,7 +19,7 @@ export default {
   hasFree: true,
   freeNote: "Runs on your own hardware — no per-token cost.",
   transport: {
-    baseUrl: "http://127.0.0.1:8080/v1/chat/completions",
+    baseUrl: LLAMA_CPP_LOCAL_BASE_URL,
     format: "openai",
   },
   passthroughModels: true,

@@ -1,3 +1,4 @@
+import { MIMO_FREE_BASE_URL } from "../shared.js";
 export default {
   id: "mmf",
   hidden: true,
@@ -10,7 +11,7 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: "https://api.xiaomimimo.com/api/free-ai/openai/chat",
+    baseUrl: MIMO_FREE_BASE_URL,
     noAuth: true,
   },
   models: [
