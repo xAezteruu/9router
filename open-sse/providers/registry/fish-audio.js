@@ -1,4 +1,3 @@
-import { FISH_AUDIO_TTS_BASE_URL } from "../shared.js";
 // Fish Audio TTS — the model id travels in an HTTP `model` header rather than the
 // JSON body, and the voice is a reference_id (a cloned or preset voice model).
 export default {
@@ -18,7 +17,7 @@ export default {
   authType: "apikey",
   serviceKinds: ["tts"],
   ttsConfig: {
-    baseUrl: FISH_AUDIO_TTS_BASE_URL,
+    baseUrl: "https://api.fish.audio/v1/tts",
     authType: "apikey",
     authHeader: "bearer",
     format: "fish-audio",

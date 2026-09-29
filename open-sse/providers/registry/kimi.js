@@ -1,4 +1,4 @@
-import { CLAUDE_API_HEADERS, KIMI_CODING_MESSAGES_BASE_URL, KIMI_CODING_CHAT_BASE_URL } from "../shared.js";
+import { CLAUDE_API_HEADERS } from "../shared.js";
 
 // Dual auth (same pattern as xai): OAuth = Kimi Code subscription (device code),
 // API key = platform.moonshot / api.kimi.com. Transport is shared.
@@ -24,7 +24,7 @@ export default {
   authModes: ["oauth", "apikey"],
   hasOAuth: true,
   transport: {
-    baseUrl: KIMI_CODING_MESSAGES_BASE_URL,
+    baseUrl: "https://api.kimi.com/coding/v1/messages",
     format: "claude",
     urlSuffix: "?beta=true",
     headers: { ...CLAUDE_API_HEADERS },
@@ -42,12 +42,12 @@ export default {
   transports: [
     {
       format: "openai",
-      baseUrl: KIMI_CODING_CHAT_BASE_URL,
+      baseUrl: "https://api.kimi.com/coding/v1/chat/completions",
       auth: { combined: true, header: "Authorization", scheme: "bearer", hooks: ["kimiHeaders"] },
     },
     {
       format: "claude",
-      baseUrl: KIMI_CODING_MESSAGES_BASE_URL,
+      baseUrl: "https://api.kimi.com/coding/v1/messages",
       urlSuffix: "?beta=true",
       headers: { ...CLAUDE_API_HEADERS },
       auth: { combined: true, header: "x-api-key", scheme: "raw", hooks: ["kimiHeaders"] },

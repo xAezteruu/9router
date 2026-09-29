@@ -1,4 +1,3 @@
-import { ANTHROPIC_MESSAGES_BASE_URL } from "../shared.js";
 export default {
   id: "anthropic",
   priority: 30,
@@ -15,7 +14,7 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: ANTHROPIC_MESSAGES_BASE_URL,
+    baseUrl: "https://api.anthropic.com/v1/messages",
     format: "claude",
     headers: {
       "anthropic-version": "2023-06-01",

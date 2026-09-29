@@ -1,4 +1,3 @@
-import { VERTEX_AI_PLATFORM_BASE_URL } from "../shared.js";
 export default {
   id: "vertex-partner",
   priority: 260,
@@ -19,7 +18,7 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: VERTEX_AI_PLATFORM_BASE_URL,
+    baseUrl: "https://aiplatform.googleapis.com",
   },
   models: [
     { id: "deepseek-ai/deepseek-v3.2-maas", name: "DeepSeek V3.2 (Vertex)" },

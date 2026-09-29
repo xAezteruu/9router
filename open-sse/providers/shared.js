@@ -85,22 +85,6 @@ export function mergeAnthropicBeta(...values) {
 // Shared baseUrls
 export const KIMI_CODING_BASE_URL = "https://api.kimi.com/coding/v1/messages";
 
-
-// Shared provider baseUrls (single source of truth for registries sharing an endpoint)
-export const AGNES_API_BASE_URL = "https://apihub.agnes-ai.com/v1/chat/completions";
-export const DASHSCOPE_INTL_COMPAT_BASE_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions";
-export const ANTHROPIC_MESSAGES_BASE_URL = "https://api.anthropic.com/v1/messages";
-export const CLINE_API_BASE_URL = "https://api.cline.bot/api/v1/chat/completions";
-export const FISH_AUDIO_TTS_BASE_URL = "https://api.fish.audio/v1/tts";
-export const KIMI_CODING_MESSAGES_BASE_URL = "https://api.kimi.com/coding/v1/messages";
-export const KIMI_CODING_CHAT_BASE_URL = "https://api.kimi.com/coding/v1/chat/completions";
-export const LLAMA_CPP_LOCAL_BASE_URL = "http://127.0.0.1:8080/v1/chat/completions";
-export const MIMO_FREE_BASE_URL = "https://api.xiaomimimo.com/api/free-ai/openai/chat";
-export const NAGA_AC_BASE_URL = "https://api.naga.ac/v1/chat/completions";
-export const OPENCODE_ZEN_SYSTEMONE_BASE_URL = "https://opencode.ai/zen/v1/systemone";
-export const VLLM_LOCAL_BASE_URL = "http://localhost:8000/v1/chat/completions";
-export const VERTEX_AI_PLATFORM_BASE_URL = "https://aiplatform.googleapis.com";
-
 // Default base for dynamic compat providers (openai-compatible-* / anthropic-compatible-*) when user gives no baseUrl
 export const OPENAI_COMPAT_BASE = "https://api.openai.com/v1";
 export const ANTHROPIC_COMPAT_BASE = "https://api.anthropic.com/v1";

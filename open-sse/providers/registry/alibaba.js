@@ -1,4 +1,3 @@
-import { DASHSCOPE_INTL_COMPAT_BASE_URL } from "../shared.js";
 // Alibaba (Model Studio / DashScope International) — API-key OpenAI-compatible
 // gateway. Same model catalog as `qwen-cloud` but under the canonical
 // "alibaba" alias for users who think in terms of the Alibaba Cloud brand.
@@ -25,7 +24,7 @@ export default {
   category: "apikey",
   authType: "apikey",
   transport: {
-    baseUrl: DASHSCOPE_INTL_COMPAT_BASE_URL,
+    baseUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
     format: "openai",
     validateUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models",
     auth: {

@@ -1,4 +1,3 @@
-import { FISH_AUDIO_TTS_BASE_URL } from "../shared.js";
 // Fish Audio — text-to-speech (model passed as HTTP header, JSON body → binary audio).
 // Imported from OmniRoute catalog (2026-08). Port of OmniRoute's fishaudio
 // audioSpeech handler (open-sse/handlers/ttsProviders/genericFormats.js "fishaudio").
@@ -26,7 +25,7 @@ export default {
     { id: "speech-1.5", name: "Fish Speech 1.5", kind: "tts" },
   ],
   ttsConfig: {
-    baseUrl: FISH_AUDIO_TTS_BASE_URL,
+    baseUrl: "https://api.fish.audio/v1/tts",
     authType: "apikey",
     authHeader: "bearer",
     format: "fishaudio",

@@ -1,4 +1,3 @@
-import { AGNES_API_BASE_URL } from "../shared.js";
 export default {
   id: "agnes",
   priority: 120,
@@ -21,7 +20,7 @@ export default {
   category: "freeTier",
   authType: "apikey",
   transport: {
-    baseUrl: AGNES_API_BASE_URL,
+    baseUrl: "https://apihub.agnes-ai.com/v1/chat/completions",
     validateUrl: "https://apihub.agnes-ai.com/v1/models",
   },
   // No model ids could be verified without a key, so discovery is left to the

@@ -1,4 +1,4 @@
-import { CLAUDE_CLI_VERSION, ANTHROPIC_MESSAGES_BASE_URL } from "../shared.js";
+import { CLAUDE_CLI_VERSION } from "../shared.js";
 
 export default {
   id: "claude",
@@ -18,7 +18,7 @@ export default {
   },
   category: "oauth",
   transport: {
-    baseUrl: ANTHROPIC_MESSAGES_BASE_URL,
+    baseUrl: "https://api.anthropic.com/v1/messages",
     format: "claude",
     urlSuffix: "?beta=true",
     headers: {

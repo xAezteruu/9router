@@ -1,4 +1,3 @@
-import { NAGA_AC_BASE_URL } from "../shared.js";
 // Naga.ac — OpenAI-compatible inference host.
 // Imported from OmniRoute catalog (2026-08). Base URL verified from models.dev / provider docs.
 export default {
@@ -16,7 +15,7 @@ export default {
   category: "apikey",
   authType: "apikey",
   transport: {
-    baseUrl: NAGA_AC_BASE_URL,
+    baseUrl: "https://api.naga.ac/v1/chat/completions",
     validateUrl: "https://api.naga.ac/v1/models",
   },
   passthroughModels: true,

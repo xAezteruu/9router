@@ -1,4 +1,3 @@
-import { OPENCODE_ZEN_SYSTEMONE_BASE_URL } from "../shared.js";
 export default {
   id: "opencode-zen",
   priority: 205,
@@ -127,7 +126,7 @@ export default {
   ],
   serviceKinds: ["llm", "systemone"],
   systemoneConfig: {
-    baseUrl: OPENCODE_ZEN_SYSTEMONE_BASE_URL,
+    baseUrl: "https://opencode.ai/zen/v1/systemone",
     headers: {
       "x-opencode-client": "desktop",
       "User-Agent": "opencode/1.18.31",
