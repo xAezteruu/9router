@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/db/driver.js";
-import { parseJson } from "@/lib/db/helpers/jsonCol.js";
+import { getSessionContext } from "@/lib/auth/dashboardPermissions";
+import { parseAllowedModels, matchesAllowedModels } from "@/lib/db/repos/allowedModels.js";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,16 @@ export async function GET(request) {
       cutoff = new Date(now.getTime() - cutoffDays * 86400000).toISOString();
     }
 
+    const ctx = await getSessionContext();
+    const keyFilter = ctx.apiKeyFilter;
+    const patterns = parseAllowedModels(ctx.allowedModels || "*");
+
+    const conds = [];
+    const params = [];
+    if (cutoff) { conds.push("timestamp >= ?"); params.push(cutoff); }
+    if (keyFilter) { conds.push("apiKey = ?"); params.push(keyFilter); }
+    const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+
     const db = await getAdapter();
     const rows = db.all(
       `SELECT model, provider,
@@ -32,13 +43,13 @@ export async function GET(request) {
               SUM(completionTokens) as completionTokens,
               SUM(promptTokens + completionTokens) as totalTokens,
               SUM(cost) as totalCost
-       FROM usageHistory ${cutoff ? "WHERE timestamp >= ?" : ""}
+       FROM usageHistory ${where}
        GROUP BY model ORDER BY requests DESC`,
-      cutoff ? [cutoff] : []
+      params
     );
 
     const leaderboard = rows
-      .filter(r => r.model)
+      .filter(r => r.model && matchesAllowedModels(patterns, r.model))
       .map((r) => ({
         model: r.model,
         provider: r.provider || "",

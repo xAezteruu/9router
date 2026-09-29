@@ -4,10 +4,9 @@ import { PROVIDERS } from "../config/providers.js";
 import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
 import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
-import { resolveSessionIdentity } from "../utils/sessionManager.js";
+import { resolveSessionId } from "../utils/sessionManager.js";
 import { isMuseSparkModel } from "../providers/models/helpers.js";
 import { applyFingerprintTools } from "../utils/opencodeFingerprint.js";
-import { ANTHROPIC_API_VERSION } from "../providers/shared.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,
@@ -37,7 +36,6 @@ const RESPONSES_MODELS = new Set([
   "muse-spark-1.2-contributor-free",
   "muse-spark-1.3-contributor-free",
 ]);
-const MESSAGES_MODELS = new Set(["union-alpha", "union-alpha-free"]);
 
 let lastTimestamp = 0;
 let counter = 0;
@@ -257,10 +255,6 @@ function isResponsesModel(model) {
   return RESPONSES_MODELS.has(base) || isMuseSparkModel(base);
 }
 
-function isMessagesModel(model) {
-  return MESSAGES_MODELS.has(baseModelId(model));
-}
-
 function resolveOpencodeSession(body, credentials, providerSessionId, clientTool) {
   const headers = credentials?.rawHeaders || {};
   const native = nativeSession(headers);
@@ -411,13 +405,22 @@ export class OpenCodeExecutor extends BaseExecutor {
 
   transformRequest(model, body, stream, credentials) {
     if (body && typeof body === "object" && model && !body.model) body.model = model;
+    // Zen rejects non-streaming requests on free models with 403 FreeTierError;
+    // always stream upstream and let the handler layer aggregate for non-stream clients.
     if (body && typeof body === "object") body.stream = true;
     if (isResponsesModel(model || body?.model) && body && typeof body === "object") {
+      // ponytail: chỉ model đã xác nhận auto-only; mở allowlist khi có bằng chứng.
+      if ("tool_choice" in body && body.tool_choice !== "auto"
+        && this.config.quirks?.forceAutoToolChoiceModels?.includes(baseModelId(model))) {
+        body.tool_choice = "auto";
+      }
       const normalized = normalizeResponsesInput(body.input);
       if (normalized) body.input = normalized;
       if (!Array.isArray(body.input) || body.input.length === 0) {
         body.input = [{ type: "message", role: "user", content: [{ type: "input_text", text: "..." }] }];
       }
+      // Responses API names the output cap max_output_tokens and takes thinking
+      // as reasoning:{effort,summary} — normalize the Chat fields at this boundary.
       if (body.max_output_tokens === undefined) {
         if (body.max_completion_tokens !== undefined) body.max_output_tokens = body.max_completion_tokens;
         else if (body.max_tokens !== undefined) body.max_output_tokens = body.max_tokens;
@@ -425,6 +428,7 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_tokens;
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
+      body.stream = true;
       body.store = false;
       normalizeResponsesTools(body);
       sanitizeResponsesItems(body);
@@ -433,32 +437,7 @@ export class OpenCodeExecutor extends BaseExecutor {
       // non-empty tool arrays; skipping cloaking here triggers 403 FreeTierError.
       applyFingerprintTools(body, true);
     } else if (body && typeof body === "object") {
-      // Free-tier request contract: upstream /zen/v1 answers 403 FreeTierError
-      // unless the body carries stream:true AND a tools array containing the core
-      // OpenCode tool pair bash+read. The official client always sends these;
-      // a proxied request may not. Inject them here.
-      body.tools = Array.isArray(body.tools) ? body.tools : [];
-      const names = new Set(body.tools.map((t) => t?.name ?? t?.function?.name));
-      const isMessages = body.messages !== undefined;
-      const isResponses = body.input !== undefined;
-      const coreTools = isResponses
-        ? [
-            { type: "function", name: "bash", description: "Run a bash command", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } },
-            { type: "function", name: "read", description: "Read a file", parameters: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } },
-          ]
-        : isMessages
-          ? [
-              { name: "bash", description: "Run a bash command", input_schema: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } },
-              { name: "read", description: "Read a file", input_schema: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } },
-            ]
-          : [
-              { type: "function", function: { name: "bash", description: "Run a bash command", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } } },
-              { type: "function", function: { name: "read", description: "Read a file", parameters: { type: "object", properties: { filePath: { type: "string" } }, required: ["filePath"] } } },
-            ];
-      for (const tool of coreTools) {
-        const name = tool.name ?? tool.function?.name;
-        if (!names.has(name)) body.tools.push(tool);
-      }
+      applyFingerprintTools(body, false);
     }
     return injectReasoningContent({ provider: this.provider, model, body });
   }
@@ -470,20 +449,17 @@ export class OpenCodeExecutor extends BaseExecutor {
   buildUrl(model) {
     const base = this.config.baseUrl;
     if (isResponsesModel(model)) return `${base}/zen/v1/responses`;
-    if (isMessagesModel(model)) return `${base}/zen/v1/messages`;
     return `${base}/zen/v1/chat/completions`;
   }
 
-  buildHeaders(credentials, stream = true, url = "") {
+  buildHeaders(credentials, stream = true) {
     const raw = credentials?.rawHeaders || {};
     const lower = {};
     for (const [k, v] of Object.entries(raw)) lower[k.toLowerCase()] = v;
 
     const downstreamUa = lower["user-agent"] || "";
     const isOpencodeDownstream = hasValidOpencodeVersion(downstreamUa);
-
-    // Auth fallback priority: downstream Authorization > apiKey > password > public
-    const auth = credentials?.apiKey ? `Bearer ${credentials.apiKey}` : credentials?.password || "Bearer public";
+    const auth = credentials?.apiKey ? `Bearer ${credentials.apiKey}` : "Bearer public";
 
     const session = credentials?.[SESSION_FIELD] || this.prepareRequestCredentials({ credentials })[SESSION_FIELD];
     const downstreamReq = normalizeRequestId(lower["x-opencode-request"]);
@@ -499,7 +475,6 @@ export class OpenCodeExecutor extends BaseExecutor {
       "x-opencode-project": lower["x-opencode-project"] || "global",
       "Accept": stream ? "text/event-stream" : "*/*",
     };
-    if (url.endsWith("/messages")) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
     return headers;
   }
 }

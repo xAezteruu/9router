@@ -1,12 +1,34 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-# v0.5.81 (2026-09-18)
-=======
-=======
-=======
-=======
+# Changelog
+
+## v0.5.142
+
+- feat: show centered loading overlay with progress while exporting, importing, or testing a backup
+- feat: run backup import as a background job with per section progress so the UI stays responsive
+
+## v0.5.141
+
+- feat: include permissions and createdBy columns in apiKeys backup export/import
+- fix: added createdBy "dashboard" value for dashboard users in POST /api/keys
+- feat: add backup self-check for round-trip export->import preserving apiKey metadata
+- fix: fix round-trip exportDb/importDb to preserve permissions and createdBy fields
+
+## v0.5.140
+
+- fix: stop the model picker heading a group with a generated node id
+- fix: disambiguate compatible provider headings with a short uuid suffix so two custom providers never share one label
+- test: add structural and distinctness cases for the new heading disambiguation in providerDisplaySelfCheck
+
+## v0.5.139
+
+- fix: correct a streamed tool-call name without holding the stream back
+- fix: stop the model picker heading a group with a generated node id
+- fix: rescue tool calls the client would reject with an invalid-args error
+
+## v0.5.138
+
+- fix: restore seren chat core
+
+v0.5.81 (2026-09-18)
 # v0.5.115-Custom (2026-09-26)
 
 ## Custom Features & Enhancements
@@ -23,7 +45,6 @@
 - **Model Leaderboard period filter**: fixed Leaderboard route ignoring Today and All Time filters and defaulting to 7 days.
 - **Real-time Usage sync**: SSE `/api/usage/stream` now accepts the active period parameter and streams complete stats updates when requests finish. The frontend Usage overview cards, charts, and breakdown tables now automatically update in real-time without requiring a page reload.
 
->>>>>>> serenhope/master
 # v0.5.113-Custom (2026-09-23)
 
 ## Custom Features & Enhancements
@@ -37,16 +58,13 @@
 - **Merged upstream through v0.5.86 (2026-09-23)**: Xiaomi MiMo server-assisted desktop login with five account clusters and v2.6 models, Claude Opus 5.5 support, and proxy pool header forwarding fix.
 - **Kept fork behaviour**: Union Alpha routing over Messages API, one-click auto backup scheduler, Speed Mode plugin, per-key usage page, plugin badges on Custom Models and combos, 9Router Settings label, and the fork README. The OpenCode free-tier fix is carried by upstream's `opencodeFingerprint` helper, with `union-alpha-free` kept alongside it.
 
->>>>>>> serenhope/master
 # v0.5.111-Custom (2026-09-22)
 
 ## Sync with upstream v0.5.85
 - **Merged upstream through v0.5.85 (2026-09-22)**: OpenCode Zen provider with free-tier fingerprint, Jev System One endpoint wired into the sidebar and media providers, Qoder CN provider, Cursor/Claude combo presets with bulk operations, analytics Requests mode with provider/model breakdown charts, All Time usage period, capability metadata on `/v1/models`, and all upstream fixes (Claude refusal mapping, Antigravity quotas, Qoder replay guard, Hugging Face router migration, multi-platform Docker).
 - **Kept fork behaviour**: Union Alpha routing over Messages API, one-click auto backup scheduler, Speed Mode plugin, per-key usage page, plugin badges on Custom Models and combos, 9Router Settings label, and the fork README. The OpenCode free-tier fix is now carried by upstream's `opencodeFingerprint` helper instead of the fork's local cloak, with `union-alpha-free` kept alongside it.
 
->>>>>>> serenhope/master
 # v0.5.110-Custom (2026-09-20)
->>>>>>> serenhope/master
 
 ## Custom Features & Enhancements
 - **API Key Usage page**: a new dashboard page under Usage that shows one card per generated key. Each card carries a quota progress bar (used versus limit, amber past 80 percent, red when exhausted), the next reset time computed from the key's interval and anchor, request, token and cost totals aggregated from the usage history, the error rate, rate-limit settings, expiry state, and an expandable per-model breakdown of the key's most used models. An auto-refresh toggle re-polls every ten seconds, and usage left behind by deleted keys is grouped into a single "Deleted keys" card so history is never lost.
@@ -54,8 +72,6 @@
 # v0.5.109-Custom (2026-09-20)
 
 ## Fixes
-<<<<<<< HEAD
-=======
 - **Plugin badges on Custom Models and Combos**: the Custom Plugins badges (Image Vision, Think Deeper, Speed Mode, Uncensored Output) only ever resolved against plain provider models, so a plugin applied to a Custom Model, a custom-provider import, or a combo showed its badge nowhere. The models endpoint now emits capability entries for Custom Models (inherited from their target plus the plugin badges matched against the studio name or the model it calls) and for combos (boolean capabilities OR-ed across members, context/output floors taken from the smallest member). The model picker and capability hook resolve those entries by callable name, and the picker now renders the same badges on Custom Model and combo chips that it already showed on regular models.
 
 # v0.5.108-Custom (2026-09-20)
@@ -413,12 +429,8 @@
 - **i18n**: integrate Persian (fa) translation
 
 ## Fixes
-<<<<<<< HEAD
->>>>>>> serenhope/master
-=======
 - **Cursor**: stop AgentService empty turns (`OUT 0`) and silent hangs — fold system prompts instead of `custom_system_prompt`, send `ModelDetails`, read Composer/Grok `thinking_delta`, ack request-context without echoing MCP tools, and reject IDE execs so the model can continue
 - **RTK**: for Cursor, compress source-format `tool_result` / `role:tool` **before** translation — its translator rewrites those shapes, so post-translate compression missed them. Other providers keep the post-translate pass unchanged
->>>>>>> serenhope/master
 - **OpenCode / OpenCode Go**: resolve 403 `FreeTierError` and 429 rate limits with canonical session format, valid User-Agent, and stable upstream session reuse; force stream and declare `forceStream` for free-tier SSE aggregation; cloak decoy tools, normalize Muse Free tool choice, and strip prior reasoning items on Responses models; route Union Alpha via Messages API
 - **Kiro**: preserve underscores in tool names (`mcp__server__tool`) and restore client tool names in responses; use neutral placeholder for tool-result-only turns; forward tool-result images
 - **Stream**: report aborts after HTTP 200 in-band (per-format error frames) instead of closing silently

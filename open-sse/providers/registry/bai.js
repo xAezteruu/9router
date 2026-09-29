@@ -1,16 +1,21 @@
-// b.ai — OpenAI-compatible gateway.
-// Imported from OmniRoute catalog (2026-08). Base URL verified from models.dev / provider docs.
 export default {
   id: "bai",
-  priority: 50,
+  priority: 120,
   alias: "bai",
+  aliases: [
+    "b-ai",
+  ],
+  uiAlias: "bai",
   display: {
-    name: "b.ai",
-    icon: "hub",
-    color: "#6366F1",
+    name: "B.AI",
+    icon: "account_balance",
+    color: "#0369A1",
     textIcon: "BA",
     website: "https://b.ai",
-      notice: { text: "Bearer API key for the b.ai OpenAI-compatible LLM gateway (distinct from TheB.AI). Create a key at https://docs.b.ai, then use https://api.b.ai/v1 OpenAI-compat", },
+    notice: {
+      text: "OpenAI-compatible gateway with one of the larger catalogues here. Accepts a bearer token or an x-api-key header. Model ids are fetched live from the provider.",
+      apiKeyUrl: "https://b.ai",
+    },
   },
   category: "apikey",
   authType: "apikey",
@@ -18,5 +23,8 @@ export default {
     baseUrl: "https://api.b.ai/v1/chat/completions",
     validateUrl: "https://api.b.ai/v1/models",
   },
+  // No ids hardcoded: the catalogue is large and rotates, so the live endpoint
+  // is the source of truth and any id is accepted via passthroughModels.
+  modelsFetcher: { url: "https://api.b.ai/v1/models", type: "openai" },
   passthroughModels: true,
 };

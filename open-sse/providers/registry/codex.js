@@ -2,7 +2,8 @@ import { withCodexReviewModels } from "../models/helpers.js";
 
 // Codex CLI version seen by OpenAI's backend — single source for the Version /
 // User-Agent identity headers. Bump when the installed codex CLI is upgraded.
-const CODEX_CLI_VERSION = "0.154.0";
+const CODEX_CLI_VERSION = "0.155.0";
+const GPT_6_LITE_THINKING_LEVELS = ["low", "medium", "high", "xhigh", "max"];
 
 export default {
   id: "codex",
@@ -42,6 +43,7 @@ export default {
     headers: {
       originator: "codex_cli_rs",
       "User-Agent": `codex_cli_rs/${CODEX_CLI_VERSION}`,
+      version: CODEX_CLI_VERSION,
     },
     usage: {
       url: "https://chatgpt.com/backend-api/wham/usage",
@@ -51,6 +53,8 @@ export default {
   },
   models: [
     { id: "gpt-6-astra", name: "GPT 6.0 Astra" },
+    { id: "gpt-6-sol", name: "GPT 6.0 Sol", responsesLite: true, thinkingLevels: GPT_6_LITE_THINKING_LEVELS },
+    { id: "gpt-6-luna", name: "GPT 6.0 Luna", responsesLite: true, thinkingLevels: GPT_6_LITE_THINKING_LEVELS },
     { id: "gpt-5.6-sol", name: "GPT 5.6 Sol" },
     { id: "gpt-5.6-sol-review", name: "GPT 5.6 Sol Review", upstreamModelId: "gpt-5.6-sol", quotaFamily: "review" },
     { id: "gpt-5.6-terra", name: "GPT 5.6 Terra" },
@@ -79,17 +83,6 @@ export default {
     { id: "gpt-5.5-image", name: "GPT 5.5 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
     { id: "gpt-5.4-image", name: "GPT 5.4 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
     { id: "gpt-5.3-image", name: "GPT 5.3 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-  
-    { id: "gpt-5.3-codex", name: "GPT 5.3 Codex" },
-    { id: "gpt-5.3-codex-review", name: "GPT 5.3 Codex Review", upstreamModelId: "gpt-5.3-codex", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-xhigh", name: "GPT 5.3 Codex (xHigh)" },
-    { id: "gpt-5.3-codex-xhigh-review", name: "GPT 5.3 Codex (xHigh) Review", upstreamModelId: "gpt-5.3-codex-xhigh", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-high", name: "GPT 5.3 Codex (High)" },
-    { id: "gpt-5.3-codex-high-review", name: "GPT 5.3 Codex (High) Review", upstreamModelId: "gpt-5.3-codex-high", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-low", name: "GPT 5.3 Codex (Low)" },
-    { id: "gpt-5.3-codex-low-review", name: "GPT 5.3 Codex (Low) Review", upstreamModelId: "gpt-5.3-codex-low", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-none", name: "GPT 5.3 Codex (None)" },
-    { id: "gpt-5.3-codex-none-review", name: "GPT 5.3 Codex (None) Review", upstreamModelId: "gpt-5.3-codex-none", quotaFamily: "review" },
   ],
   serviceKinds: ["llm","image"],
   oauth: {

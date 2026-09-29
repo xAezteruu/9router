@@ -13,7 +13,7 @@ const ensureV1 = (url) => {
   return /\/v1$/.test(trimmed) ? trimmed : `${trimmed}/v1`;
 };
 
-const buildOptions = ({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, customDomainEnabled, customDomainUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }) => {
+const buildOptions = ({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }) => {
   const opts = [];
   const wrap = (url) => (withV1 ? ensureV1(url) : (url || "").replace(/\/+$/, ""));
   if (!requiresExternalUrl) {
@@ -27,10 +27,6 @@ const buildOptions = ({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tai
   if (tailscaleEnabled && tailscaleUrl) {
     const u = wrap(tailscaleUrl);
     opts.push({ value: "tailscale", label: u, url: u });
-  }
-  if (customDomainEnabled && customDomainUrl) {
-    const u = wrap(customDomainUrl);
-    opts.push({ value: "customDomain", label: u, url: u });
   }
   if (cloudEnabled && cloudUrl) {
     const u = wrap(cloudUrl);
@@ -51,8 +47,6 @@ export default function BaseUrlSelect({
   tunnelPublicUrl = "",
   tailscaleEnabled = false,
   tailscaleUrl = "",
-  customDomainEnabled = false,
-  customDomainUrl = "",
   cloudEnabled = false,
   cloudUrl = "",
   withV1 = true,
@@ -63,6 +57,7 @@ export default function BaseUrlSelect({
   const [mode, setMode] = useState("");
   const [customInput, setCustomInput] = useState("");
   const initializedRef = useRef(false);
+  const currentUrlRef = useRef("");
   const customInputRef = useRef("");
 
   useEffect(() => {
@@ -87,27 +82,38 @@ export default function BaseUrlSelect({
   }, []);
 
   const options = useMemo(
-    () => buildOptions({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, customDomainEnabled, customDomainUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }),
-    [requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, customDomainEnabled, customDomainUrl, cloudEnabled, cloudUrl, savedPresets, withV1]
+    () => buildOptions({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }),
+    [requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1]
   );
 
-  // Prefer a saved preset matching the currently configured URL, else first option
+  // Sync the active config URL without replacing edits unless the config itself changes.
   useEffect(() => {
-    if (initializedRef.current) return;
     if (!presetsLoaded || options.length === 0) return;
+    const normalizeUrl = (url) => (withV1 ? ensureV1(url) : stripSlash(url));
+    const current = normalizeUrl(currentUrl);
+    if (initializedRef.current && currentUrlRef.current === current) return;
     initializedRef.current = true;
-    const current = stripSlash(currentUrl);
+    currentUrlRef.current = current;
     const matched = current
-      ? options.find((o) => o.saved && stripSlash(o.url) === current)
+      ? options.find((o) => o.value !== CUSTOM_VALUE && normalizeUrl(o.url) === current)
       : null;
-    const target = matched || options.find((o) => o.value !== CUSTOM_VALUE);
-    if (target) {
+    if (matched) {
+      setCustomInput("");
+      customInputRef.current = "";
+      setMode(matched.value);
+      onChange(matched.url);
+    } else if (current) {
+      setCustomInput(current);
+      customInputRef.current = current;
+      setMode(CUSTOM_VALUE);
+      onChange(current);
+    } else {
+      const target = options.find((o) => o.value !== CUSTOM_VALUE);
+      if (!target) return;
       setMode(target.value);
       onChange(target.url);
-    } else {
-      setMode(CUSTOM_VALUE);
     }
-  }, [presetsLoaded, options, onChange, currentUrl]);
+  }, [presetsLoaded, options, onChange, currentUrl, withV1]);
 
   const handleSelect = (e) => {
     const next = e.target.value;
