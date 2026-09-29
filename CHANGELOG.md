@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.143
+
+- feat: show available models in apikey session usage
+- feat: allow combo as custom model target with cycle guard
+
 ## v0.5.142
 
 - feat: show centered loading overlay with progress while exporting, importing, or testing a backup
