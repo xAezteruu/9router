@@ -325,6 +325,46 @@ on questions.`;
 }
 
 /**
+ * Custom System Prompt — inject a user-defined system prompt for a model.
+ * Appended after any existing system content (never replaces CLI/system prompts).
+ */
+export function applyCustomSystemPrompt(body, text) {
+  if (!body || !text) return;
+  const marker = "CUSTOM SYSTEM PROMPT";
+  const wrapped = `[${marker}]\n${text}`;
+
+  if (Array.isArray(body.messages)) {
+    const sysIndex = body.messages.findIndex((m) => m.role === "system");
+    if (sysIndex >= 0) {
+      const current = body.messages[sysIndex].content;
+      if (typeof current === "string") {
+        if (!current.includes(marker)) {
+          body.messages[sysIndex].content = `${current}\n\n${wrapped}`;
+        }
+      } else if (Array.isArray(current)) {
+        const lastText = [...current].reverse().find((b) => b?.type === "text");
+        if (lastText && typeof lastText.text === "string") {
+          if (!lastText.text.includes(marker)) {
+            lastText.text = `${lastText.text}\n\n${wrapped}`;
+          }
+        } else {
+          current.push({ type: "text", text: wrapped });
+        }
+      }
+    } else {
+      body.messages.unshift({ role: "system", content: wrapped });
+    }
+  } else if (typeof body.system === "string") {
+    if (!body.system.includes(marker)) {
+      body.system = `${body.system}\n\n${wrapped}`;
+    }
+  } else if (body.system === undefined || body.system === null) {
+    // Claude format with no system — set it
+    body.system = wrapped;
+  }
+}
+
+/**
  * Check and execute active custom plugins for the target model.
  * Returns capability flags so chatCore can update caps before stripping.
  */
@@ -374,6 +414,21 @@ export async function applyCustomPlugins(body, provider, model, sourceFormat, re
   if (config.speedMode?.enabled && checkMatch(config.speedMode.models)) {
     isSpeedModeActive = true;
     applySpeedMode(body, sourceFormat);
+  }
+
+  // Custom System Prompts: 1 prompt per model (models may repeat across prompts
+  // only by user error — the UI enforces exclusivity; runtime picks the first
+  // match and ignores later duplicates).
+  if (config.systemPrompts?.enabled && Array.isArray(config.systemPrompts.prompts)) {
+    for (const sp of config.systemPrompts.prompts) {
+      if (!sp?.enabled) continue;
+      const text = typeof sp.text === "string" ? sp.text.trim() : "";
+      if (!text || !Array.isArray(sp.models) || sp.models.length === 0) continue;
+      if (checkMatch(sp.models)) {
+        applyCustomSystemPrompt(body, text);
+        break; // 1 model → 1 prompt
+      }
+    }
   }
 
   return { isVisionActive, isThinkDeeperActive, isUnrestrictedActive, isSpeedModeActive };

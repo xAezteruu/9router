@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
     thinkDeeper: { enabled: false, models: [] },
     unrestrictedMode: { enabled: false, models: [] },
     speedMode: { enabled: false, models: [] },
+    systemPrompts: { enabled: false, prompts: [] },
   },
   requireLogin: true,
   requireApiKey: false,
