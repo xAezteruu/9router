@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   customPlugins: {
     imageVision: { enabled: false, models: [] },
     thinkDeeper: { enabled: false, models: [] },
+    unrestrictedMode: { enabled: false, models: [] },
     speedMode: { enabled: false, models: [] },
   },
   requireLogin: true,
