@@ -9,10 +9,10 @@ export const APP_CONFIG = {
 
 // GitHub configuration
 export const GITHUB_CONFIG = {
-  changelogUrl: "https://raw.githubusercontent.com/serenhope/9router/refs/heads/master/CHANGELOG.md",
+  changelogUrl: "https://raw.githubusercontent.com/xAezteruu/9router/refs/heads/master/CHANGELOG.md",
   donateUrl: "https://9router.com/api/donate",
-  repoUrl: "https://github.com/serenhope/9router",
-  apiRepo: "serenhope/9router", // update checks compare the running checkout with this
+  repoUrl: "https://github.com/xAezteruu/9router",
+  apiRepo: "xAezteruu/9router", // update checks compare the running checkout with this fork
   branch: "master",
 };
 
