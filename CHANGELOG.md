@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.146
+
+- fix: drop unknown webpack flag from build script for next 14.2.35
+
+## v0.5.145
+
+- fix: pin @types/react-dom to existing 18.x to fix Railway install
+
+## v0.5.144
+
+- fix: bump next to 14.2.35 to resolve high severity CVEs
+
 ## v0.5.143
 
 - feat: show available models in apikey session usage
