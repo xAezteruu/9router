@@ -30,6 +30,7 @@ import WindsurfExecutor from "./windsurf.js";
 import { DefaultExecutor } from "./default.js";
 import { DevinCliExecutor } from "./devin-cli.js";
 import { FreebuffExecutor } from "./freebuff.js";
+import { PerplexityWebExecutor } from "./perplexity-web.js";
 
 const executors = {
   antigravity: new AntigravityExecutor(),
@@ -77,6 +78,8 @@ const executors = {
   "devin-cli": new DevinCliExecutor(),
   freebuff: new FreebuffExecutor(),
   cb: new FreebuffExecutor(),
+  "perplexity-web": new PerplexityWebExecutor(),
+  pw: new PerplexityWebExecutor(),
 };
 
 const defaultCache = new Map();
@@ -120,3 +123,4 @@ export { default as ZedExecutor } from "./zed.js";
 export { default as WindsurfExecutor } from "./windsurf.js";
 export { DevinCliExecutor } from "./devin-cli.js";
 export { FreebuffExecutor } from "./freebuff.js";
+export { PerplexityWebExecutor } from "./perplexity-web.js";

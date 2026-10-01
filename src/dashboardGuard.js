@@ -265,6 +265,19 @@ export async function proxy(request) {
   }
 
   if (isPublicLlmApi(pathname)) {
+    // CORS preflight never carries Authorization (browser strips it), so answer
+    // it before auth — otherwise browser cross-origin calls to /v1/* always fail.
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
     // Record every hit on the LLM API surface (success or rejection) so the IP
     // access log is complete. Fire-and-forget: must never slow down requests.
     const settings = await loadSettings();
