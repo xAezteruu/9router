@@ -33,6 +33,10 @@ const PUBLIC_API_PATHS = [
   "/api/auth/oidc",
   "/api/auth/saml",
   "/api/version",
+  // One non-sensitive value that every visitor needs before sign-in; writing it
+  // is checked inside the route (password session only). /api/security-logs is
+  // deliberately NOT here: it names who signed in, so it stays behind auth.
+  "/api/theme",
   "/api/settings/require-login",
 ];
 
@@ -54,6 +58,7 @@ const ALWAYS_PROTECTED = [
 // Require auth, but allow through if requireLogin is disabled
 const PROTECTED_API_PATHS = [
   "/api/settings",
+  "/api/notifications",
   "/api/keys",
   "/api/providers",
   "/api/provider-nodes",

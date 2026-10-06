@@ -32,6 +32,15 @@ const DEFAULT_SETTINGS = {
   },
   requireLogin: true,
   requireApiKey: false,
+    jsonGuard: { enabled: false, models: [] },
+    contextSqueezer: { enabled: false, models: [] },
+  },
+  requireLogin: true,
+  requireApiKey: ***
+  // Site-wide theme (glass | dark). An administrator picks it once here instead
+  // of every browser choosing its own: the value is rendered into the document
+  // for all visitors, so the whole site matches what the admin selected.
+  theme: "glass",
   tunnelDashboardAccess: true,
   authMode: "password",
   ssoType: "oidc",
@@ -63,6 +72,9 @@ const DEFAULT_SETTINGS = {
   headroomCompressUserMessages: false,
   headroomTimeoutMs: 3000,
   cavemanEnabled: false,
+  contextPruningLevel: "full",
+  semanticCacheTtlHours: 3,
+  semanticCacheMaxEntries: 1000,
   cavemanLevel: "full",
   ponytailEnabled: false,
   ponytailLevel: "full",
@@ -70,6 +82,8 @@ const DEFAULT_SETTINGS = {
   pxpipeAutoInstall: true,
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,
+  // Per-provider user header overrides applied at dispatch: { [providerId]: { headers: {..} } }
+  providerOverrides: {},
 };
 
 async function readRaw() {

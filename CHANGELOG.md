@@ -1,47 +1,571 @@
-# Changelog
+# v0.5.159 (2026-10-05) · 1 commit
 
-## v0.5.146
+## Fixes
+- **Auth**: refuse shutdown and live-update for API key sessions; hide the controls too
 
-- fix: drop unknown webpack flag from build script for next 14.2.35
+# v0.5.158 (2026-10-04) · 25 commits
 
-## v0.5.145
+## Features
+- **Antigravity**: add Claude Opus 5.5 and Sonnet 5.5 models
+- **Antigravity**: list Claude 5.5 models and flag them when tier-blocked
+- **Dashboard**: full request bodies, notification bell, settings rollback, bulk key edit, model benchmark
+- **Dashboard**: make PRD Builder one prompt, English copy
+- **Key catalog**: show context window instead of the studio label; install the fork from github in the update banner
+- **Models**: optional owned_by on custom models; fix hidden security log; drop usage CTA
+- **Security**: persistent security log with red breach flags, admin-only site theme
+- **Studio,banner**: hide the upstream model, custom owned_by, cancellable background banners
 
-- fix: pin @types/react-dom to existing 18.x to fix Railway install
+## Fixes
+- **Auth**: fail closed when the dashboard guard cannot run
+- **Dashboard**: accept combo names in PRD Builder
+- **Docker**: ship the auth guard sources into the runtime image
+- **Docker**: ship the guard runtime deps the src tree imports
+- **Docker**: stamp APP_REVISION from Railway commit SHA so update banner works there
+- **Import**: keep the poll digest alive until the job record expires
+- **Import**: return the poll token in the job creation response
+- **Models**: publish custom model owned_by on the connected path too
+- **Notifications**: point the update notice at the profile page, not the dead settings route
+- **Providers**: mark MiMoCode Free as Unavailable in red
+- **UI**: replay update banner animation on navigation and animate dismissal
+- **UI**: ship icon subset font and show commit counts on changelog cards
+- **UI**: show long operations in a ProgressCard banner
+- **UI**: theme the loading banner, keep progress on the background chip, always offer cancel and background
 
-## v0.5.144
+## Docs
+- **Readme**: current screenshot, evergreen feature section, auto-refresh workflow
+- **Readme**: refresh dashboard screenshot to v0.5.155
 
-- fix: bump next to 14.2.35 to resolve high severity CVEs
+## Internal
+- **Models**: Revert "feat(antigravity): add Claude Opus 5.5 and Sonnet 5.5 models"
 
-## v0.5.143
+# v0.5.157 (2026-10-04) · 22 commits
 
-- feat: show available models in apikey session usage
-- feat: allow combo as custom model target with cycle guard
+## Features
+- **Antigravity**: add Claude Opus 5.5 and Sonnet 5.5 models
+- **Antigravity**: list Claude 5.5 models and flag them when tier-blocked
+- **Dashboard**: full request bodies, notification bell, settings rollback, bulk key edit, model benchmark
+- **Dashboard**: make PRD Builder one prompt, English copy
+- **Models**: optional owned_by on custom models; fix hidden security log; drop usage CTA
+- **Security**: persistent security log with red breach flags, admin-only site theme
+- **Studio,banner**: hide the upstream model, custom owned_by, cancellable background banners
 
-## v0.5.142
+## Fixes
+- **Auth**: fail closed when the dashboard guard cannot run
+- **Dashboard**: accept combo names in PRD Builder
+- **Docker**: ship the auth guard sources into the runtime image
+- **Docker**: ship the guard runtime deps the src tree imports
+- **Docker**: stamp APP_REVISION from Railway commit SHA so update banner works there
+- **Import**: keep the poll digest alive until the job record expires
+- **Import**: return the poll token in the job creation response
+- **Models**: publish custom model owned_by on the connected path too
+- **Providers**: mark MiMoCode Free as Unavailable in red
+- **UI**: replay update banner animation on navigation and animate dismissal
+- **UI**: ship icon subset font and show commit counts on changelog cards
+- **UI**: show long operations in a ProgressCard banner
 
-- feat: show centered loading overlay with progress while exporting, importing, or testing a backup
-- feat: run backup import as a background job with per section progress so the UI stays responsive
+## Docs
+- **Readme**: current screenshot, evergreen feature section, auto-refresh workflow
+- **Readme**: refresh dashboard screenshot to v0.5.155
 
-## v0.5.141
+## Internal
+- **Models**: Revert "feat(antigravity): add Claude Opus 5.5 and Sonnet 5.5 models"
 
-- feat: include permissions and createdBy columns in apiKeys backup export/import
-- fix: added createdBy "dashboard" value for dashboard users in POST /api/keys
-- feat: add backup self-check for round-trip export->import preserving apiKey metadata
-- fix: fix round-trip exportDb/importDb to preserve permissions and createdBy fields
+# v0.5.156 (2026-10-04) · 21 commits
 
-## v0.5.140
+## Features
+- **Antigravity**: add Claude Opus 5.5 and Sonnet 5.5 models
+- **Antigravity**: list Claude 5.5 models and flag them when tier-blocked
+- **Dashboard**: full request bodies, notification bell, settings rollback, bulk key edit, model benchmark
+- **Dashboard**: make PRD Builder one prompt, English copy
+- **Models**: optional owned_by on custom models; fix hidden security log; drop usage CTA
+- **Security**: persistent security log with red breach flags, admin-only site theme
+- **Studio,banner**: hide the upstream model, custom owned_by, cancellable background banners
 
-- fix: stop the model picker heading a group with a generated node id
-- fix: disambiguate compatible provider headings with a short uuid suffix so two custom providers never share one label
-- test: add structural and distinctness cases for the new heading disambiguation in providerDisplaySelfCheck
+## Fixes
+- **Auth**: fail closed when the dashboard guard cannot run
+- **Dashboard**: accept combo names in PRD Builder
+- **Docker**: ship the auth guard sources into the runtime image
+- **Docker**: ship the guard runtime deps the src tree imports
+- **Docker**: stamp APP_REVISION from Railway commit SHA so update banner works there
+- **Import**: keep the poll digest alive until the job record expires
+- **Import**: return the poll token in the job creation response
+- **Models**: publish custom model owned_by on the connected path too
+- **Providers**: mark MiMoCode Free as Unavailable in red
+- **UI**: ship icon subset font and show commit counts on changelog cards
+- **UI**: show long operations in a ProgressCard banner
 
-## v0.5.139
+## Docs
+- **Readme**: current screenshot, evergreen feature section, auto-refresh workflow
+- **Readme**: refresh dashboard screenshot to v0.5.155
 
-- fix: correct a streamed tool-call name without holding the stream back
-- fix: stop the model picker heading a group with a generated node id
-- fix: rescue tool calls the client would reject with an invalid-args error
+## Internal
+- **Models**: Revert "feat(antigravity): add Claude Opus 5.5 and Sonnet 5.5 models"
 
-## v0.5.138
+# v0.5.155 (2026-10-04) · 20 commits
+
+## Features
+- **Antigravity**: add Claude Opus 5.5 and Sonnet 5.5 models
+- **Antigravity**: list Claude 5.5 models and flag them when tier-blocked
+- **Dashboard**: make PRD Builder one prompt, English copy
+- **Models**: optional owned_by on custom models; fix hidden security log; drop usage CTA
+- **Security**: persistent security log with red breach flags, admin-only site theme
+- **Studio,banner**: hide the upstream model, custom owned_by, cancellable background banners
+
+## Fixes
+- **Auth**: fail closed when the dashboard guard cannot run
+- **Dashboard**: accept combo names in PRD Builder
+- **Docker**: ship the auth guard sources into the runtime image
+- **Docker**: ship the guard runtime deps the src tree imports
+- **Docker**: stamp APP_REVISION from Railway commit SHA so update banner works there
+- **Import**: keep the poll digest alive until the job record expires
+- **Import**: return the poll token in the job creation response
+- **Models**: publish custom model owned_by on the connected path too
+- **Providers**: mark MiMoCode Free as Unavailable in red
+- **UI**: ship icon subset font and show commit counts on changelog cards
+- **UI**: show long operations in a ProgressCard banner
+
+## Docs
+- **Readme**: current screenshot, evergreen feature section, auto-refresh workflow
+- **Readme**: refresh dashboard screenshot to v0.5.155
+
+## Internal
+- **Models**: Revert "feat(antigravity): add Claude Opus 5.5 and Sonnet 5.5 models"
+
+# v0.5.154 (2026-10-03) · 21 commits
+
+## Features
+- **Dashboard**: add PRD Builder to FEATURE+
+- **Theme**: add a glassmorphism mode alongside dark
+- **Theme**: dedicated theme button next to the grid menu
+- **Theme**: glass becomes the default theme, listed above dark
+- **Theme**: theme picker lives under Change Log in the grid menu
+- **Theme**: theme picker opens as a modal, matching Change Log
+- **Token saver**: level presets for pruning and a measurable response cache
+- **Usage**: add activity heatmap, card sparklines, and smart empty states
+- **Usage**: remove the live request inspector tab
+- **Usage**: token saver analytics tab with real-savings estimates
+
+## Fixes
+- **Models**: honor .env PORT on start and persist free model catalogues
+- **Combo**: combo pills report the real window instead of the 200k default
+- **Providers**: drop the duplicate MiMo free registry entries
+- **Providers**: keep suggested free models visible when opencode flakes
+- **Token saver**: keep option rows under their own text
+- **Token saver**: move the two toggles to the bottom, stack all pickers
+- **UI**: merge duplicate category headings in day-rolled changelog cards
+- **Usage**: center summary card numbers and pin them to one baseline
+- **Usage**: only show providers with real traffic in the topology
+- **Usage**: savings table empty state must not blame the filter
+
+## Docs
+- **Token saver**: shorten the two longest row labels
+
+# v0.5.153 (2026-10-02) · 18 commits
+
+## Features
+- **Plugins**: JSON Guard + Context Squeezer custom plugins
+- **Providers**: add MiMoCode Free no-auth provider (mimocode/, mimocode-free/)
+- **Providers**: merge live free-model catalogue into /v1/models and the picker
+- **UI**: maintenance badge, shared provider icons, merged changelog cards
+- **UI**: show live free-model catalogue in the model picker
+- **UI**: single animated update banner on dashboard; drop sidebar copy
+
+## Fixes
+- **Auth**: enforce the dashboard guard in custom-server because Next 14 middleware is Edge-only
+- **Dev**: isolate dev build to .next-dev on localhost:20128 so dev runs stop corrupting the production .next
+- **Hook**: converge via a single settled post-commit amend loop
+- **Hook**: fold regenerated changelog into each commit via post-commit amend
+- **Hook**: keep backticks out of the hook template so install works
+- **Hook**: pass --no-verify on the amend so prepare-commit-msg stops re-dirtying the tree
+- **UI**: drop key={pathname} from UpdateBanner; sibling keys collided with Header and leaked one header per navigation
+
+## Docs
+- **Auth**: regen changelog for auth-guard fix
+- **Backup**: restore full fork changelog history (119 versions, an old commit had truncated it to 3)
+- **Changelog**: stage changelog output in the git hook so commits stop leaving CHANGELOG.md dirty
+- **Changelog**: sync changelog for the hook fix
+
+## Internal
+- **Auth**: release v0.5.153 (auth guard enforced at HTTP layer)
+
+# v0.5.152 (2026-10-01) · 20 commits
+
+## Features
+- **Providers**: add v1m System One provider
+- **Agnes**: seed the 2.5/3.0 model ids in the registry
+- **Claude**: add Claude Sonnet 5.5
+- **CLI**: add connect command for remote 9router servers
+- **Codebuddy**: parse 6004 rate limit error and extract resetsAtMs
+- **Codex**: add GPT-6.1 Sol
+- **Codex**: expose 1M context variants for GPT-6 and GPT-5.6
+- **Glm**: add Z.ai OAuth login to GLM Coding (dual-auth)
+- **Kiro**: add claude-opus-5.5 models to registry and capabilities
+- **Muse**: add Meta Muse provider with OAuth login and model catalog
+- **Providers**: per-provider custom header overrides from the registry
+- **Quota**: sync ?provider= URL param with provider filter for bookmarkable deep links (#4395)
+- **UI**: unify every long-operation loading into one centered progress card
+- **Web**: add TinyFish search and fetch provider
+
+## Fixes
+- **Backup**: stop invalid-password error during import by polling with a token
+- **Keys**: show created keys to their creator session everywhere, label creators by name
+- **Tests,endpoint**: throwaway DATA_DIR for vitest; auto-create key named 'Default Keys' with duplicate-provision guard
+- **Tests**: point vitest DATA_DIR at a throwaway dir so fixtures never write the live DB
+
+## Docs
+- **Changelog**: regen changelog for upstream v0.5.95 features
+- **Changelog**: restyle fork CHANGELOG to match the upstream format
+
+# v0.5.151 (2026-09-30)
+
+## Fixes
+- **Import**: show bulk import progress overlay and block closing the modal while a bulk add/import loop is running, split large codex/grok payloads into batches of 20
+- **Logging**: dedupe repeated auth-failure log lines per source/ip/key prefix so a misconfigured polling client no longer floods the log, 401 responses still sent
+- **Backup**: forward the backup password as `x-9r-password` header when polling the import job so password-protected imports track progress
+- **Providers**: resolve provider aliases for suggested-model fetcher lookup, fall back to built-in models with an error note when upstream is unreachable, tolerate upstream schema drift
+
+# v0.5.150 (2026-09-30)
+
+## Fixes
+- **API Keys**: show created-by label under each API key name on the endpoint page
+- **API Keys**: include `createdBy` in `POST /api/keys` 201 response
+- **Inspector**: open live-requests inspector stream without login gate, scope rows by key `allowedModels`, refresh every 5s
+- **Models**: hide orphaned compat alias ghost groups in the model picker and clean up custom models plus aliases on provider node delete
+
+## Internal
+- **Tests**: add structural backup self-check covering apiKeys permissions and createdBy round-trip
+
+# v0.5.149 (2026-09-30)
+
+## Fixes
+- **Settings**: move tracing config into experimental and exclude user profile paths
+
+# v0.5.148 (2026-09-30)
+
+## Fixes
+- **Build**: mark db adapters external the Next 14 way so bun sqlite skips the webpack bundle
+
+# v0.5.147 (2026-09-30)
+
+## Fixes
+- **Build**: restore build dependencies dropped during the Next 14 downgrade
+
+# v0.5.146 (2026-09-29)
+
+## Fixes
+- **Build**: drop unknown webpack flag from the build script for next 14.2.35
+
+# v0.5.145 (2026-09-29)
+
+## Fixes
+- **Build**: pin `@types/react-dom` to existing 18.x to fix Railway install
+
+# v0.5.144 (2026-09-29)
+
+## Security
+- **Build**: bump next to 14.2.35 to resolve high severity CVEs
+
+# v0.5.143 (2026-09-29)
+
+## Features
+- **Usage**: show available models in apikey session usage
+- **Models**: allow combo as custom model target with cycle guard
+
+# v0.5.142 (2026-09-29)
+
+## Features
+- **Backup**: show centered loading overlay with progress while exporting, importing, or testing a backup
+- **Backup**: run backup import as a background job with per-section progress so the UI stays responsive
+
+# v0.5.141 (2026-09-29)
+
+## Features
+- **Backup**: include permissions and `createdBy` columns in apiKeys backup export/import
+- **Backup**: add backup self-check for round-trip export→import preserving apiKey metadata
+
+## Fixes
+- **API Keys**: add `createdBy` `"dashboard"` value for dashboard users in `POST /api/keys`
+- **Backup**: fix round-trip `exportDb`/`importDb` to preserve permissions and `createdBy` fields
+
+# v0.5.140 (2026-09-28)
+
+## Fixes
+- **Models**: stop the model picker heading a group with a generated node id
+- **Models**: disambiguate compatible provider headings with a short uuid suffix so two custom providers never share one label
+
+## Internal
+- **Tests**: add structural and distinctness cases for the new heading disambiguation in `providerDisplaySelfCheck`
+
+# v0.5.139 (2026-09-28)
+
+## Fixes
+- **Streaming**: correct a streamed tool-call name without holding the stream back
+- **Models**: stop the model picker heading a group with a generated node id
+- **Tool calls**: rescue tool calls the client would reject with an invalid-args error
+
+# v0.5.138 (2026-09-28)
+
+## Fixes
+- **Chat**: restore seren chat core
+
+# v0.5.139-Custom (2026-09-28)
+
+## Fixes
+- **A streamed tool call is no longer rejected over the case of its name.** The name and the arguments are corrected differently on purpose. A name arrives whole in the first delta of a call, so raising it back to the case the request declared costs nothing and holds nothing back. Arguments arrive in fragments and only form a parseable object at the end, so they are not touched here: buffering them would delay every tool call in the stream until its last fragment landed. A streamed call whose arguments cannot be recovered is repaired on the following turn instead, by the history rule shipped in `v0.5.137-Custom`, which is too late to save that turn but stops it repeating.
+- **The fix is applied on every path that emits a chunk.** Passthrough, the Responses same-format passthrough, the translate loop, the flush tail and the final flush all correct a name before the frame is written.
+
+## Internal
+- **Twelve cases added** for the streaming rule, covering the real delta shapes: an OpenAI first delta with an empty argument string, a later argument fragment, a Claude `content_block_start`, a Responses `output_item.added`, a text chunk that must stay untouched, a name that is not a declared tool, and an exact-case name that must not be rewritten needlessly.
+- **A circular-chunk case found a real defect.** The name walk is recursive and had no depth bound, so a cyclic chunk overflowed the stack. Chunks arrive about five levels deep, so a bound of twelve is generous and stops it. Confirmed by removing the bound, which reproduces the overflow.
+- **The check counts the emit sites in the stream source.** Every case above passed with the call site removed from the translate loop, because a pure-function check cannot see a missing hook. The source is now read to assert the index is built, the wrapper exists, and the guarded-site count has not moved; removing one hook was confirmed to redden it.
+- **The scope limit is asserted rather than left implicit.** Six frames are enqueued and five are guarded. The two that are not hand the client a raw upstream SSE line rather than a parsed object, so correcting a name there means re-parsing the line; they are passthrough, where the CLI tool and the provider are the same ecosystem and the model sees the names the client declared. The check pins the total at six so a new emit site forces that decision again instead of slipping past.
+
+## Notes
+- **Verification is static**, as it has been throughout this fork: per-file esbuild plus the self-checks. Nothing here has been exercised in a browser.
+
+# v0.5.138-Custom (2026-09-28)
+
+## Fixes
+- **The model picker no longer heads a group with a generated node id.** A compatible provider node is stored under an id like `openai-compatible-chat-b5bca155-fc33-4899-a868-2ff3d7891e3c`, and a custom model records that id as its provider. When no group owned the alias, the picker opened one and titled it with the id, so a database key was rendered as a provider name with a model count beside it. The heading now resolves in order: the node's own name, the connection's name, the static registry, and finally the family the id belongs to, so an unresolvable node reads as OpenAI Compatible rather than as a uuid. A registry entry that merely echoes the id back is not trusted as a name.
+- **A custom model no longer opens a second group for a node that already has one.** A compatible group is keyed by the node id but stores the node prefix as its display alias, and a custom model stores the id, so the alias-only lookup never matched. The id is tried as well, which is what makes the group and the model meet.
+
+## Internal
+- **`providerDisplay.js` added, with a 26-case check.** It covers the reported shapes (chat node, responses node, anthropic node, a missing node record, an empty node list during the first render) alongside the cases that must stay unchanged: a known registry alias is used as-is, an unknown plain id resolves to empty so the caller keeps its own default, and a schema-less lookup never guesses. The check was confirmed to fail by reinstating each defect separately: labelling a group with its own id reddened 10 cases, and dropping the node-id match from the owner lookup reddened 2.
+- **The check also reads the component.** A perfect helper does not help while the picker keeps reaching for the registry fallback, which is `{ name: providerId }` and therefore the id again, so two cases assert the leaking expressions are gone from the source. Restoring one of them in the component was confirmed to redden the check.
+- **One defect was found while writing the check.** The api type sits after the `compatible` segment in the id, not in the second word, so the first version read `openai-compatible` as the type and matched nothing. Six of the nine id cases failed until it was corrected.
+
+## Notes
+- **Verification is static**, as it has been throughout this fork: per-file esbuild plus the self-checks. Nothing here has been exercised in a browser.
+
+# v0.5.137-Custom (2026-09-28)
+
+## Fixes
+- **A tool call the client could not satisfy ended the turn.** `Invalid args for tool "Bash": must have required property 'command'` is the client validating the call against the schema the request itself declared, and it throws rather than continuing. The argument object was reaching the client as `{}` because the only repair in the pipeline, `toolCallFallback.repair`, reads the request history and never looks at the call the model is producing right now. Three rules now run over each response: a name spelled in a different case than the request declared is raised back to the declared one, a missing required property is filled from a value the model did supply under another name, and a call whose arguments cannot be recovered is dropped so the model tries again on the next turn instead of the turn dying.
+- **A model that wrote the command as the whole argument string is understood.** `arguments: "ls -la"` is lifted into `{"command":"ls -la"}`, but only when the tool declares exactly one required string property. With more than one, the value is ambiguous and the call is dropped rather than guessed.
+- **A rejected call no longer poisons every turn after it.** The call the client rejected stays in the history it sends back, so the same broken call was re-validated and rejected on each retry. The history is now rescued on the way out, which is what makes a turn recoverable after the first failure.
+
+## Internal
+- **`toolCallRescue.js` added, with a 31-case check** covering the reported shapes (lower-case name, empty arguments, bare string, `cmd`, `commandLine`, `oldString`) plus the shapes that must stay untouched: a well-formed call is re-encoded byte-identically, an undeclared name is left alone, a schema without `required` is not second-guessed, and a non-object argument value does not throw. The check was confirmed to fail by reinstating each defect separately: removing the case-insensitive name match reddened 11 cases, and passing an unrecoverable call through instead of dropping it reddened 7.
+- **Three defects were found while writing the check.** A Claude `tool_use` block carries `input` as an object, not a JSON string, and the first version parsed it as a string and discarded it. Separator-insensitive matching was skipping every spelling variant of the key itself, so `newString` could not fill `new_string`. And a Claude-format response is the message itself rather than a choice inside one, so the first version never reached it at all.
+
+## Notes
+- **Streaming is not covered.** Tool arguments arrive in fragments there, and buffering them to repair would hold back every tool call until the last fragment lands. The non-streaming path and the request history are repaired; a streaming call is still repaired on the following turn through the history rule above.
+- **Verification is static**, as it has been throughout this fork: per-file esbuild plus the self-checks. Nothing here has been exercised in a browser.
+
+# v0.5.136-Custom (2026-09-28)
+
+## Fixes
+- **Creating an API key failed everywhere.** `createApiKey` in the repository module read `ctx.session?.apiKey` to work out who was creating the key, but that module has no session and never had one. Every call threw a ReferenceError, the route caught it, and the dashboard got a bare 500 with no clue what went wrong. The caller already resolved the creator and passes it in, so the inference is gone. The key name check in the form was unrelated and is unchanged.
+- **The Live Request tab was not reachable.** The tab strip scrolled sideways, so its last option sat off the edge of a narrow viewport, and the label was long enough to make that likely. The tab is now called Inspector, and the strip wraps instead of scrolling, so no option can end up hidden behind a scrollbar.
+
+## Internal
+- **A leaked-identifier scan added**, `leakedIdentifiersSelfCheck.mjs` (5 cases), scanning every module under `src` and `open-sse` for names that only exist inside a route handler or auth helper. It is written after the outage above, where esbuild passed the whole time because an undeclared global is a valid program to a bundler and only throws when the line runs.
+- **The scan's first version did not catch its own bug.** Its destructuring rule accepted any braces around the name, so an object literal containing it read as a declaration and the offending line came back clean. The rule now requires the name to be a bare binding, and a case reproduces the exact shape of the line that caused the outage so the rule cannot widen back into matching it. Reintroducing the fault is what proved the difference.
+
+## Notes
+- **None of this has been exercised in a browser.** Verification is static: per-file esbuild plus the self-checks. The same applies to everything else shipped in this fork.
+
+# v0.5.135-Custom (2026-09-28)
+
+## Fixes
+- **The wrong panel was hidden for API-key sessions.** The provider map is the diagram with 9Router at its centre and every configured provider arranged around it, joined by animated edges. That is infrastructure rather than one key's usage, and it is what now gets replaced with a short muted note. The usage charts, which were hidden instead in `v0.5.129-Custom`, are back for every session. Both chart endpoints were already scoped to the session's allowed models, so what an API-key holder sees is that key's own usage.
+- **The note no longer leaves most of a row empty.** Recent Requests is pinned to a fixed height and the map used to fill the wide column beside it, so the note and the request list now drop the two-column grid for an API-key session instead of sitting in a 480px cell.
+- **A session that is still being identified no longer flashes the map.** The lookup of `/api/auth/status` and the statistics load run together, and the map area now shows the same spinner the charts used to, so an API-key holder never sees the map appear and then disappear.
+
+## Changes
+- **An API-key holder can see their own token allowance.** A card above the overview numbers shows the key's name, tokens used against its limit, what is left, the percentage, and a running countdown to the next reset. `/api/usage/api-keys` already narrowed its result to the session's key, so nothing about any other key reaches the browser: the endpoint needed no change, and neither did any permission. An unlimited key shows its usage and no bar or countdown rather than a broken empty one.
+- **An API-key session stops requesting the provider list.** The two requests behind the map were the only consumer of that state, so a session that never renders the map no longer makes them.
+
+## Internal
+- **A render check added** for the Usage page, `usageStatsRenderSelfCheck.mjs` (7 cases), covering a password session, an API-key session with and without a quota, an unlimited key, and a session still being identified. It was confirmed to fail against two reintroduced defects: the charts hidden again, and the map shown again.
+- **The two render harnesses were corrected.** The PropTypes stub returned `null` from a validator, which breaks any chained `.isRequired`, and the JSX stub recorded elements without calling them, so text inside a nested component never reached the tree and the check could not see a card that rendered nothing. Both now render what a browser would.
+- **Panel detection hangs off component identity.** The four lazily loaded panels were told apart by prop name, which is unsafe: `activeRequests` and `errorProvider` are also fields of the statistics object the overview cards receive, so they appear in the tree whether or not the map is rendered.
+
+## Notes
+- **None of this has been exercised in a browser.** Verification is static: per-file esbuild plus the render check above. The same applies to everything else shipped in this fork.
+
+# v0.5.134-Custom (2026-09-28)
+
+## Changes
+- **The Change Log modal no longer stacks both contributors into one scroll.** It opens on Serenhope with a switcher in the header to move between Serenhope and Decolua. Both changelogs were already fetched separately, so nothing new is requested; only the display changed. A tab appears only for a source that actually loaded, so an unreachable upstream no longer offers a button that leads to nothing.
+- **A selection that points at an empty changelog falls back** to one that has content, rather than leaving the body blank. This is the case where upstream goes down after the user has picked it.
+
+## Internal
+- **Two self-checks added**: `changelogSourcesSelfCheck.mjs` (9 cases) covers the source list, the default, and every empty-state fallback, and `changelogModalRenderSelfCheck.mjs` (6 cases) renders the modal with both changelogs present, with one absent, and with a stale selection. The render check feeds state through a queue, because with the component's real empty state the switcher never appears and a check that only renders that would pass against a broken one. Both were confirmed to fail against a deliberately reintroduced defect.
+- **Source selection moved into `changelogSources.js`**, free of imports, so it can be tested without the bundled dependencies. It mirrors what `pluginModelMatch.js` does for the plugins page.
+
+# v0.5.133-Custom (2026-09-28)
+
+## Changes
+- **Three more Custom Plugins, each per model and each off by default**: Structured Output Lock normalises the response format a request asked for, writes the required fields into the system prompt for providers with no native JSON mode, and strips fences, leading prose and truncation out of non-streaming answers. Tool Argument Repair compares every call against the schema the model was actually given, fills safe defaults, coerces near-miss types, and drops a call whose required arguments cannot be recovered instead of sending one the harness will reject. Context Doctor cuts a conversation that no longer fits the model's window, shortens the tool output that is left, and leaves a recap naming the files and commands that were removed. All three carry their own badge on the model, the way Image Vision and Think Deeper already do.
+- **Adaptive Pruning by Context Window** in Token Saver sizes the cut to the model rather than to a message count, so a short session is never touched and only a request that would actually overflow loses turns. Room is held back for the reply, and the existing message limit becomes the floor rather than the target.
+- **A tool call and the result answering it are now treated as one unit when cutting history.** The new pruning groups turns by the call ids actually present in the conversation, so a call is never dropped while its result survives. That split is a hard 400 upstream, and inside a combo it burns every member before one can reply.
+
+## Fixes
+- **A tool call that could not be repaired was never actually dropped.** The repair tested whether anything had changed before testing whether the call was recoverable, and a call missing only an unfillable required property had nothing left to change, so it passed straight through and the client failed on it again.
+- **The Context Doctor recap was inserted ahead of the system prompt.** It was spliced at index 0 rather than after the pinned prefix, which Claude and Gemini both reject.
+- **A truncated JSON object whose last key had no colon stayed unparseable.** The shared closing helper only handled the form with a trailing comma, so `{"city":"Lisbon","popu` reached the caller untouched instead of as `{"city":"Lisbon"}`.
+
+## Internal
+- **Seven self-checks added**: `tokenBudgetSelfCheck.mjs` (17 cases), `adaptivePruningSelfCheck.mjs` (16), `contextDoctorSelfCheck.mjs` (18), `structuredOutputSelfCheck.mjs` (21), `toolSchemaRepairSelfCheck.mjs` (24), `pluginModelMatchSelfCheck.mjs` (9) and a render smoke-check for the two changed pages (8). Each was confirmed to fail against a deliberately reintroduced defect before being accepted. The adaptive pruning check initially accepted a broken one, because its cases only ever cut a call and its result in sequence, so a case was added where the budget is met the instant the call alone is dropped.
+- **Plugin list management no longer repeats itself per plugin.** The API route and the plugins page derive their keys from one list, so a newly added plugin cannot be silently dropped from a save or from the load path.
+- **Plugin model matching moved to its own module** so it can be tested without the settings database. Two of its assumptions are now pinned by tests: a bare model name matches across provider prefixes, which is what makes a plugin work at all when the dashboard stores an aliased id, and a prefix of a real id is not a match.
+- **The render check drives boolean state on.** Every enabled branch in both pages is gated on a boolean, and a stub that returned the initial `false` would leave those branches unevaluated, so a typo inside one would never throw. A case also forces the model picker open and asserts on the resulting tree, because a picker title built from a renamed variable throws in a way a plain render does not.
+
+## Notes
+- **Streaming answers are not cleaned by Structured Output Lock.** Validating JSON means holding the text until the stream ends, which is the one thing streaming is for. That path is carried by the native response format plus the pinned schema.
+- **Streaming tool arguments are not buffered by Tool Argument Repair**, for the same reason. A partial JSON string cannot be validated, and holding the fragments would stop tool arguments streaming at all. Complete calls inside a chunk, which is how Claude and Responses emit them, are still repaired; fragmented OpenAI deltas are picked up on the next turn, where the request-side repair fixes the history.
+- **The Context Doctor summariser is a hook, not a feature yet.** The module accepts a summariser and falls back to the deterministic recap when it throws, returns nothing, or is absent, and both paths are tested. Nothing supplies one: a nested LLM call inside the request path needs its own auth and recursion handling, so wiring it is left for a change that can be tested on its own.
+- **None of this has been exercised in a browser.** Verification is static: per-file esbuild plus the self-checks above. The same applies to everything else shipped in this fork.
+
+# v0.5.132-Custom (2026-09-28)
+
+## Fixes
+- **Model picker merged unrelated models into one provider**: custom models that could not be placed in a provider group were pushed into the first provider with `passthroughModels`, which both stacked them under that provider's heading and rewrote their value to that provider's prefix. Picking one silently retargeted the request at a provider the model never belonged to, and a provider such as OpenCode Free could show hundreds of borrowed models. They are now grouped under the alias each model actually belongs to, which is the prefix the value needs anyway.
+- **A permission comment described the opposite of what the code does**: an empty `permissions: []` page rule was documented as "open to any session", but `canOpenPage` asks whether any listed permission is held, and an empty list has none, so the page is closed. The comment is corrected, and the two pages relying on it (Basic Chat, Profile) keep their existing behaviour.
+
+## Changes
+- **Four more API key permissions**: `manageTools` (CLI Tools, Token Saver), `manageAdvanced` (Console Log, Translator, Proxy Pools, PXPIPE), `managePlugins` (Custom Plugins, Skills) and `manageMediaProviders`. All default to off, so a key created before this change gains nothing: `normalizePermissions` reads a missing field as false, and no migration grants anything. A password session keeps every page. The sidebar now shows an API key session only the parts of the System section it may open, instead of hiding all of it.
+- **API key allowed models follow the models**: deleting a model drops it from every key's allowlist, and renaming one rewrites the entries that referenced it, across custom models, the model editor and model aliases. Only the ids the caller reports as gone are touched, so a provider that is momentarily unreachable cannot shrink anyone's list, and wildcard patterns are never pruned. When the last entry would be removed the old value is kept and the key is reported back, because an empty allowlist parses as "no restriction" and would silently unlock the key.
+- **Usage charts hidden for API key sessions**: the token chart and the two breakdown charts are replaced with a short muted note. The overview numbers and the recent request list are unaffected. A password session sees exactly what it saw before. If the session lookup fails the page falls back to the password view.
+
+## Internal
+- **Two self-checks added**: `permissionPathsSelfCheck.mjs` (12 cases) proves each permission opens only its own pages, that none leaks into another section, and that a page with no rule stays shut. `allowedModelsReconcileSelfCheck.mjs` (15 cases) covers pruning, renaming, wildcard and `*` preservation, idempotence, and the refuse-to-empty rule. The reconcile check caught a real defect while being written: an untouched list was being respaced and rewritten, which is fixed.
+
+# v0.5.131-Custom (2026-09-28)
+
+## Fixes
+- **Quota Tracker crashed on open**: the Quota row card rendered a `resetWord` that was never declared, which throws a ReferenceError the moment the list draws. `/dashboard/quota` has no error boundary, so the whole page went blank. The label now comes from the `recurring` flag the row already carries, so a one-shot pack still reads "Expires" and a refilling quota still reads "Reset", matching the wording the progress bar already used.
+
+## Internal
+- **Render smoke-check for the Quota Tracker components**: `QuotaTracker/renderSelfCheck.mjs` calls each leaf component as a plain function with real-shaped data covering every branch it draws (unlimited, credit balance, one-shot pack, missing reset time, compact mode, each sort mode, pagination, error and loading states). This catches a class of bug that parsing alone cannot: a JSX expression naming a variable nobody declared is syntactically valid, so it passes a build check and only fails when the component renders. The check was verified by reintroducing the defect and confirming it failed before restoring the fix.
+
+# v0.5.130-Custom (2026-09-27)
+
+## Changes
+- **Permissions are locked for API key sessions**: signing in to the dashboard with an API key now disables the whole permissions block instead of only hiding the "manage API keys" row. The four checkboxes are inert, the value shown is the default with only View usage on, and a note explains that changing permissions needs the dashboard password. This applies to both the create form and the edit form, and the value sent to the API is forced to the default so stale form state cannot slip through.
+- **Sub-keys created by an API key session no longer inherit permissions**: key creation and key editing now write the default permission set for an API-key session instead of clamping the request to what the caller already holds. A key that can create keys can no longer mint one that manages keys, so the escalation chain stops there. Session by dashboard password is unaffected and keeps full control.
+
+# v0.5.129-Custom (2026-09-27)
+
+## Fixes
+- **API key usage showed providers the key cannot use**: signing in to the dashboard with an API key showed every provider that had ever run on the instance. The Usage page reads two sources, and the SSE stream at `/api/usage/stream` called `getUsageStats` without the allowed-models argument, so it fell back to "every model" and overwrote the correctly scoped first response. That stream is the one that populated the By Provider chart, which is why unrelated providers such as MiMo Code Free and OpenCode appeared next to the key's own custom model.
+- **Leaderboard and Errors tabs ignored allowed models**: both filtered by API key but not by the key's model allowlist, so a scoped session saw models it would be refused at request time. The Errors tab now also excludes those models from its total and error counts, so the numbers agree with the rows.
+- **Live request list was never scoped**: `getActiveRequests()` returned the global view to every caller, including API-key sessions, exposing other keys' in-flight and recent requests. It now takes the session scope, and a scoped caller gets an empty in-flight list because pending traffic carries no key attribution.
+- **Request Details and the provider filter had no session check**: `/api/usage/request-details` and `/api/usage/providers` never consulted the dashboard session, so the provider dropdown could be used to enumerate providers outside the key's scope. Both are now narrowed to the key's allowed models. The model filter is applied in SQL rather than after the query, so pagination counts stay correct.
+
+## Notes
+- The `requestDetails` table has no `apiKey` column, so the Details tab and Live Request Inspector are scoped by allowed model but not yet by API key. Scoping them per key needs a schema change; existing rows cannot be attributed retroactively.
+
+# v0.5.128-Custom (2026-09-27)
+
+## Custom Features & Enhancements
+- **Automatic tool calling fallback**: a tool payload that a provider refuses no longer surfaces as a tool error. Before dispatch, malformed tool arguments are repaired (truncated JSON is closed back up, non-string arguments are stringified, empty ones become `{}`), tool results whose call id matches nothing are dropped, and a `tool_choice` pointing at a tool that is not in the array is removed. When an upstream still answers 400/404/422 naming the tools, the request is re-dispatched with the tool machinery relaxed one step at a time, stopping at the first level the provider accepts: drop `tool_choice` and `strict`, then strip JSON Schema keywords that many gateways reject while keeping every tool name and description, and finally drop the tool definitions entirely and inline the tool history as prose so the turn is still answered. On by default; set `toolCallFallback` to `false` in settings to restore the previous behaviour. A rejection that does not name tools, such as a context overflow or a policy refusal, is never touched.
+
+# v0.5.127-Custom (2026-09-27)
+
+## Fixes
+- **MiMo Code Free hidden properly**: the provider was flagged `hidden` in the registry but still surfaced in the model selector and in `/v1/models`, because the no-auth provider lists were built from every `noAuth` free provider without checking that flag. Both lists now skip hidden entries, so the dead Xiaomi free channel no longer shows up with a large auto-fetched model list. The entry keeps its `noAuth` flag so an old `mmf/mimo-auto` request still resolves on the request path.
+- **MiMo free model catalog no longer auto-fetched**: the registry entry pulled a model list from models.dev through `modelsFetcher` and accepted any id through `passthroughModels`. Both are gone, so the provider exposes only its single curated model and no longer grows a catalog from an external source.
+
+## Changes
+- **Web cookie provider names shortened**: DeepSeek Web (Cookie), Gemini Web (Cookie) and Kimi Web (Cookie) are now DeepSeek Web, Gemini Web and Kimi Web. The provider ids and aliases are unchanged, so saved connections keep working.
+
+# v0.5.126-Custom (2026-09-27)
+
+## Custom Features & Enhancements
+- **Live Request Inspector**: new tab in the Usage menu that streams live request metadata (model, provider, tokens, latency, status) over SSE. Shows the newest 50 requests with a rolling snapshot that self-heals on reconnect, plus a pause/resume toggle and a detail drawer. Conversation payloads are never sent to the client, matching the redaction policy of the existing request-details endpoint.
+- **Prompt Cache Indicator**: the Recent Requests rows now show a `CACHE` badge when a request served prompt tokens from cache, and the Cached Tokens overview card shows a cache hit rate percentage when caching is active.
+- **Quota Tracker redesign**: quota rows are now card-style with rounded borders, a larger progress bar, and the remaining percentage moved to the top-right of each row. Spacing, typography and hover states are aligned with the rest of the dashboard.
+- **API Key Usage menu removed**: the sidebar entry is gone. Users who sign in with an API key already see their own scoped usage on the Usage page, so the separate menu was redundant. The page route and `/api/usage/api-keys` endpoint are unchanged.
+
+## Fixes
+- **Live Request Inspector auth**: the SSE endpoint called `getSessionContext()` but discarded the result, so the auth check was a no-op. It now returns 401 when there is no session.
+
+# v0.5.125-Custom (2026-09-27)
+
+## Upstream Sync
+- **Synced with decolua upstream v0.5.91**: 37 upstream commits merged, including the Token Harbor provider, four OpenAI-compatible aggregators (dahl, atria, agnes, bai), Claude thinking text returned to OpenAI-format clients, Claude decloak fallback when toolNameMap misses, Zed OAuth auto-import, GPT-6 Sol and Luna for Codex, the completed OpenCode Go catalog, Codex CLI multi-profile support, and Hermes multi-role model config.
+- **Fixes from upstream**: usage attribution keyed by full API key to stop team-key collisions, combo limits resolved with server capabilities, capabilities catalog no longer cached per module copy, `POST /api/providers` made O(1) with silent key overwrite refused, Command Code raw byte replay, empty think markers no longer emitted, Gemini terminal turns and unresponded functionCalls guarded, Tailscale enable-flow health wait capped at 20s, Claude cli version bumped to 2.1.280 for Opus 5.5.
+- **Serenhope fixes kept**: per API key permissions and sign-in, combo context window resolution, combo body deep-copy so tool calling survives the fallback loop, usage chart and live stats scoped to the signed-in key, real custom plugin implementations, plugin badges on custom and combo models, default pricing fallback so Est. Cost is never always zero, Docker npm cache mount fix for Railway.
+- **Serenhope removals kept**: Union Alpha models, the Custom Domain endpoint option, the Uncensored Output plugin, the withdrawn 304+ provider batch, and the Fastest / Cheapest / Select All combo options stay out.
+
+# v0.5.123-Custom (2026-09-27)
+
+## Fixes & Enhancements
+- **Tool calling restored for whitelisted providers**: Fixed short-circuit in claude translator that bypassed the `!!tool?.function` fallback for providers with a tool-type whitelist.
+- **Combo tools capability reporting fixed**: Changed `aggregateComboCapabilities` to use `some` instead of `every` for the `tools` capability so a single member without tools no longer disables tools for the entire combo.
+- **API-key user model filtering fixed**: Added missing `fetch("/api/auth/status")` in EndpointPageClient so `creatorAllowedModels` and `creatorPermissions` resolve correctly instead of falling back to defaults.
+
+# v0.5.124-Custom (2026-09-27)
+
+## Fixes
+- **Combo body mutation in fallback loop**: the fallback loop passed the same `body` reference to each member in turn, and `translateRequest` plus `fixMissingToolResponses` mutated `messages` in place. A second member inherited the corrupted history, which silently broke tool calling. Each member now gets its own cloned messages array, so a failed first member no longer poisons the next attempt.
+
+## Custom Features & Enhancements
+- **Select All removed from Combos page**: the master checkbox that toggled all combo cards at once was removed, along with the `Select all (N)` label. Combos are selected one card at a time via the per-card checkbox; the bulk strategy and bulk delete controls only appear when something is selected, next to the current count.
+
+# v0.5.122-Custom (2026-09-27)
+
+## Changes
+- **Custom Domain endpoint removed**: the Custom Domain option on the API Endpoint card is gone along with its enable, edit and disable dialogs, the `customDomainEnabled` and `customDomainUrl` settings, and the branch in the base-URL picker that produced its `/v1` URL. Local, Cloudflare Tunnel and Tailscale remain, and a stored custom domain left over in an old settings blob is ignored rather than read.
+- **Cheapest combo strategy removed**: the "Cheapest" strategy that ordered combo members by a free/cheap heuristic is gone from the rotation logic and from the combos page help text. Round Robin, Fallback and Fusion remain.
+
+## Fixes & Enhancements
+- **Sub-key model scope enforced server-side**: a sub-key created with a wildcard allowed-models field used to bypass the parent key's model scope entirely, so a key restricted to a single model could create a child with access to every model. The create and edit key endpoints now clamp a wildcard or empty request to the creator's own allowed-models list, while explicit lists are still filtered by the same exact, prefix-star and suffix-star matching the LLM gate uses.
+- **Tool calling restored for all models**: the Claude translator's tool filter dropped any tool whose `type` was not `function` or in the provider whitelist, which discarded tools carrying a function payload under a newer API's `type` (e.g. Responses "custom"). The filter now keeps any tool that has a function payload, so tool definitions reach the provider and `capabilities.tools` reports true again. Combo capability auto-switch now also treats `tools` as a hard capability and floats tool-capable models to the front when a request carries tools.
+
+# v0.5.121-Custom (2026-09-26)
+
+## Changes
+- **The large provider batch is withdrawn**: the set that added 304+ providers on top of this fork is gone again. Around 240 registry entries, 48 executors and the supporting services and utilities that only existed for them were removed, and the two that stayed in the tree are now unreferenced. The providers this fork had before that batch are untouched, so OpenCode Zen, CodeBuddy Intl, Qoder CN, Devin CLI, Grok CLI, DeepSeek Web, Gemini Web and Kimi Web all still work exactly as before.
+- **Alias resolution stays**: the indirection that maps a registry id, an alias and every secondary alias onto one provider key is kept, because the model lookup helpers read through it and the entries that remain use it.
+- **The capture buttons stay**: the API key form, the cookie capture button and the Felo capture button are untouched, so adding a key for any remaining provider behaves as it did.
+
+# v0.5.120-Custom (2026-09-26)
+
+## Fixes & Enhancements
+- **The image builds on Railway again**: the dependency install used a cache mount, and Railway's builder wants the id to carry a key it generates per service. The documented form of that key is rejected too, so the mount only ever broke the build, and the first version of the fix, which named the cache, was refused for the same reason. The mount is gone now and the build relies on the layer cache, which already covers the common case because package.json is copied on its own, so an unchanged manifest never reinstalls anything. The syntax line went with it, so the build no longer needs to pull a Dockerfile frontend before it can start.
+- **The build no longer stops on missing modules**: bringing in the large provider set left a few files behind. The capture metadata and the debug-browser warning were imported by the provider key form and by the two capture buttons, and the canonical-attempt trio was imported by the request semantics, the forced and non-streaming adapters and the request-detail status map, so none of those could be compiled. All five are here now, which means the cookie capture buttons, the Felo capture button and the request-detail status column behave as they were written to.
+- **Z.ai no longer needs a browser driver to load**: its browser transport imported playwright at module level, so an install without it failed to compile even for the signed API path that never touches a browser. The driver is now resolved the first time the browser is actually launched, the same way the TLS impersonation client already handles its optional native dependency, and the package is an optional dependency so a host that cannot install it is not blocked. When it is missing, the error says what to install instead of surfacing as a module resolution failure.
+
+# v0.5.119-Custom (2026-09-26)
+
+## Changes
+- **Removed the Uncensored Output plugin**: the plugin, its runtime prompt injection, its API keys, its default settings entry, its capability badge and its card on the Custom Plugins page are gone. A configuration that still carries the old entry is simply ignored, and no model loses a badge it no longer has. The remaining plugins are Image Vision, Think Deeper and Speed Mode.
+
+## Fixes & Enhancements
+- **Update banner that actually fires on a deployed instance**: the old check only asked git how far behind the checkout was, and a deploy that ships without git history (a container or a platform build) has no revision to ask about, so it reported "no update" forever. The build now stamps its own revision and release into the bundle, and the check runs a second signal that compares the newest changelog entry on the repository with the release this build came from, so an image without git still learns that a newer release exists.
+- **A dismissible banner across the dashboard**: a banner appears under the header when an update exists, naming the release, saying how far behind the install is, previewing the first notes of the new release, and offering the update command to copy plus a link to the repository. It rechecks every ten minutes, and closing it hides that release only, so the next one shows up again.
+- **The changelog URL pointed at the wrong repository**: it read the upstream changelog while everything else in the app points at this fork, so a release note shown to the user could describe changes that were never shipped here.
+- **Post-login dialog no longer repeats the update notice**: it used to print a commit count that could be unknown, and the update has a home of its own now.
+
+# v0.5.118-Custom (2026-09-26)
+
+## Changes
+- **Dropped Union Alpha from OpenCode Free**: `oc/union-alpha` and `oc/union-alpha-free` are removed from the OpenCode Free registry, so they no longer appear in the model picker, the suggested list or `/v1/models`. They were the only free models served over the Anthropic Messages endpoint, so that routing branch, its model set and the `anthropic-version` header it added are gone as well; every remaining free model goes to chat/completions or to the Responses API. OpenCode Zen keeps its own `union-alpha` model, which is a separate provider and still works.
+
+# v0.5.117-Custom (2026-09-26)
+
+## Fixes & Enhancements
+- **Combo context window follows the largest member**: a combo of a 1M model and a 256k model used to publish 256k, so clients compacted a conversation far earlier than any member needed. A combo fails over between models instead of splitting one conversation, so the window it advertises now follows the largest member, same as max output already did. The two places that aggregated combos disagreed with each other (one took the smallest window and the smallest output, the other the smallest window and the largest output), so both now share one aggregator and a combo reports the same window in every place.
+- **Custom context per combo**: create and edit combo have a Context Window switch with Auto and Custom. Auto follows the largest member and says what that is right now, Custom takes a token count that wins over the automatic value. Stored in a new `contextWindow` column, where 0 means auto, and marked with a custom badge on the combo card.
+- **Every model shows its real window**: each row in the combo form and each chip in the model picker now carry the model's context (1.0M, 256k), so a 1M model is never picked as if it were a small one. The combo card shows the window and output of each of its members next to the badges.
+- **Combos report context_length**: `/v1/models` published a combo's window only inside a nested block, so a client reading the usual `context_length` field found nothing and guessed from the name. Combos now also publish `context_length` and `max_completion_tokens` at the top level, like single models.
+- **OpenCode and other credential-free providers are listed again**: `/v1/models` built its list from provider connections only, and a provider that needs no key never owns a connection, so its models were listed only while the whole provider table was empty. As soon as one provider was connected, every model of OpenCode Free and the other no-key providers disappeared from the listing, even though requests to them worked. They are now always listed, and a client that reads `/v1/models` to build its model picker sees them.
+
+# v0.5.116-Custom (2026-09-26)
+
+## Custom Features & Enhancements
+- **Per API key permissions**: the Create and Edit API key forms now carry a Permissions box with four separate rights: create, edit and delete API keys, create, edit and delete models, create, edit and delete providers, and view usage. Each key stores its own set, and the sidebar, the pages and the endpoints all follow it. A password sign-in is still a full administrator.
+- **Sign in with an API key**: the login page has an API Key Login tab next to Password Login. The key is verified like any LLM request, so a disabled, expired, quota-exceeded or IP-blocked key is refused with its own message. The session that results shows only the menus the key is allowed to open, and the Endpoint page hides the tunnel, Tailscale and require-API-key controls so no button can fail.
+- **Usage scoped to the signed in key**: stats, chart, leaderboard, error list, history, the CSV export and the live stream all filter on the key that authenticated, so a key user reads its own numbers and never another key's. The per-key usage page shows the same single card.
+- **Nested keys stay inside the parent's scope**: a key that only has view usage cannot hand out model, provider or key rights to a new key, the permissions it does not hold are hidden and disabled in the form, its token limit caps the limit of every key it creates, and its allowed-model list is the only list the model picker offers, with the same exact, prefix-star and suffix-star matching the server applies to LLM requests.
+- **Enforced on the server, not only in the menu**: a key-signed session is refused with 403 on any endpoint its permissions do not cover, including settings, tunnel, OAuth, cloud, translator, CLI tools and MCP routes, and on any dashboard page outside its rights. Reading the model catalog stays open to a provider manager because the providers page needs it to render a connection, while every model write stays on the model right. A key with no right at all lands on a short notice with a sign out button instead of a redirect loop.
+
+# v0.5.115-Custom (2026-09-26)
+
+## Custom Features & Enhancements
 
 - fix: restore seren chat core
 
@@ -405,7 +929,36 @@ v0.5.81 (2026-09-18)
 - **Key Editing & Management**: key names, token limits, reset intervals, and allowed models stay editable anytime, with a manual `restart_alt` button to zero the used tokens.
 - **UI & Theme Sync**: the app is locked to dark mode with theme and language switchers removed, and custom select dropdowns now follow the app theme.
 
-# v0.5.100 (2026-09-18)
+# v0.5.91 (2026-09-26)
+
+## Features
+- **Providers**: add Token Harbor provider and four OpenAI-compatible aggregator providers (dahl, atria, agnes, bai)
+- **Claude**: forward `x-claude-code-session-id` on OAuth requests; merge client `anthropic-beta` flags and forward rate-limit headers; return thinking text to OpenAI-format clients
+- **Codex**: add GPT-6 Sol and Luna support
+- **CLI Tools**: support multiple model profiles for Codex CLI
+- **Hermes**: multi-role model config (delegation + auxiliary slots)
+- **OpenCode Go**: complete the Go catalog (40 models) with auto-fetch + family endpoint regex
+- **Usage**: show and redeem free limit resets for cc accounts
+- **Cline**: expose the `cline-free/*` tier and price it at zero
+- **Combos**: display vision adapter models in an ordered table view
+
+## Fixes
+- **Claude**: decloak tool names when `toolNameMap` misses (#4342); update spoofed cli version to 2.1.280 to support Opus 5.5
+- **Providers API**: make POST `/api/providers` O(1) and refuse silent key overwrite (#4350)
+- **Capabilities**: stop caching the catalog source per module copy (#4351)
+- **OAuth**: stop Zed paste-token crash and add IDE auto-import (#4359)
+- **Dashboard**: resolve combo limits with the server's capabilities (#4360); lazy-load charts and `marked`, preload in background on idle
+- **Responses**: carry the streamed output items in `response.completed` (#4307)
+- **STT**: dispatch live-API-only Gemini models over the Live WebSocket transport (#4006)
+- **Gemini**: guard terminal model turns and unresponded functionCalls in `normalizeGeminiContents`
+- **Command Code**: replay raw byte chunks to preserve all NDJSON lines
+- **Translator**: stop emitting empty `<think>` markers into OpenAI content
+- **CLI Tools**: refresh Codex settings after apply (#4347); keep existing `ANTHROPIC_AUTH_TOKEN` when applying Claude settings
+- **Tray**: native arm64 macOS menubar binary, no Rosetta required
+- **CLI**: filter model selector by active connections and noAuth providers
+- **Usage**: key live byApiKey stats by full api key to prevent team-key collision and preserve API key usage attribution
+- **Tailscale**: cap enable-flow health wait at 20s
+
 # v0.5.86 (2026-09-23)
 
 ## Features
@@ -866,7 +1419,6 @@ v0.5.81 (2026-09-18)
 - **Alicode-intl**: split into Coding Plan + Model Studio providers
 - **Cursor**: HTTP/2 AgentService support + version bump 3.12.17
 - **Dashboard**: cut duplicate API/icon spam, lazy-load provider assets
-
 
 # v0.5.35 (2026-07-16)
 

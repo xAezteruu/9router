@@ -21,6 +21,7 @@ import { resolveZedModels } from "open-sse/shared/zedAuth.js";
 import { updateProviderCredentials } from "@/sse/services/tokenRefresh";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { capabilitiesFromServiceKind, getCapabilitiesForModel, aggregateComboCapabilities } from "open-sse/providers/capabilities.js";
+import { fetchSuggestedModelsServer } from "@/app/api/providers/suggested-models/filters.js";
 
 // Qoder shares one live resolver across intl (qoder) and CN (qoder-cn); the
 // credentials carry the provider id so qoderModels picks the right region's
@@ -372,11 +373,15 @@ export async function buildModelsList(kindFilter, options = {}) {
   // Custom model (studio) names are user-defined callable IDs (alias + per-model overrides).
   for (const studio of studioModels) {
     if (!kindFilter.includes(LLM_KIND)) continue;
+    // A studio model is a name the client calls. It routes to studio.targetModel,
+    // but the catalogue must not name that target: publishing resolved_model (or a
+    // fixed owned_by) let anyone listing models see that "claude-opus-5-5" is really
+    // mimo-v2.5. owned_by is the studio's own label for itself, free-form, defaulting
+    // to the callable name so a client reads back exactly what it asked for.
     const entry = {
       id: studio.callName,
       object: "model",
-      owned_by: "model-studio",
-      resolved_model: studio.targetModel,
+      owned_by: studio.ownedBy || studio.callName,
     };
     const caps = getCapabilitiesForModel(studio.provider, studio.model);
     if (caps) entry.capabilities = caps;
@@ -421,7 +426,9 @@ export async function buildModelsList(kindFilter, options = {}) {
       models.push({
         id: `${providerAlias}/${modelId}`,
         object: "model",
-        owned_by: providerAlias,
+        // Optional operator-set label, exactly as for studio models; falls back
+        // to the provider alias so an unset field changes nothing.
+        owned_by: customModel.ownedBy || providerAlias,
       });
     }
   } else {
@@ -545,6 +552,18 @@ export async function buildModelsList(kindFilter, options = {}) {
         })
         .filter((modelId) => typeof modelId === "string" && modelId.trim() !== "");
 
+      // The same filter produced customModelIds; remember which of them carry an
+      // operator-owned label so the merged entry can publish it below.
+      const customOwnedByById = new Map();
+      for (const m of customModels) {
+        if (!m?.id || !m.ownedBy) continue;
+        const alias = m.providerAlias;
+        if (alias === staticAlias || alias === outputAlias || alias === providerId) {
+          const modelId = String(m.id).trim();
+          if (modelId) customOwnedByById.set(modelId, m.ownedBy);
+        }
+      }
+
       const mergedModelIds = Array.from(new Set([...modelIds, ...customModelIds, ...aliasModelIds]));
 
       for (const modelId of mergedModelIds) {
@@ -562,7 +581,9 @@ export async function buildModelsList(kindFilter, options = {}) {
         const model = {
           id: `${outputAlias}/${modelId}`,
           object: "model",
-          owned_by: outputAlias,
+          // Optional label the operator set on this custom model; the provider
+          // alias stays the default so an unset field changes nothing.
+          owned_by: customOwnedByById.get(modelId) || outputAlias,
         };
         // Live-catalog resolvers (kiro/qoder/github/clinepass) mostly only return
         // { id, name } — no per-model capability data. Fall back to the same
@@ -636,6 +657,37 @@ export async function buildModelsList(kindFilter, options = {}) {
       };
       if (caps) entry.capabilities = caps;
       if (Number.isFinite(caps?.contextWindow)) entry.context_length = caps.contextWindow;
+      if (Number.isFinite(caps?.maxOutput)) entry.max_completion_tokens = caps.maxOutput;
+      models.push(entry);
+    }
+  }
+
+  // Free no-auth providers publish a live catalogue (OpenCode Free changes weekly);
+  // the registry table above is curated, so merge in whatever upstream lists now.
+  // dedupedModels below drops ids already present, keeping registry order first.
+  const liveFreeProviders = Object.entries(FREE_PROVIDERS).filter(
+    ([, p]) => p.noAuth && !p.hidden && p.modelsFetcher
+  );
+  const liveFreeLists = await Promise.all(
+    liveFreeProviders.map(async ([id, p]) => {
+      const live = await fetchSuggestedModelsServer(p.modelsFetcher);
+      return [p.alias || id, live];
+    })
+  );
+  for (const [alias, liveModels] of liveFreeLists) {
+    for (const live of liveModels) {
+      if (isDisabled(alias, live.id)) continue;
+      const caps = getCapabilitiesForModel(alias, live.id);
+      const entry = {
+        id: `${alias}/${live.id}`,
+        object: "model",
+        owned_by: alias,
+      };
+      if (caps) entry.capabilities = caps;
+      if (Number.isFinite(caps?.contextWindow)) entry.context_length = caps.contextWindow;
+      if (Number.isFinite(live?.contextLength) && !Number.isFinite(entry.context_length)) {
+        entry.context_length = live.contextLength;
+      }
       if (Number.isFinite(caps?.maxOutput)) entry.max_completion_tokens = caps.maxOutput;
       models.push(entry);
     }

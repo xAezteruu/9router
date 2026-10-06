@@ -86,20 +86,66 @@ function groupByReleaseDate(sections) {
  const byDate = new Map();
  for (const section of sections) {
  const date = (section.title.match(/\((\d{4}-\d{2}-\d{2})\)/) || [])[1] || section.title;
+ const commits = (section.title.match(/·\s*(\d+)\s+commit/) || [])[1];
  if (!byDate.has(date)) {
  const group = { date, items: [] };
  byDate.set(date, group);
  groups.push(group);
  }
- byDate.get(date).items.push(section);
+ byDate.get(date).items.push({ ...section, commits: commits ? Number(commits) : null });
  }
  return groups;
+}
+
+// Commits for one release: the heading when it already carries one
+// ("# v0.5.154 (2026-10-03) · 21 commits"), otherwise the bullet lines in the
+// body -- the changelog hook writes one bullet per commit.
+function countSectionCommits(section) {
+ if (section.commits != null) return section.commits;
+ return countBodyCommits(section.body);
+}
+
+function countBodyCommits(body) {
+ const lines = String(body || "").split("\n");
+ return lines.filter((l) => /^\s*[-*]\s+\S/.test(l)).length;
+}
+
+// Drop any existing "· N commits" so a recomputed total is never appended twice.
+function stripCommitCount(title) {
+ return title.replace(/\s*·\s*\d+\s+commits?\b/i, "");
 }
 
 function renderBody(bodyMd) {
  if (!bodyMd.trim()) return "";
  const demoted = bodyMd.replace(/^#{2,6}\s/gm, (m) => "#".repeat(Math.min(6, m.length + 2)) + " ");
  return marked.parse(demoted);
+}
+
+// A merged day card concatenates several patch bodies, each carrying its own
+// ## Features / ## Fixes headings. Split every body on its h2 sub-headings and
+// rejoin items under one heading each, keeping the order the headings first
+// appear in — so Fixes shows once with all fixes, not four times.
+function mergeBodiesByCategory(bodies) {
+ const order = [];
+ const byCat = new Map();
+ for (const body of bodies) {
+ let current = null;
+ for (const line of String(body || "").split("\n")) {
+ const m = line.match(/^#{2,6}\s+(.+?)\s*$/);
+ if (m) {
+ current = m[1].trim();
+ if (!byCat.has(current)) {
+ byCat.set(current, []);
+ order.push(current);
+ }
+ } else if (current) {
+ byCat.get(current).push(line);
+ }
+ }
+ }
+ return order
+ .map((cat) => `## ${cat}\n${byCat.get(cat).join("\n").replace(/\n+$/, "")}`)
+ .join("\n\n");
 }
 
 function renderVersionCards(md, accent) {
@@ -113,12 +159,28 @@ function renderVersionCards(md, accent) {
  }
  return groupByReleaseDate(sections)
  .map((group) => {
- const head = group.items.length === 1 ? group.items[0].title : `${group.date} · ${group.items.length} releases`;
+ // The newest release of the day titles the merged card, so it reads like any
+ // other release ("v0.5.151 (2026-09-30)") instead of a bare date rollup.
+ const versionOf = (s) => ((s.title.match(/v?(\d+(?:\.\d+)+)/) || [])[1] || "");
+ const sortKey = (a, b) =>
+ versionOf(a).localeCompare(versionOf(b), undefined, { numeric: true });
+ const newest = [...group.items].sort(sortKey).pop();
+ // Every card states how many commits it carries -- a single-commit release
+ // included -- so entries from before the hook wrote counts ("v0.5.140
+ // (2026-09-28)") are no longer indistinguishable from bigger ones.
+ let head = group.items.length === 1
+ ? group.items[0].title
+ : newest.title.includes("(")
+ ? newest.title
+ : `${newest.title} (${group.date})`;
+ const commits = group.items.reduce((sum, s) => sum + countSectionCommits(s), 0);
+ head = stripCommitCount(head);
+ if (commits > 0) {
+ head += ` · ${commits} ${commits === 1 ? "commit" : "commits"}`;
+ }
  const inner = group.items.length === 1
  ? renderBody(group.items[0].body)
- : group.items
- .map((section) => `<h4 style="${subStyle}">${escapeHtml(section.title)}</h4>${renderBody(section.body)}`)
- .join("");
+ : renderBody(mergeBodiesByCategory(group.items.map((section) => section.body)));
  return `<div style="${cardStyle}">
  <h3 style="${titleStyle}">
  <span class="material-symbols-outlined" style="font-size:18px;">${accent.icon}</span>

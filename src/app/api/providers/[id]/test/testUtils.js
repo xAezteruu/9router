@@ -151,6 +151,13 @@ const OAUTH_TEST_CONFIG = {
       device: { os: "linux", timezone: "UTC", locale: "en-US" },
       surface: "cli",
     }),
+  // Muse Code subscription — probe /v1/models with the minted LLM|… key
+  "muse": {
+    url: "https://api.meta.ai/v1/models",
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    extraHeaders: { "x-api-version": "1.0.0" },
     refreshable: false,
   },
 };
@@ -719,7 +726,8 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
       case "dahl":
       case "atria":
       case "agnes":
-      case "bai": {
+      case "bai":
+      case "muse": {
         const cfg = PROVIDERS[connection.provider];
         const res = await fetchWithConnectionProxy(cfg.validateUrl, { headers: { Authorization: `Bearer ${connection.apiKey}` } }, effectiveProxy);
         return { valid: res.ok, error: res.ok ? null : "Invalid API key" };

@@ -49,6 +49,24 @@ const PLUGINS = [
     description:
       "Skip thinking for faster responses. Disables reasoning mode on the selected models and instructs them to answer directly, ideal for simple tasks where low latency matters more than deep analysis.",
   },
+  {
+    key: "jsonGuard",
+    title: "JSON Guard",
+    icon: "data_object",
+    iconColor: "text-emerald-500",
+    iconBg: "bg-emerald-500/10 border-emerald-500/20",
+    description:
+      "Keep machine-readable output parseable. Strips prose and markdown fences around JSON, fixes Python-style literals and trailing commas, closes payloads the output limit cut off, and drops tool-call arguments the schema never declared.",
+  },
+  {
+    key: "contextSqueezer",
+    title: "Context Squeezer",
+    icon: "compress",
+    iconColor: "text-amber-500",
+    iconBg: "bg-amber-500/10 border-amber-500/20",
+    description:
+      "Fit long conversations into the model's context window. The oldest turns are replaced with a short recap and oversized tool output is trimmed, so the newest turns always arrive intact instead of the provider rejecting the request.",
+  },
 ];
 
 const DEFAULT_PLUGINS_STATE = {
@@ -56,6 +74,8 @@ const DEFAULT_PLUGINS_STATE = {
   thinkDeeper: { enabled: false, models: [] },
   unrestrictedMode: { enabled: false, models: [] },
   speedMode: { enabled: false, models: [] },
+  jsonGuard: { enabled: false, models: [] },
+  contextSqueezer: { enabled: false, models: [] },
 };
 
 function formatModelName(modelVal) {
@@ -106,6 +126,18 @@ export default function PluginsPage() {
                 enabled: Boolean(data.customPlugins.speedMode?.enabled),
                 models: Array.isArray(data.customPlugins.speedMode?.models)
                   ? data.customPlugins.speedMode.models
+                  : [],
+              },
+              jsonGuard: {
+                enabled: Boolean(data.customPlugins.jsonGuard?.enabled),
+                models: Array.isArray(data.customPlugins.jsonGuard?.models)
+                  ? data.customPlugins.jsonGuard.models
+                  : [],
+              },
+              contextSqueezer: {
+                enabled: Boolean(data.customPlugins.contextSqueezer?.enabled),
+                models: Array.isArray(data.customPlugins.contextSqueezer?.models)
+                  ? data.customPlugins.contextSqueezer.models
                   : [],
               },
             });

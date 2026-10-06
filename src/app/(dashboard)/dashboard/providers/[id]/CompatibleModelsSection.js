@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import PropTypes from "prop-types";
-import { Button, Modal } from "@/shared/components";
+import { Button, Modal, ProgressCard } from "@/shared/components";
 import { getProviderCustomModelRows } from "@/shared/utils/providerCustomModels";
 function CompatibleModelRow({ modelId, fullModel, copied, onCopy, onDeleteAlias, onTest, testStatus, isTesting }) {
   const borderColor = testStatus === "ok"
@@ -75,6 +75,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
   const [newModel, setNewModel] = useState("");
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importTotals, setImportTotals] = useState(null);
   const [testingModelId, setTestingModelId] = useState(null);
   const [modelTestResults, setModelTestResults] = useState({});
 
@@ -156,6 +157,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
       alert("Error fetching models: " + error.message);
     } finally {
       setImporting(false);
+      setImportTotals(null);
     }
   };
 
@@ -211,7 +213,7 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
           {adding ? "Adding..." : "Add"}
         </Button>
         <Button size="sm" variant="secondary" icon="download" onClick={handleImport} disabled={!canImport || importing}>
-          {importing ? "Importing..." : "Import from /models"}
+          Import from /models
         </Button>
       </div>
 
@@ -286,6 +288,23 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
             />
           ))}
         </div>
+      )}
+
+      {importing && (
+        <ProgressCard
+          fixed={false}
+          title="Importing models"
+          message={
+            importTotals && importTotals.total > 0
+              ? `${importTotals.done}/${importTotals.total} models`
+              : "Fetching model list"
+          }
+          progress={
+            importTotals && importTotals.total > 0
+              ? Math.round((importTotals.done / importTotals.total) * 100)
+              : null
+          }
+        />
       )}
     </div>
   );

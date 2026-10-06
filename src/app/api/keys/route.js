@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getApiKeys, createApiKey } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { getSessionContext, DEFAULT_PERMISSIONS } from "@/lib/auth/dashboardPermissions";
+import { creatorNameFor, DASHBOARD_CREATOR, visibleApiKeys } from "@/lib/auth/keyCreator";
 import { parseAllowedModels, matchesAllowedModels } from "@/lib/db/repos/apiKeysRepo";
+import { recordSecurityEvent } from "@/lib/db/repos/securityLogRepo";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +13,15 @@ export async function GET() {
   try {
     const ctx = await getSessionContext();
     const allKeys = await getApiKeys();
-    // An API key session sees its own key plus every key it handed out itself.
-    // Keys it cannot reach at all stay hidden, so a scoped session never reads
-    // another branch's numbers.
-    const keys = ctx.session?.role === "apikey"
-      ? allKeys.filter((k) => k.key === ctx.session.apiKey || k.createdBy === ctx.session.apiKey)
-      : allKeys;
+    // One helper answers visibility for every page, so the endpoint list and the
+    // per-key usage list show a creator session the same keys. Raw creator keys
+    // would hand a session another key's secret, so they never leave this API:
+    // the payload carries the creator's name instead.
+    const keys = visibleApiKeys(allKeys, ctx.session).map((k) => ({
+      ...k,
+      createdBy: k.createdBy === DASHBOARD_CREATOR ? DASHBOARD_CREATOR : "",
+      createdByName: creatorNameFor({ createdBy: k.createdBy, keys: allKeys }),
+    }));
     return NextResponse.json({ keys });
   } catch (error) {
     console.log("Error fetching keys:", error);
@@ -105,6 +110,23 @@ export async function POST(request) {
       createdBy,
     });
 
+    // A credential appearing: record who minted it and exactly what it may do.
+    try {
+      await recordSecurityEvent({
+        type: "key_created",
+        severity: "info",
+        actor:
+          ctx.session?.role === "apikey"
+            ? `API key "${ctx.session.keyName || ctx.session.keyId}"`
+            : "Password user",
+        method: "POST",
+        path: "/api/keys",
+        detail: `Created API key "${trimmedName}" — permissions: ${JSON.stringify(finalPermissions || {})}`,
+      });
+    } catch {
+      // Auditing is best effort.
+    }
+
     return NextResponse.json({
       key: apiKey.key,
       name: apiKey.name,
@@ -120,6 +142,10 @@ export async function POST(request) {
       tpmLimit: apiKey.tpmLimit,
       ipWhitelist: apiKey.ipWhitelist,
       permissions: apiKey.permissions,
+      // The raw creator key is a secret and never leaves the server; the client
+      // only ever needs to label who made this one.
+      createdBy: "",
+      createdByName: creatorNameFor({ createdBy: apiKey.createdBy, keys: await getApiKeys() }),
     }, { status: 201 });
   } catch (error) {
     console.log("Error creating key:", error);

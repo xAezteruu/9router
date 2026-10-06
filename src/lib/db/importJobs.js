@@ -3,7 +3,12 @@
 // Survives Next.js dev hot-reload via globalThis (same pattern as the db
 // driver). Jobs are process-local on purpose: the dashboard polls the same
 // server process that accepted the POST.
+//
+// Each job carries a poll credential issued at creation (see importJobAuth.js):
+// the import rewrites the settings row that holds the dashboard password
+// hash, so a progress poll must not re-derive trust from the database.
 import { randomUUID } from "node:crypto";
+import { issuePollToken } from "./importJobAuth.js";
 
 const RESULT_TTL_MS = 10 * 60 * 1000;
 
@@ -69,6 +74,11 @@ async function runImportJob(jobId) {
       currentSection: "done",
     };
     current.payload = null;
+    // The poll digest stays until the job record itself expires: nulling it
+    // here made the completion polls fall back to the password header - which
+    // the token-based client no longer sends - so the last poll answered
+    // 401 "Invalid password" over a restore that had just reported done.
+    // RESULT_TTL cleanup removes the record (and this digest) shortly after.
 
     try {
       const { getSettings } = await import("./repos/settingsRepo.js");
@@ -108,6 +118,11 @@ export function createImportJob(payload) {
   }
   const jobId = randomUUID();
   const now = new Date().toISOString();
+  // The client's poll credential for this job: issued here, once, so polling
+  // never has to ask the database for a password hash the import is busy
+  // overwriting. Only the digest stays on the job; the token itself leaves
+  // with the POST response.
+  const { token, hash } = issuePollToken();
   getStore().set(jobId, {
     id: jobId,
     status: "queued",
@@ -115,12 +130,13 @@ export function createImportJob(payload) {
     message: "Import queued",
     error: null,
     payload,
+    pollTokenHash: hash,
     createdAt: now,
     updatedAt: now,
   });
   if (typeof setImmediate === "function") setImmediate(() => runImportJob(jobId));
   else setTimeout(() => runImportJob(jobId), 0);
-  return { jobId, status: "queued" };
+  return { jobId, status: "queued", pollToken: token };
 }
 
 export function getImportJob(jobId) {

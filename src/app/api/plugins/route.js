@@ -41,6 +41,8 @@ export async function GET() {
       unrestrictedMode: { enabled: false, models: [] },
       speedMode: { enabled: false, models: [] },
       systemPrompts: { enabled: false, prompts: [] },
+      jsonGuard: { enabled: false, models: [] },
+      contextSqueezer: { enabled: false, models: [] },
     };
     return NextResponse.json({ customPlugins }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -73,6 +75,14 @@ export async function PUT(request) {
       speedMode: {
         enabled: Boolean(customPlugins.speedMode?.enabled),
         models: Array.isArray(customPlugins.speedMode?.models) ? customPlugins.speedMode.models.filter(Boolean) : [],
+      },
+      jsonGuard: {
+        enabled: Boolean(customPlugins.jsonGuard?.enabled),
+        models: Array.isArray(customPlugins.jsonGuard?.models) ? customPlugins.jsonGuard.models.filter(Boolean) : [],
+      },
+      contextSqueezer: {
+        enabled: Boolean(customPlugins.contextSqueezer?.enabled),
+        models: Array.isArray(customPlugins.contextSqueezer?.models) ? customPlugins.contextSqueezer.models.filter(Boolean) : [],
       },
       systemPrompts: sanitizeSystemPrompts(customPlugins.systemPrompts),
     };

@@ -1,34 +1,38 @@
-// Mimocode — Xiaomi MiMo free OpenAI-compatible gateway (api.xiaomimimo.com),
-// no-auth. The executor bootstraps a JWT from a device fingerprint
-// (POST /api/free-ai/bootstrap) and sends chat to the custom
-// /api/free-ai/openai/chat endpoint. Only `mimo-auto` is supported
-// (1M context, 128K output). Port of OmniRoute mimocode (simplified to a
-// single JWT cache + re-bootstrap on 401/403).
+// MiMoCode (Xiaomi MiMo Auto free channel) — anonymous JWT, mirrors OpenCode Free.
+// Auth: POST {bootstrap}/free-ai/bootstrap { client: <device fingerprint> } -> { jwt }.
+// Chat: POST {transport.baseUrl} model "mimo-auto" with a MiMo identity system
+// message, header Authorization Bearer <jwt> + X-Mimo-Source: mimocode-cli-free.
 export default {
   id: "mimocode",
-  priority: 60,
-  alias: "mcode",
-  uiAlias: "mcode",
+  priority: 45,
+  hasFree: true,
+  alias: "mimocode",
+  uiAlias: "mimocode",
+  aliases: ["mimocode-free", "mimo-auto", "mmf", "mimo-free"],
   display: {
-    name: "MiMoCode (Free)",
+    name: "MiMoCode Free",
     icon: "smart_toy",
     color: "#FF6900",
-    textIcon: "MC",
-    website: "https://github.com/XiaomiMiMo/MiMo-Code",
-    notice: {
-      text: "Free Xiaomi MiMo models via bootstrap JWT auth — no API key required. Supports the `mimo-auto` model (1M context, 128K output) with streaming.",
-    },
+    textIcon: "MM",
   },
   category: "free",
   noAuth: true,
-  hasFree: true,
   transport: {
-    baseUrl: "https://api.xiaomimimo.com",
-    format: "openai",
+    baseUrl: "https://api.xiaomimimo.com/api/free-ai/openai/chat",
+    headers: {
+      "X-Mimo-Source": "mimocode-cli-free",
+    },
     noAuth: true,
   },
   models: [
-    { id: "mimo-auto", name: "MiMo Auto", contextLength: 1000000, maxOutput: 131072 },
+    {
+      id: "mimo-auto",
+      name: "MiMo Auto",
+      contextLength: 1000000,
+    },
   ],
   passthroughModels: true,
+  // Upstream answers 400 Unsupported model for every chat request: the free
+  // channel is closed on their side, so do not advertise it as usable.
+  statusBadge: { label: "Unavailable", variant: "error" },
 };

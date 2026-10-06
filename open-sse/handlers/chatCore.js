@@ -32,8 +32,10 @@ import { dedupeTools } from "../utils/toolDeduper.js";
 import { takeRenamedToolNames } from "../utils/opencodeFingerprint.js";
 import { injectCaveman } from "../rtk/caveman.js";
 import { injectPonytail } from "../rtk/ponytail.js";
-import { pruneContextMessages } from "../rtk/contextPruning.js";
-import { checkSemanticCache, saveToSemanticCache } from "../rtk/semanticCache.js";
+import { pruneContextMessages, resolvePruningLimit } from "../rtk/contextPruning.js";
+import { checkSemanticCache, saveToSemanticCache, setSemanticCacheTtlMs, setSemanticCacheMaxEntries } from "../rtk/semanticCache.js";
+import { getAdapter } from "@/lib/db/driver.js";
+import { recordTokenSavings, measurePruningSavings, measureRtkSavings, measureCacheSavings } from "../rtk/tokenSaverStats.js";
 import { compressMessages, formatRtkLog } from "../rtk/index.js";
 import { compressWithHeadroom, formatHeadroomLog, formatHeadroomSizeLog, isHeadroomPhantomSavings } from "../rtk/headroom.js";
 import { compressWithPxpipe } from "../rtk/pxpipe.js";
@@ -73,7 +75,7 @@ export function stripContinuityFields(body) {
   return body;
 }
 
-export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, clientIp, ccFilterNaming, rtkEnabled, contextPruningEnabled, maxMessagesLimit, semanticCacheEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, requestedModel, toolCallFallbackEnabled = true }) {
+export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, clientIp, ccFilterNaming, rtkEnabled, contextPruningEnabled, maxMessagesLimit, semanticCacheEnabled, semanticCacheTtlHours, semanticCacheMaxEntries, contextPruningLevel, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled, pxpipeMinChars, pxpipeTimeoutMs, pxpipeTransform, onPxpipeEvent, sourceFormatOverride, providerThinking, requestedModel, toolCallFallbackEnabled = true, providerOverrides }) {
   const { provider, model } = modelInfo;
   const requestStartTime = Date.now();
   // Stable per-session color so all lines of one CLI conversation share a tag
@@ -95,10 +97,21 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   if (bypassResponse) return bypassResponse;
 
   // Check Semantic / Duplicate Prompt Cache (for non-streaming requests)
+  // Cache TTL and cap come from settings so the Token Saver sliders apply
+  // without a proxy restart.
+  if (semanticCacheEnabled) {
+    const hours = Number(semanticCacheTtlHours);
+    if (Number.isFinite(hours) && hours > 0) setSemanticCacheTtlMs(hours * 60 * 60 * 1000);
+    if (semanticCacheMaxEntries > 0) setSemanticCacheMaxEntries(semanticCacheMaxEntries);
+  }
+
   if (semanticCacheEnabled && !body.stream) {
     const cachedResponse = checkSemanticCache(body, `${provider}/${model}`);
     if (cachedResponse) {
       log?.info?.("CACHE", `⚡ Instant semantic cache hit for ${provider}/${model}`);
+      // A hit replays the provider's own billed usage — that is exactly what
+      // the second identical request would have cost.
+      recordTokenSavings(getAdapter(), { provider, model, cache: measureCacheSavings(cachedResponse) });
       // A cache hit must not name the model that originally served it either.
       applyModelAlias(cachedResponse, calledModelName(requestedModel, model));
       return {
@@ -206,6 +219,10 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     pluginResult = await applyCustomPlugins(body, provider, model, sourceFormat, requestedModel);
   } catch (err) {
     log?.warn?.("PLUGIN", `Custom plugin error: ${err.message}`);
+  }
+
+  if (pluginResult.contextStats?.reason === "trimmed") {
+    log?.debug?.("PLUGIN", `Context Squeezer dropped ${pluginResult.contextStats.droppedTurns} turn(s): ${pluginResult.contextStats.tokensBefore} -> ${pluginResult.contextStats.tokensAfter} tokens`);
   }
 
   // Auto-strip media blocks the model can't read (vision/audio/pdf) before translation.
@@ -344,10 +361,23 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Context Pruning: keep system prompt and most recent messages
   if (tokenSaverEnabled && contextPruningEnabled) {
-    pruneContextMessages(translatedBody, maxMessagesLimit || 20);
-    xf.push(`PRUNING:${maxMessagesLimit || 20}msgs`);
+    // A preset only decides the default; an explicit limit still wins.
+    const presetLimit = resolvePruningLimit(contextPruningLevel, undefined);
+    const explicit = Number(maxMessagesLimit);
+    const effective =
+      presetLimit !== undefined && (!Number.isFinite(explicit) || explicit === 20)
+        ? presetLimit
+        : maxMessagesLimit || 20;
+    const prunedTokens = measurePruningSavings(translatedBody, effective);
+    pruneContextMessages(translatedBody, effective);
+    if (prunedTokens > 0) recordTokenSavings(getAdapter(), { provider, model, pruning: prunedTokens });
+    xf.push(`PRUNING:${effective}msgs`);
   }
-  if (rtkStats?.hits?.length) xf.push(`RTK:${rtkStats.hits.length}`);
+  if (rtkStats?.hits?.length) {
+    const rtkSaved = measureRtkSavings(rtkStats);
+    if (rtkSaved > 0) recordTokenSavings(getAdapter(), { provider, model, rtk: rtkSaved });
+    xf.push(`RTK:${rtkStats.hits.length}`);
+  }
 
   // Caveman: inject terse-style system prompt
   if (tokenSaverEnabled && cavemanEnabled && cavemanLevel) {
@@ -445,6 +475,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       signal: streamController.signal,
       log,
       proxyOptions,
+      providerOverrides,
     });
     providerResponse = result.response;
     providerUrl = result.url;
@@ -514,6 +545,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
             signal: streamController.signal,
             log,
             proxyOptions,
+            providerOverrides,
           });
           if (retryResult.response.ok) {
             providerResponse = retryResult.response;
@@ -602,7 +634,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     }
   }
 
-const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientIp, requestedModel, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log };
+  const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientIp, requestedModel, clientRawRequest, onRequestSuccess, pxpipe: pxpipeSummary, reqTag, log, pluginResult };
   const appendLog = (extra) => appendRequestLog({ model: trackedModel, provider, connectionId, ...extra }).catch(() => { });
   const trackDone = () => trackPendingRequest(trackedModel, provider, connectionId, false);
 

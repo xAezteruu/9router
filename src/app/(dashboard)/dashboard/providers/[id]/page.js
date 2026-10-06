@@ -8,7 +8,7 @@ import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/prov
 import { getCustomLogo } from "@/shared/utils/providerLogo";
 import { buildStudioTargetIndex } from "@/shared/utils/studioModelVisibility";
 import { Card, Button, Badge, Input, Modal, CardSkeleton, OAuthModal, KiroOAuthWrapper, CursorAuthModal, ZedAuthModal, XiaomiMimoAuthModal, IFlowCookieModal, GitLabAuthModal, Toggle, Select, EditConnectionModal, NoAuthProxyCard, ConfirmModal } from "@/shared/components";
-import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, getProviderAlias, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
+import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, getProviderAlias, resolveProviderId, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -25,6 +25,7 @@ import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
+import CustomConfigCard from "./CustomConfigCard";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -73,6 +74,7 @@ export default function ProviderDetailPage() {
   const [thinkingMode, setThinkingMode] = useState("auto");
   const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
   const [suggestedModels, setSuggestedModels] = useState([]);
+  const [suggestedModelsError, setSuggestedModelsError] = useState(null);
   const [liveModels, setLiveModels] = useState([]);
   // Live-catalog fetch warning/error (surfaced for zed only; cursor behavior unchanged).
   const [liveModelsError, setLiveModelsError] = useState(null);
@@ -531,11 +533,24 @@ export default function ProviderDetailPage() {
     return () => { cancelled = true; };
   }, [providerId, connections]);
 
-  // Fetch suggested models from provider's public API (if configured)
+  // Fetch suggested models from provider's public API (if configured).
+  // Resolve aliases (e.g. "oc") to the registry id so the lookup hits even
+  // when the URL carries an alias instead of the registry key.
   useEffect(() => {
-    const fetcher = (OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId] || FREE_PROVIDERS[providerId] || FREE_TIER_PROVIDERS[providerId])?.modelsFetcher;
-    if (!fetcher) return;
-    fetchSuggestedModels(fetcher).then(setSuggestedModels);
+    const resolvedId = resolveProviderId(providerId);
+    const fetcher = (OAUTH_PROVIDERS[resolvedId] || APIKEY_PROVIDERS[resolvedId] || FREE_PROVIDERS[resolvedId] || FREE_TIER_PROVIDERS[resolvedId] || WEB_COOKIE_PROVIDERS[resolvedId])?.modelsFetcher;
+    if (!fetcher) {
+      setSuggestedModels([]);
+      setSuggestedModelsError(null);
+      return;
+    }
+    let cancelled = false;
+    fetchSuggestedModels(fetcher).then(({ data, error }) => {
+      if (cancelled) return;
+      setSuggestedModels(data);
+      setSuggestedModelsError(error);
+    });
+    return () => { cancelled = true; };
   }, [providerId]);
 
   const handleSetAlias = async (modelId, alias, providerAliasOverride = providerAlias) => {
@@ -572,12 +587,12 @@ export default function ProviderDetailPage() {
 
   // `transport` pins a realtime STT dispatch marker (shared whitelist
   // STT_TRANSPORT_META); the API only honours it on type "stt" records.
-  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias, caps, transport) => {
+  const handleAddCustomModel = async (modelId, type = "llm", providerAliasOverride = providerStorageAlias, caps, transport, ownedBy = "") => {
     try {
       const res = await fetch("/api/models/custom", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerAlias: providerAliasOverride, id: modelId, type, ...(caps ? { caps } : {}), ...(transport ? { transport } : {}) }),
+        body: JSON.stringify({ providerAlias: providerAliasOverride, id: modelId, type, ...(caps ? { caps } : {}), ...(transport ? { transport } : {}), ...(ownedBy ? { ownedBy } : {}) }),
       });
       if (res.ok) {
         await fetchCustomModels();
@@ -1294,8 +1309,10 @@ export default function ProviderDetailPage() {
           </button>
         )}
 
-        {/* Suggested models from provider API — show only models not yet added */}
-        {suggestedModels.length > 0 && (() => {
+        {/* Suggested models from provider API — show only models not yet added.
+            Rendered on data OR error so a failed refresh explains itself
+            instead of vanishing. */}
+        {(suggestedModels.length > 0 || suggestedModelsError) && (() => {
           const addedFullModels = new Set([
             ...Object.values(modelAliases),
             ...customModelRows.map((model) => model.fullModel),
@@ -1304,10 +1321,16 @@ export default function ProviderDetailPage() {
           const notAdded = suggestedModels.filter(
             (m) => !addedFullModels.has(`${providerStorageAlias}/${m.id}`) && !hardcodedIds.has(m.id)
           );
-          if (notAdded.length === 0) return null;
+          // Keep the block alive when a refresh failed: an empty chip list with
+          // no explanation reads as "there are no free models", which is not
+          // what happened - the note under the heading carries the reason.
+          if (notAdded.length === 0 && !suggestedModelsError) return null;
           return (
             <div className="w-full mt-2">
-              <p className="text-xs text-text-muted mb-2">Suggested free models (≥200k context):</p>
+              <p className="text-xs text-text-muted mb-2">Suggested free models:</p>
+              {suggestedModelsError && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mb-2">{suggestedModelsError}</p>
+              )}
               <div className="flex flex-wrap gap-2">
                 {notAdded.map((m) => (
                   <button
@@ -1316,7 +1339,7 @@ export default function ProviderDetailPage() {
                       await handleAddCustomModel(m.id, "llm", providerStorageAlias);
                     }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-black/10 dark:border-white/10 text-xs text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
-                    title={`${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx`}
+                    title={m.contextLength != null ? `${m.name} · ${(m.contextLength / 1000).toFixed(0)}k ctx` : m.name}
                   >
                     <span className="material-symbols-outlined text-[13px]">add</span>
                     {m.id.split("/").pop()}
@@ -1765,6 +1788,9 @@ export default function ProviderDetailPage() {
         </Card>
       )}
 
+      {/* Per-provider user overrides (custom headers / connect timeout) */}
+      <CustomConfigCard providerId={providerId} />
+
       {/* Models */}
       <Card>
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1935,10 +1961,10 @@ export default function ProviderDetailPage() {
           isOpen={showAddCustomModel}
           providerAlias={providerStorageAlias}
           providerDisplayAlias={providerDisplayAlias}
-          onSave={async (modelId, caps, transport) => {
+          onSave={async (modelId, caps, transport, ownedBy) => {
             // caps.stt is a UI-only flag; the API accepts transports only on
             // type "stt" records, so the save derives the type from it.
-            await handleAddCustomModel(modelId, caps?.stt ? "stt" : "llm", providerStorageAlias, caps, transport);
+            await handleAddCustomModel(modelId, caps?.stt ? "stt" : "llm", providerStorageAlias, caps, transport, ownedBy);
             setShowAddCustomModel(false);
           }}
           onClose={() => setShowAddCustomModel(false)}

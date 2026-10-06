@@ -24,9 +24,13 @@ export const WELCOME_CONFIG = {
 
 // Updater configuration
 export const UPDATER_CONFIG = {
+  // This install is a fork of the upstream npm package: pulling the published
+  // `9router` from npm would hand the operator a different codebase than the one
+  // reporting the update, so the command points at this repository instead.
   npmPackageName: "9router",
-  installCmd: "npm i -g 9router",
-  installCmdLatest: "npm i -g 9router@latest --prefer-online",
+  repoPackageSpec: "github:serenhope/9router",
+  installCmd: "npm install -g github:serenhope/9router",
+  installCmdLatest: "npm install -g github:serenhope/9router@master",
   shutdownCountdownSec: 3,
   exitDelayMs: 500,
   statusPort: 20129,
