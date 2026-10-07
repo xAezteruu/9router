@@ -14,6 +14,7 @@ import { resolveCursorModels } from "open-sse/services/cursorModels.js";
 import { resolveZedModels } from "open-sse/shared/zedAuth.js";
 import { resolveClineModels, resolveClinepassModels } from "open-sse/services/clinepassModels.js";
 import codexProvider from "open-sse/providers/registry/codex.js";
+import REGISTRY from "open-sse/providers/registry/index.js";
 
 const GEMINI_CLI_MODELS_URL = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
 
@@ -614,7 +615,19 @@ export async function GET(request, { params }) {
     }
 
     const config = PROVIDER_MODELS_CONFIG[connection.provider];
-    if (!config) {
+
+    // Fallback: derive the /models URL from the registry transport baseUrl
+    // (…/chat/completions → …/models) for API-key providers that have no
+    // explicit entry in PROVIDER_MODELS_CONFIG. Covers the long tail of
+    // OpenAI-compatible apikey providers without a hand-written entry.
+    const derivedConfig = config || (() => {
+      const entry = REGISTRY.find((e) => e.id === connection.provider);
+      const base = entry?.transport?.baseUrl;
+      if (!base || typeof base === "string" && !base.includes("/chat/completions")) return null;
+      return createOpenAIModelsConfig(base.replace(/\/chat\/completions\/?$/, "/models"));
+    })();
+
+    if (!derivedConfig) {
       return NextResponse.json(
         { error: `Provider ${connection.provider} does not support models listing` },
         { status: 400 }
@@ -622,8 +635,8 @@ export async function GET(request, { params }) {
     }
 
     // Config-driven custom resolver path (OAuth refresh, non-OpenAI shape, etc.)
-    if (typeof config.customResolver === "function") {
-      const result = await config.customResolver(connection);
+    if (typeof derivedConfig.customResolver === "function") {
+      const result = await derivedConfig.customResolver(connection);
       if (result.error) {
         return NextResponse.json({ error: result.error }, { status: result.status || 500 });
       }
@@ -642,25 +655,25 @@ export async function GET(request, { params }) {
     }
 
     // Build request URL
-    let url = config.url;
-    if (config.authQuery) {
-      url += `?${config.authQuery}=${token}`;
+    let url = derivedConfig.url;
+    if (derivedConfig.authQuery) {
+      url += `?${derivedConfig.authQuery}=${token}`;
     }
 
     // Build headers
-    const headers = { ...config.headers };
-    if (config.authHeader && !config.authQuery) {
-      headers[config.authHeader] = (config.authPrefix || "") + token;
+    const headers = { ...derivedConfig.headers };
+    if (derivedConfig.authHeader && !derivedConfig.authQuery) {
+      headers[derivedConfig.authHeader] = (derivedConfig.authPrefix || "") + token;
     }
 
     // Make request
     const fetchOptions = {
-      method: config.method,
+      method: derivedConfig.method,
       headers
     };
 
-    if (config.body && config.method === "POST") {
-      fetchOptions.body = JSON.stringify(config.body);
+    if (derivedConfig.body && derivedConfig.method === "POST") {
+      fetchOptions.body = JSON.stringify(derivedConfig.body);
     }
 
     const response = await fetch(url, fetchOptions);
@@ -675,7 +688,7 @@ export async function GET(request, { params }) {
     }
 
     const data = await response.json();
-    const models = config.parseResponse(data);
+    const models = derivedConfig.parseResponse(data);
 
     return NextResponse.json({
       provider: connection.provider,

@@ -26,6 +26,7 @@ import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
 import CustomConfigCard from "./CustomConfigCard";
+import ImportModelsButton from "./ImportModelsButton";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -1280,6 +1281,17 @@ export default function ProviderDetailPage() {
           <span className="material-symbols-outlined text-sm">add</span>
           Add Model
         </button>
+
+        {/* Generic live /models fetch for API-key providers with a backend
+            models listing (explicit config or derived from transport baseUrl).
+            Providers with bespoke import buttons are excluded. */}
+        {!["qoder", "qoder-cn", "cline", "clinepass"].includes(providerId) && (
+          <ImportModelsButton
+            connections={connections}
+            existingIds={customModelRows.map((row) => row.id)}
+            onImport={(modelId) => handleAddCustomModel(modelId, "llm", providerStorageAlias)}
+          />
+        )}
 
         {/* Import Qoder models button — only show for qoder/qoder-cn provider */}
         {(providerId === "qoder" || providerId === "qoder-cn") && connections.some((conn) => conn.isActive !== false) && (
