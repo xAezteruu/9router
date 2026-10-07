@@ -8,10 +8,11 @@ import {
 } from "../services/auth.js";
 import { getSettings } from "@/lib/localDb";
 import { getClientIp } from "@/lib/auth/loginLimiter";
-import { getModelInfo } from "../services/model.js";
+import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleSystemoneCore } from "open-sse/handlers/systemoneCore.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
+import { handleComboChat } from "open-sse/services/combo.js";
 import * as log from "../utils/logger.js";
 import { checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { saveRequestUsage } from "@/lib/usageDb.js";
@@ -73,6 +74,32 @@ export async function handleSystemone(request) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: questions");
   }
 
+  // Combo expansion: model may be a combo name → fallback/round-robin across decision models
+  const comboModels = await getComboModels(modelStr);
+  if (comboModels) {
+    const comboStrategies = settings.comboStrategies || {};
+    const comboStrategy = comboStrategies[modelStr]?.fallbackStrategy || settings.comboStrategy || "fallback";
+    const comboStickyLimit = settings.comboStickyRoundRobinLimit;
+    log.info("SYSTEMONE", `Combo "${modelStr}" with ${comboModels.length} models (strategy: ${comboStrategy})`);
+    return handleComboChat({
+      body,
+      models: comboModels,
+      handleSingleModel: (b, m) => handleSingleModelSystemone(b, m, apiKey, url),
+      log,
+      comboName: modelStr,
+      comboStrategy,
+      comboStickyLimit,
+    });
+  }
+
+  return handleSingleModelSystemone(body, modelStr, apiKey, url);
+}
+
+/**
+ * Resolve and execute a single systemone model (shared by direct + combo paths).
+ */
+async function handleSingleModelSystemone(body, modelStr, apiKey, url) {
+  const settings = await getSettings();
   const modelInfo = await getModelInfo(modelStr);
   if (!modelInfo.provider) {
     log.warn("SYSTEMONE", "Invalid model format", { model: modelStr });

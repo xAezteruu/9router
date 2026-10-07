@@ -53,6 +53,20 @@ const STRATEGY_OPTIONS = [
   { value: "fusion", label: "Fusion — panel + judge" },
 ];
 
+// Combo kinds selectable on this page. "llm" = classic chat combos; media kinds
+// group models of that type (systemone decision models, image, tts, …).
+const COMBO_KIND_OPTIONS = [
+  { value: "llm", label: "LLM — Chat" },
+  { value: "systemone", label: "System One — Decision" },
+  { value: "embedding", label: "Embedding" },
+  { value: "image", label: "Text to Image" },
+  { value: "tts", label: "Text to Speech" },
+  { value: "stt", label: "Speech to Text" },
+  { value: "imageToText", label: "Image to Text" },
+  { value: "video", label: "Video" },
+  { value: "music", label: "Music" },
+];
+
 export default function CombosPage() {
   const [combos, setCombos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,11 +80,12 @@ export default function CombosPage() {
   const [presetLoading, setPresetLoading] = useState(null); // "cursor" | "claude" | null
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [kindFilter, setKindFilter] = useState("llm"); // "llm" = classic chat combos; media kinds supported too
   const { copied, copy } = useCopyToClipboard();
 
   useEffect(() => {
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [kindFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drop stale selection when the combo list changes (delete / refresh).
   useEffect(() => {
@@ -160,8 +175,11 @@ export default function CombosPage() {
       const providersData = await providersRes.json();
       const settingsData = settingsRes.ok ? await settingsRes.json() : {};
 
-      // Only LLM combos here - webSearch/webFetch combos belong to media-providers/web
-      if (combosRes.ok) setCombos((combosData.combos || []).filter(c => !c.kind || c.kind === "llm"));
+      // Combos filtered by the selected kind (null kind = classic LLM combo)
+      if (combosRes.ok) {
+        const all = combosData.combos || [];
+        setCombos(all.filter(c => kindFilter === "llm" ? (!c.kind || c.kind === "llm") : c.kind === kindFilter));
+      }
       if (providersRes.ok) {
         setActiveProviders(providersData.connections || []);
       }
@@ -197,7 +215,7 @@ export default function CombosPage() {
       const res = await fetch("/api/combos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, kind: kindFilter === "llm" ? null : kindFilter }),
       });
       if (res.ok) {
         invalidateModelCaps();
@@ -379,9 +397,19 @@ export default function CombosPage() {
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-stretch">
-          <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto whitespace-nowrap">
-            Create Combo
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-[190px]">
+              <Select
+                options={COMBO_KIND_OPTIONS}
+                value={kindFilter}
+                onChange={(e) => setKindFilter(e.target.value)}
+                selectClassName="py-1.5 text-xs"
+              />
+            </div>
+            <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto whitespace-nowrap">
+              Create Combo
+            </Button>
+          </div>
           <div className="hidden">
             <Button
               variant="secondary"
@@ -506,12 +534,13 @@ export default function CombosPage() {
       {/* Create Modal - Use key to force remount and reset state */}
       {showCreateModal && (
         <ComboFormModal
-          key="create"
+          key={`create-${kindFilter}`}
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
           onSave={handleCreate}
           activeProviders={activeProviders}
           getCaps={getCaps}
+          kindFilter={kindFilter === "llm" ? null : kindFilter}
         />
       )}
 
@@ -524,6 +553,7 @@ export default function CombosPage() {
           onSave={(data) => handleUpdate(editingCombo.id, data)}
           activeProviders={activeProviders}
           getCaps={getCaps}
+          kindFilter={editingCombo.kind === "llm" ? null : (editingCombo.kind || null)}
         />
       )}
 
