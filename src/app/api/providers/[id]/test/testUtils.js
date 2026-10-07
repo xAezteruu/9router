@@ -151,6 +151,7 @@ const OAUTH_TEST_CONFIG = {
       device: { os: "linux", timezone: "UTC", locale: "en-US" },
       surface: "cli",
     }),
+  },
   // Muse Code subscription — probe /v1/models with the minted LLM|… key
   "muse": {
     url: "https://api.meta.ai/v1/models",

@@ -29,14 +29,11 @@ const DEFAULT_SETTINGS = {
     unrestrictedMode: { enabled: false, models: [] },
     speedMode: { enabled: false, models: [] },
     systemPrompts: { enabled: false, prompts: [] },
-  },
-  requireLogin: true,
-  requireApiKey: false,
     jsonGuard: { enabled: false, models: [] },
     contextSqueezer: { enabled: false, models: [] },
   },
   requireLogin: true,
-  requireApiKey: ***
+  requireApiKey: false,
   // Site-wide theme (glass | dark). An administrator picks it once here instead
   // of every browser choosing its own: the value is rendered into the document
   // for all visitors, so the whole site matches what the admin selected.

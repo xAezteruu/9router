@@ -178,7 +178,6 @@ import p175 from "./maritalk.js";
 import p176 from "./meganova-ai.js";
 import p177 from "./meta-ai.js";
 import p178 from "./meta-llama.js";
-import p179 from "./mimo-free.js";
 import p180 from "./mimocode.js";
 import p181 from "./minimax.js";
 import p182 from "./minimax-cn.js";
@@ -504,7 +503,6 @@ export default [
   p176,
   p177,
   p178,
-  p179,
   p180,
   p181,
   p182,
@@ -647,6 +645,7 @@ export default [
   p319,
   p320,
   p321,
+  p322,
   p322,
   p323
 ];

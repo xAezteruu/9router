@@ -24,8 +24,15 @@ export default {
   },
   models: [
     { id: "liquid-lfm-40b", name: "Liquid LFM 40B" },
+    { id: "d1", name: "Liquid d1 (Decision)", kind: "systemone" },
   ],
-  serviceKinds: ["llm"],
+  serviceKinds: ["llm", "systemone"],
   hasFree: true,
   freeNote: "Free LFM2.5-1.2B-Thinking and LFM2.5-1.2B-Instruct models",
+  // System One decision API (d1): https://api.liquid.ai/decisions
+  systemoneConfig: {
+    baseUrl: "https://api.liquid.ai/decisions/v1/systemone",
+    authType: "apikey",
+    authHeader: "bearer",
+  },
 };

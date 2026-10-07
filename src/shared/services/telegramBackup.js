@@ -57,7 +57,7 @@ async function recordStatus(patch) {
 }
 
 async function buildBackupBuffer() {
-  const payload = await exportDb();
+  const payload = await exportDb({ usage: false });
   const buf = Buffer.from(JSON.stringify(payload, null, 2));
   if (buf.length > C.maxBytes) {
     throw new Error(`Backup too large (${formatMb(buf.length)} MB > ${formatMb(C.maxBytes)} MB). use Download Backup instead`);
