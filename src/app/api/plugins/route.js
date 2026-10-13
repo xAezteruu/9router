@@ -40,7 +40,6 @@ const ANTISLOP_LEVELS = new Set(["lite", "full", "ultra"]);
 function normalizeAntislopLevel(level) {
   return ANTISLOP_LEVELS.has(level) ? level : "full";
 }
-}
 
 export async function GET() {
   try {
