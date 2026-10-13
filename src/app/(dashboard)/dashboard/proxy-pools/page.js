@@ -1,13 +1,64 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Badge, Button, Card, CardSkeleton, Input, Modal, ProgressCard, Toggle, ConfirmModal } from "@/shared/components";
+import { Badge, Button, Card, CardSkeleton, Input, Modal, Pagination, ProgressCard, Toggle, ConfirmModal } from "@/shared/components";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useTaskStore } from "@/store/taskStore";
+import {
+  startProxyImportJob,
+  pollProxyImportJob,
+  cancelProxyImportJob,
+  readStoredJob,
+  writeStoredJob,
+} from "@/shared/utils/proxyImportClient";
+import {
+  startDashboardJob,
+  pollDashboardJob,
+  cancelDashboardJob,
+  fetchDashboardJob,
+  readStoredDashboardJob,
+  clearStoredDashboardJob,
+} from "@/shared/utils/dashboardJobsClient";
 
 // One task id for the batch import, shared by the loop, the seed of `importing`
 // after a navigation, and the banner in the layout dock.
 const PROXY_IMPORT_TASK = "proxy-pools-import";
+
+// One task id per operation kind, so the banner, the bell, and a reloaded page
+// all talk about the same run.
+const dashboardTaskId = (kind) => `dashboard-job-${kind}`;
+
+/**
+ * Adopt a server-side job: put its banner up, follow its progress, and hand
+ * the finished record to `onFinal`. The job itself belongs to the server, so
+ * an operator who closes the browser here still gets the work; the reattach
+ * path below simply runs this again after a reload.
+ */
+const followDashboardJob = async (kind, jobId, { title, pollMs = 1000, onFinal }) => {
+  const taskId = dashboardTaskId(kind);
+  useTaskStore.getState().start({
+    id: taskId,
+    title,
+    message: "Starting",
+    progress: 0,
+    onCancel: () => cancelDashboardJob(jobId),
+  });
+  try {
+    const final = await pollDashboardJob(
+      jobId,
+      (job) => {
+        useTaskStore.getState().update(taskId, {
+          message: job.message || "",
+          progress: typeof job.progress === "number" ? job.progress : 0,
+        });
+      },
+      { pollMs }
+    );
+    if (final) onFinal?.(final);
+  } finally {
+    useTaskStore.getState().finish(taskId);
+  }
+};
 
 function getStatusVariant(status) {
   if (status === "active") return "success";
@@ -56,6 +107,12 @@ export default function ProxyPoolsPage() {
   const [deployLabel, setDeployLabel] = useState(null);
   const [testingId, setTestingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  // The row markup is heavy, so a large import used to render every pool at
+  // once and lock the page up. A page window plus a filter bounds the DOM.
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [statusFilter, setStatusFilter] = useState("all");
   const [healthChecking, setHealthChecking] = useState(false);
   const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -242,9 +299,44 @@ export default function ProxyPoolsPage() {
     }
   };
 
-  const allSelected = proxyPools.length > 0 && selectedIds.length === proxyPools.length;
   const toggleSelect = (id) => setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-  const toggleSelectAll = () => setSelectedIds(allSelected ? [] : proxyPools.map((p) => p.id));
+  const filteredPools = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return proxyPools.filter((pool) => {
+      if (statusFilter === "active" && pool.isActive !== true) return false;
+      if (statusFilter === "inactive" && pool.isActive === true) return false;
+      if (statusFilter === "unbound" && (pool.boundConnectionCount || 0) > 0) return false;
+      if (!q) return true;
+      return (
+        String(pool.name || "").toLowerCase().includes(q) ||
+        String(pool.proxyUrl || "").toLowerCase().includes(q)
+      );
+    });
+  }, [proxyPools, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPools.length / pageSize));
+  // Clamping in render (not in an effect) keeps one source of truth and
+  // avoids a paint where the list is briefly the wrong page.
+  const safePage = Math.min(page, totalPages);
+  const visiblePools = useMemo(
+    () => filteredPools.slice((safePage - 1) * pageSize, safePage * pageSize),
+    [filteredPools, safePage, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, pageSize]);
+
+  // Select-all spans the whole filtered list, not just the visible page window.
+  // The old code selected the 20 visible rows only, so with hundreds of pools
+  // "Select all" silently left the rest behind.
+  const allSelected =
+    filteredPools.length > 0 && filteredPools.every((p) => selectedIds.includes(p.id));
+  // Bulk actions still act on the whole selection across pages; the checkbox
+  // only ever refers to the visible window.
+  const someVisibleSelected = visiblePools.some((p) => selectedIds.includes(p.id));
+
+  const toggleSelectAll = () => setSelectedIds(allSelected ? [] : filteredPools.map((p) => p.id));
   const clearSelection = () => setSelectedIds([]);
 
   const bulkSetActive = async (isActive) => {
@@ -270,7 +362,55 @@ export default function ProxyPoolsPage() {
     }
   };
 
-  const bulkDelete = async () => {
+  // Shared by "Delete selected" and "Delete all": one request to
+  // /api/proxy-pools/bulk, which deletes in a single transaction. The old loop
+  // asked the server once per id, so clearing hundreds of pools meant hundreds
+  // of round trips and a half-finished delete if the tab closed midway.
+  const runBulkDelete = async ({ ids = null, all = false, boundLabel }) => {
+    // Close the confirm dialog before the request: bulkDelete used to do this
+    // inline, and ConfirmModal stays mounted until confirmState is cleared.
+    setConfirmState(null);
+    setBulkBusy(true);
+    try {
+      const res = await fetch("/api/proxy-pools/bulk", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(all ? { all: true } : { ids }),
+      });
+
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        notify.error(
+          `${data.boundConnectionCount ?? "Some"} connection(s) still use a selected proxy pool. Unbind them first.`
+        );
+        return;
+      }
+      if (!res.ok) {
+        notify.error("Failed to delete proxy pools");
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const deletedCount = data.deletedCount ?? (data.deleted?.length ?? 0);
+      await fetchProxyPools();
+      clearSelection();
+
+      if (deletedCount === 0) {
+        notify.error("Nothing deleted: every selected pool is still bound to a connection");
+        return;
+      }
+      notify.success(
+        `Deleted ${deletedCount}${boundLabel}`
+      );
+    } catch (error) {
+      console.error("Error deleting proxy pools:", error);
+      notify.error("Failed to delete proxy pools");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkDelete = () => {
     if (selectedIds.length === 0) return;
     const protectedSelected = selectedIds.filter((id) => {
       const pool = proxyPools.find((p) => p.id === id);
@@ -282,105 +422,207 @@ export default function ProxyPoolsPage() {
     }
     setConfirmState({
       title: "Delete Proxy Pools",
-      message: `Delete ${selectedIds.length} proxy pool(s)?`,
-      onConfirm: async () => {
-        setConfirmState(null);
-        setBulkBusy(true);
-        try {
-          let ok = 0; let blocked = 0; let failed = 0;
-          for (const id of selectedIds) {
-            try {
-              const res = await fetch(`/api/proxy-pools/${id}`, { method: "DELETE" });
-              if (res.ok) ok += 1;
-              else if (res.status === 409) blocked += 1;
-              else failed += 1;
-            } catch { failed += 1; }
-          }
-          await fetchProxyPools();
-          clearSelection();
-          notify.success(`Deleted ${ok}${blocked ? `, ${blocked} bound` : ""}${failed ? `, ${failed} failed` : ""}`);
-        } finally {
-          setBulkBusy(false);
-        }
-      }
+      message: `Delete ${selectedIds.length} proxy pool(s)? This cannot be undone.`,
+      onConfirm: () => runBulkDelete({
+        ids: selectedIds,
+        boundLabel: selectedIds.length === 1 ? " proxy pool" : " proxy pools",
+      }),
     });
   };
 
+  // Deletes everything on the server, not just the current page or filter, so
+  // it is unaffected by how much of the list the browser happens to have loaded.
+  const deleteAllPools = () => {
+    if (proxyPools.length === 0) return;
+    const boundCount = proxyPools.reduce((sum, p) => sum + (p.boundConnectionCount || 0), 0);
+    setConfirmState({
+      title: "Delete All Proxy Pools",
+      message: boundCount > 0
+        ? `This deletes all ${proxyPools.length} proxy pool(s). ${boundCount} connection(s) are still bound to a pool and will be left untouched. This cannot be undone.`
+        : `This deletes all ${proxyPools.length} proxy pool(s). This cannot be undone.`,
+      onConfirm: () => runBulkDelete({
+        all: true,
+        boundLabel: " proxy pools",
+      }),
+    });
+  };
+
+  // The pool list can hold six thousand entries, and testing them is one request
+  // each - minutes of work that used to be driven by this component. If the tab
+  // closed mid-run the loop died with it and the health status was left half
+  // written, so the work now belongs to the server: one POST starts it, this
+  // page only reads progress, and the banner and the bell can show it after a
+  // reload or from another menu.
   const handleHealthCheck = async () => {
     const targets = selectedIds.length > 0
       ? proxyPools.filter((p) => selectedIds.includes(p.id))
       : proxyPools;
     if (targets.length === 0) return;
+
     setHealthChecking(true);
     setHealthProgress({ current: 0, total: targets.length });
-    let alive = 0; const deadIds = [];
-    let done = 0;
-    const CONCURRENCY = 10;
-    const queue = [...targets];
 
-    const worker = async () => {
-      while (queue.length > 0) {
-        const pool = queue.shift();
-        if (!pool) break;
-        try {
-          const res = await fetch(`/api/proxy-pools/${pool.id}/test`, { method: "POST" });
-          const data = await res.json();
-          if (res.ok && data.ok) alive += 1; else deadIds.push(pool.id);
-        } catch {
-          deadIds.push(pool.id);
-        } finally {
-          done += 1;
-          setHealthProgress({ current: done, total: targets.length });
-        }
-      }
-    };
-
-    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker));
-    await fetchProxyPools();
-    setHealthChecking(false);
-    setHealthProgress({ current: 0, total: 0 });
-
-    if (deadIds.length > 0) {
-      setConfirmState({
-        title: "Disable Dead Proxies",
-        message: `Alive: ${alive}, Dead: ${deadIds.length}.\n\nDisable ${deadIds.length} dead proxies?`,
-        onConfirm: async () => {
-          setConfirmState(null);
-          setBulkBusy(true);
-          try {
-            for (const id of deadIds) {
-              try {
-                await fetch(`/api/proxy-pools/${id}`, {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ isActive: false }),
-                });
-              } catch {}
-            }
-            await fetchProxyPools();
-            notify.success(`Disabled ${deadIds.length} dead proxies`);
-          } finally {
-            setBulkBusy(false);
+    try {
+      const { jobId, pollMs } = await startDashboardJob(
+        "health-check",
+        { poolIds: targets.map((p) => p.id) },
+        "Health check"
+      );
+      await followDashboardJob("health-check", jobId, {
+        title: "Health check",
+        pollMs,
+        onFinal: (job) => {
+          if (job.status === "cancelled") {
+            notify.info(job.message || "Health check stopped");
+            return;
           }
-        }
+          if (job.status !== "done") {
+            notify.error(job.error || job.message || "Health check failed");
+            return;
+          }
+          const deadIds = job.result?.deadIds || [];
+          if (deadIds.length > 0) {
+            setConfirmState({
+              title: "Disable Dead Proxies",
+              message: `Alive: ${job.result.alive}, Dead: ${deadIds.length}.\n\nDisable ${deadIds.length} dead proxies?`,
+              onConfirm: async () => {
+                setConfirmState(null);
+                setBulkBusy(true);
+                try {
+                  for (const id of deadIds) {
+                    try {
+                      await fetch(`/api/proxy-pools/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ isActive: false }),
+                      });
+                    } catch {}
+                  }
+                  await fetchProxyPools();
+                  notify.success(`Disabled ${deadIds.length} dead proxies`);
+                } finally {
+                  setBulkBusy(false);
+                }
+              },
+            });
+          } else {
+            notify.success(job.message || "Health check done");
+          }
+        },
       });
-    } else {
-      notify.success(`Health check done. Alive: ${alive}, Dead: ${deadIds.length}`);
+    } catch (error) {
+      notify.error(error?.message || "Could not start the health check");
+    } finally {
+      await fetchProxyPools();
+      setHealthChecking(false);
+      setHealthProgress({ current: 0, total: 0 });
     }
   };
+
+  // Reattach to a health check that outlived this page. The server kept it
+  // running, so this only reconnects the banner - it never starts a new run.
+  useEffect(() => {
+    const stored = readStoredDashboardJob("health-check");
+    if (!stored) return;
+    let alive = true;
+    (async () => {
+      const job = await fetchDashboardJob(stored.jobId);
+      if (!alive) return;
+      if (!job || job.status === "done" || job.status === "error" || job.status === "cancelled") {
+        clearStoredDashboardJob("health-check");
+        return;
+      }
+      setHealthChecking(true);
+      setHealthProgress({
+        current: 0,
+        total: Number(job.result?.total) || 0,
+      });
+      await followDashboardJob("health-check", stored.jobId, {
+        title: "Health check",
+        onFinal: (final) => {
+          clearStoredDashboardJob("health-check");
+          if (!alive) return;
+          if (final.status === "done") {
+            notify.success(final.message || "Health check done");
+          } else if (final.status === "cancelled") {
+            notify.info(final.message || "Health check stopped");
+          } else {
+            notify.error(final.error || final.message || "Health check failed");
+          }
+        },
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cleanup selectedIds when pools change
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => proxyPools.some((p) => p.id === id)));
   }, [proxyPools]);
 
+  // Reattach after a navigation or reload: the server keeps the run going, so a
+  // stored job id only needs its progress banner back, not a new run.
+  useEffect(() => {
+    const stored = readStoredJob();
+    if (!stored) return;
+    let alive = true;
+    (async () => {
+      const total = stored.total || 0;
+      setImporting(true);
+      importAbortRef.current = stored.jobId;
+      useTaskStore.getState().start({
+        id: PROXY_IMPORT_TASK,
+        title: "Importing proxies",
+        message: `0/${total} proxies`,
+        progress: 0,
+        onCancel: () => cancelProxyImportJob(stored.jobId),
+      });
+      const final = await pollProxyImportJob(
+        stored.jobId,
+        (job) => {
+          if (!alive) return;
+          useTaskStore.getState().update(PROXY_IMPORT_TASK, {
+            message: job.message || `${job.counts?.processed ?? 0}/${total} proxies`,
+            progress: Number(job.progress) || 0,
+          });
+        },
+        { pollMs: 1000 }
+      );
+      if (!alive) return;
+      if (final?.status === "done") {
+        await fetchProxyPools();
+        notify.success(final.message || "Batch import completed");
+      } else if (final?.status === "cancelled") {
+        await fetchProxyPools();
+        notify.info(final.message || "Batch import stopped");
+      } else if (final?.status === "error") {
+        notify.error(final.error || final.message || "Batch import failed");
+      }
+      useTaskStore.getState().finish(PROXY_IMPORT_TASK);
+      importAbortRef.current = null;
+      setImporting(false);
+    })();
+    return () => {
+      alive = false;
+    };
+    // One shot on mount: this reconnects to a run that outlived the page, and
+    // polling keeps going through `pollProxyImportJob` even across later
+    // navigations while the task store keeps the banner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openBatchImportModal = () => {
     setBatchImportText("");
     setShowBatchImportModal(true);
   };
 
+  // No `importing` guard: the modal is already closed once a run starts, and
+  // the docked banner owns Cancel. Re-opening the dialog mid-run to paste a
+  // different list is harmless - handleBatchImport refuses a second run itself.
   const closeBatchImportModal = () => {
-    if (importing) return;
     setShowBatchImportModal(false);
   };
 
@@ -389,8 +631,12 @@ export default function ProxyPoolsPage() {
     setShowVercelModal(true);
   };
 
+  // No `deploying` guard. Both guards below were wrong twice over: the modal
+  // kept its own `fixed inset-0` overlay on screen for the whole deploy, and the
+  // success path called these closers *while* `deploying` was still true, so
+  // `if (deploying) return` turned the close into a no-op and the dialog never
+  // went away. Progress lives in the page's ProgressCard / layout TaskDock.
   const closeVercelModal = () => {
-    if (deploying) return;
     setShowVercelModal(false);
   };
 
@@ -400,7 +646,6 @@ export default function ProxyPoolsPage() {
   };
 
   const closeCloudflareModal = () => {
-    if (deploying) return;
     setShowCloudflareModal(false);
   };
 
@@ -410,89 +655,70 @@ export default function ProxyPoolsPage() {
   };
 
   const closeDenoModal = () => {
-    if (deploying) return;
     setShowDenoModal(false);
+  };
+
+  // Relay deploys are one long request each (the provider builds, uploads, and
+  // reports ready). The dialog closes the moment the request starts and the run
+  // belongs to the server, so closing the browser during a minute-long deploy
+  // no longer loses it: the banner follows it here, and a reload reattaches.
+  const runRelayDeploy = async (provider, form, { label, onDone }) => {
+    setDeployLabel(label);
+    setDeploying(true);
+    try {
+      const { jobId, pollMs } = await startDashboardJob(
+        "deploy-relay",
+        { provider, form },
+        label
+      );
+      await followDashboardJob("deploy-relay", jobId, {
+        title: label,
+        pollMs,
+        onFinal: async (job) => {
+          await fetchProxyPools();
+          onDone?.();
+          if (job.status === "done") {
+            notify.success(job.message || "Deployed");
+          } else if (job.status === "cancelled") {
+            notify.info(job.message || "Deploy cancelled");
+          } else {
+            notify.error(job.error || job.message || "Deploy failed");
+          }
+        },
+      });
+    } catch (error) {
+      notify.error(error?.message || "Deploy failed");
+    } finally {
+      setDeploying(false);
+      setDeployLabel(null);
+    }
   };
 
   const handleVercelDeploy = async () => {
     if (!vercelForm.vercelToken.trim()) return;
-    setDeployLabel("Deploying Vercel Relay");
-    setDeploying(true);
-    try {
-      const res = await fetch("/api/proxy-pools/vercel-deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(vercelForm),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await fetchProxyPools();
-        closeVercelModal();
-        notify.success(`Deployed: ${data.deployUrl}`);
-      } else {
-        notify.error(data.error || "Deploy failed");
-      }
-    } catch (error) {
-      console.log("Error deploying Vercel relay:", error);
-      notify.error("Deploy failed");
-    } finally {
-      setDeploying(false);
-      setDeployLabel(null);
-    }
+    setShowVercelModal(false);
+    await runRelayDeploy("vercel", vercelForm, {
+      label: "Deploying Vercel Relay",
+      onDone: closeVercelModal,
+    });
   };
 
   const handleCloudflareDeploy = async () => {
     if (!cloudflareForm.accountId.trim() || !cloudflareForm.apiToken.trim()) return;
-    setDeployLabel("Deploying Cloudflare Worker");
-    setDeploying(true);
-    try {
-      const res = await fetch("/api/proxy-pools/cloudflare-deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cloudflareForm),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await fetchProxyPools();
-        closeCloudflareModal();
-        notify.success(`Deployed: ${data.deployUrl}`);
-      } else {
-        notify.error(data.error || "Deploy failed");
-      }
-    } catch (error) {
-      console.log("Error deploying Cloudflare relay:", error);
-      notify.error("Deploy failed");
-    } finally {
-      setDeploying(false);
-      setDeployLabel(null);
-    }
+    setShowCloudflareModal(false);
+    await runRelayDeploy("cloudflare", cloudflareForm, {
+      label: "Deploying Cloudflare Worker",
+      onDone: closeCloudflareModal,
+    });
   };
 
   const handleDenoDeploy = async () => {
-    if (!denoForm.denoToken.trim()) return;
-    setDeployLabel("Deploying Deno Relay");
-    setDeploying(true);
-    try {
-      const res = await fetch("/api/proxy-pools/deno-deploy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(denoForm),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        await fetchProxyPools();
-        closeDenoModal();
-        notify.success(`Deployed: ${data.deployUrl}`);
-      } else {
-        notify.error(data.error || "Deploy failed");
-      }
-    } catch (error) {
-      console.log("Error deploying Deno relay:", error);
-      notify.error("Deploy failed");
-    } finally {
-      setDeploying(false);
-      setDeployLabel(null);
-    }
+    if (!denoForm.denoToken.trim() || !denoForm.orgDomain.trim()) return;
+    setShowDenoModal(false);
+    await runRelayDeploy("deno", denoForm, {
+      label: "Deploying Deno Relay",
+      onDone: closeDenoModal,
+    });
   };
 
   const parseProxyLine = (line) => {
@@ -560,79 +786,56 @@ export default function ProxyPoolsPage() {
     }
 
     setImporting(true);
-    const abort = new AbortController();
-    importAbortRef.current = abort;
+    // Close the modal as soon as the run starts. Its `fixed inset-0` overlay
+    // used to stay mounted with both buttons disabled and swallowed every click
+    // on the page. Progress reports through the layout's TaskDock, which
+    // survives navigation.
+    setShowBatchImportModal(false);
+
     const total = parsedEntries.length;
-    useTaskStore.getState().start({
-      id: PROXY_IMPORT_TASK,
-      title: "Importing proxies",
-      message: `0/${total} proxies`,
-      section: "Runs in the background — you can keep working while it finishes",
-      progress: 0,
-      onCancel: () => abort.abort(),
-    });
-    // Declared before the try so the catch can report how far a cancelled run got.
-    let created = 0;
-    let skipped = 0;
-    let failed = 0;
-    let processed = 0;
     try {
-      const existingKeys = new Set(
-        proxyPools.map((pool) => `${(pool.proxyUrl || "").trim()}|||${(pool.noProxy || "").trim()}`)
+      // The insert loop now runs on the server: posting a thousand entries one
+      // round trip at a time from the page meant the run died with the tab, so
+      // closing the browser or refreshing halfway left the list half-imported
+      // with no resume. The server keeps going and this page only reads
+      // progress, which is also what lets the operator navigate elsewhere.
+      const { jobId, pollMs } = await startProxyImportJob(parsedEntries);
+      writeStoredJob(jobId, total);
+      importAbortRef.current = jobId;
+      useTaskStore.getState().start({
+        id: PROXY_IMPORT_TASK,
+        title: "Importing proxies",
+        message: `0/${total} proxies`,
+        progress: 0,
+        onCancel: () => cancelProxyImportJob(jobId),
+      });
+
+      const final = await pollProxyImportJob(
+        jobId,
+        (job) => {
+          useTaskStore.getState().update(PROXY_IMPORT_TASK, {
+            message: job.message || `${job.counts?.processed ?? 0}/${total} proxies`,
+            progress: Number(job.progress) || 0,
+          });
+        },
+        { pollMs }
       );
 
-      for (const entry of parsedEntries) {
-        const dedupeKey = `${entry.proxyUrl}|||`;
-        if (existingKeys.has(dedupeKey)) {
-          skipped += 1;
-          processed += 1;
-          useTaskStore.getState().update(PROXY_IMPORT_TASK, {
-            message: `${processed}/${total} proxies`,
-            progress: Math.round((processed / total) * 100),
-          });
-          continue;
-        }
-
-        const res = await fetch("/api/proxy-pools", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: entry.name,
-            proxyUrl: entry.proxyUrl,
-            noProxy: "",
-            isActive: true,
-          }),
-          // Cancel from the banner aborts this request; the loop stops before
-          // starting the next one.
-          signal: abort.signal,
-        });
-
-        if (res.ok) {
-          created += 1;
-          existingKeys.add(dedupeKey);
-        } else {
-          failed += 1;
-        }
-
-        processed += 1;
-        useTaskStore.getState().update(PROXY_IMPORT_TASK, {
-          message: `${processed}/${total} proxies`,
-          progress: Math.round((processed / total) * 100),
-        });
+      if (final?.status === "done") {
+        await fetchProxyPools();
+        notify.success(final.message || "Batch import completed");
+      } else if (final?.status === "cancelled") {
+        await fetchProxyPools();
+        notify.info(final.message || "Batch import stopped");
+      } else if (final?.status === "error") {
+        notify.error(final.error || final.message || "Batch import failed");
       }
-
-      await fetchProxyPools();
-      setShowBatchImportModal(false);
-      notify.success(`Batch import completed: Created ${created}, Skipped ${skipped}, Failed ${failed}`);
+      // A null final means the record expired (server restarted, or the run
+      // outlived its TTL). No toast either way: nothing is known to have gone
+      // wrong, and claiming otherwise would be the worse lie.
     } catch (error) {
-      if (error?.name === "AbortError") {
-        notify.info(
-          `Batch import cancelled: Created ${created ?? 0}, Skipped ${skipped ?? 0}`
-        );
-      } else {
-        console.log("Error batch importing proxies:", error);
-        notify.error("Batch import failed");
-      }
+      console.log("Error starting proxy import:", error);
+      notify.error(error?.message || "Batch import failed");
     } finally {
       useTaskStore.getState().finish(PROXY_IMPORT_TASK);
       importAbortRef.current = null;
@@ -738,6 +941,19 @@ export default function ProxyPoolsPage() {
           )}
           <Badge variant="default">Total: {proxyPools.length}</Badge>
           <Badge variant="success">Active: {activeCount}</Badge>
+          {proxyPools.length > 0 && (
+            <Button
+              size="sm"
+              variant="secondary"
+              icon="delete"
+              onClick={deleteAllPools}
+              disabled={bulkBusy || healthChecking}
+              className="ml-auto"
+              title="Delete every proxy pool at once"
+            >
+              Delete All
+            </Button>
+          )}
         </div>
 
         {(selectedIds.length > 0 || healthChecking) && (
@@ -775,6 +991,45 @@ export default function ProxyPoolsPage() {
           </div>
         )}
 
+        {proxyPools.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4">
+            <div className="flex-1 min-w-0">
+              <Input
+                placeholder="Search by name or proxy URL..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                icon="search"
+                className="w-full"
+              />
+            </div>
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-black/5 dark:bg-white/5">
+              {[
+                { id: "all", label: "All" },
+                { id: "active", label: "Active" },
+                { id: "inactive", label: "Inactive" },
+                { id: "unbound", label: "Unbound" },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setStatusFilter(opt.id)}
+                  aria-pressed={statusFilter === opt.id}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    statusFilter === opt.id
+                      ? "bg-surface text-text-main shadow-sm"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-text-muted whitespace-nowrap">
+              {filteredPools.length} of {proxyPools.length}
+            </span>
+          </div>
+        )}
+
         {proxyPools.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-text-main font-medium mb-1">No proxy pool entries yet</p>
@@ -783,9 +1038,26 @@ export default function ProxyPoolsPage() {
             </p>
             <Button icon="add" onClick={openCreateModal}>Add Proxy Pool</Button>
           </div>
+        ) : filteredPools.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-text-main font-medium mb-1">No proxy pools match this filter</p>
+            <p className="text-sm text-text-muted mb-4">
+              {proxyPools.length} entries are loaded. Clear the search or pick another status.
+            </p>
+            <Button
+              variant="secondary"
+              icon="filter_alt_off"
+              onClick={() => {
+                setSearch("");
+                setStatusFilter("all");
+              }}
+            >
+              Clear filter
+            </Button>
+          </div>
         ) : (
           <div className="flex flex-col divide-y divide-black/[0.04] dark:divide-white/[0.05]">
-            {proxyPools.map((pool) => (
+            {visiblePools.map((pool) => (
               <div key={pool.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   <input
@@ -865,13 +1137,22 @@ export default function ProxyPoolsPage() {
             ))}
           </div>
         )}
+
+        {filteredPools.length > 0 && totalPages > 1 && (
+          <Pagination
+            currentPage={safePage}
+            pageSize={pageSize}
+            totalItems={filteredPools.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => setPageSize(n)}
+          />
+        )}
       </Card>
 
       {deploying && (
         <ProgressCard
           title={deployLabel || "Deploying relay"}
           message="Pushing worker build to the edge, this can take about a minute"
-          section="Do not close this tab"
         />
       )}
 
@@ -896,10 +1177,10 @@ export default function ProxyPoolsPage() {
 
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button fullWidth onClick={handleBatchImport} disabled={!batchImportText.trim() || importing}>
-              Import
+              {importing ? "Importing..." : "Import"}
             </Button>
-            <Button fullWidth variant="ghost" onClick={closeBatchImportModal} disabled={importing}>
-              Cancel
+            <Button fullWidth variant="ghost" onClick={closeBatchImportModal}>
+              {importing ? "Run in background" : "Cancel"}
             </Button>
           </div>
         </div>
@@ -921,7 +1202,7 @@ export default function ProxyPoolsPage() {
             </p>
             <ul className="text-xs text-text-muted list-disc pl-4 space-y-0.5">
               <li>Your IP is replaced by Vercel&apos;s dynamic edge IPs (hundreds of IPs across 20+ global regions)</li>
-              <li>Vercel serves millions of apps — providers can&apos;t block Vercel IPs without affecting legitimate traffic</li>
+              <li>Vercel serves millions of apps - providers can&apos;t block Vercel IPs without affecting legitimate traffic</li>
               <li>Free tier: 100GB bandwidth/month, 500K edge invocations</li>
               <li>Deploy multiple relays on different accounts for more IP diversity</li>
             </ul>

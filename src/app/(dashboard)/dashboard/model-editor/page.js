@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Card, Button, Modal, Input, ModelSelectModal } from "@/shared/components";
+import { Card, Button, Modal, Input, ModelSelectModal, Toggle } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { findStudioCycle, describeStudioCycle } from "@/shared/utils/studioComboGuard";
@@ -15,7 +15,129 @@ function formatTokens(n) {
   return String(value);
 }
 
+// BazaarLink Probe judges behaviour, not spelling: it never trusts a
+// self-claim. So these checks cannot pass a model, they only catch metadata
+// that would READ as masked - which is the part a custom model controls.
+//
+// Vendor families, used to compare a claim against the resolved target. A
+// prefix or an owned_by naming a different vendor than the target's own is the
+// classic "renamed for resale" shape.
+const VENDOR_HINTS = [
+  { re: /\b(openai|gpt|o[134](?:-|$)|codex)\b/i, vendor: "openai" },
+  { re: /\b(anthropic|claude)\b/i, vendor: "anthropic" },
+  { re: /\b(google|gemini|gemma)\b/i, vendor: "google" },
+  { re: /\b(meta|llama)\b/i, vendor: "meta" },
+  { re: /\b(mistral|codestral|magistral)\b/i, vendor: "mistral" },
+  { re: /\b(deepseek)\b/i, vendor: "deepseek" },
+  { re: /\b(qwen|qwq)\b/i, vendor: "alibaba" },
+  { re: /\b(kimi|moonshot)\b/i, vendor: "moonshot" },
+  { re: /\b(glm|zhipu|z-ai)\b/i, vendor: "zhipu" },
+  { re: /\b(minimax)\b/i, vendor: "minimax" },
+  { re: /\b(grok)\b/i, vendor: "xai" },
+  { re: /\b(mimo)\b/i, vendor: "xiaomi" },
+];
+
+function detectVendor(text) {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  for (const h of VENDOR_HINTS) {
+    if (h.re.test(t)) return h.vendor;
+  }
+  return null;
+}
+
+// Vendor implied by a router prefix: "oc/...", "kr/..." are aliases, so the
+// meaningful signal is the model half, not the prefix.
+function targetVendor(target) {
+  const t = String(target || "").trim();
+  if (!t) return null;
+  const slash = t.indexOf("/");
+  return detectVendor(slash >= 0 ? t.slice(slash + 1) : t);
+}
+
+/**
+ * Concrete, fixable inconsistencies between what a custom model claims and the
+ * model it points at. Returns [] when nothing is off - which is NOT a pass
+ * mark, only the absence of an obvious self-contradiction.
+ */
+function antiMaskFindings({ callName, ownedBy, targetModel }) {
+  const findings = [];
+  const tv = targetVendor(targetModel);
+
+  if (!String(callName || "").trim()) {
+    findings.push({
+      level: "info",
+      text: "Name this model. A bare or empty id is indistinguishable from padding in a listing.",
+    });
+  }
+
+  const nv = detectVendor(callName);
+  if (nv && tv && nv !== tv) {
+    findings.push({
+      level: "warn",
+      text: `Name reads as ${nv} but the target is ${tv}. A probe compares the claim against the answer, and this is the shape it flags.`,
+    });
+  }
+
+  const ov = detectVendor(ownedBy);
+  if (ov && tv && ov !== tv) {
+    findings.push({
+      level: "warn",
+      text: `owned_by says ${ov} while the target is ${tv}. Keep owned_by on the target's real vendor.`,
+    });
+  }
+
+  if (!String(ownedBy || "").trim()) {
+    findings.push({
+      level: "info",
+      text: "Set owned_by to the target model's real vendor. Blank falls back to this model's own name, which reads as an invented model.",
+    });
+  }
+
+  return findings;
+}
+
+// The BazaarLink probe is an outside service that judges an endpoint by its
+// behaviour, not by its name. The anti-probe switch decides whether this editor
+// also warns about the metadata that reads as masked: a call name or owned_by
+// claiming a vendor the target does not match. It is a saved setting, not a
+// per-browser cookie, so the same editor form shows the same warnings for every
+// administrator who opens it.
 export default function ModelStudioPage() {
+  const [antiProbe, setAntiProbe] = useState(true);
+  const [savingProbe, setSavingProbe] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((data) => {
+        // Absent means this install never stored the switch: default on, so an
+        // existing deployment keeps the warnings it had before the toggle existed.
+        if (data && typeof data.antiProbeMetadata === "boolean") {
+          setAntiProbe(data.antiProbeMetadata);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleAntiProbe = async () => {
+    const next = !antiProbe;
+    setAntiProbe(next);
+    setSavingProbe(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ antiProbeMetadata: next }),
+      });
+      if (!res.ok) setAntiProbe(!next);
+    } catch {
+      setAntiProbe(!next);
+    } finally {
+      setSavingProbe(false);
+    }
+  };
+
   return (
     <div className="flex min-w-0 flex-col gap-6 px-1 sm:px-0">
       <div className="min-w-0">
@@ -23,13 +145,32 @@ export default function ModelStudioPage() {
         <p className="text-xs text-text-muted mt-0.5">
           Give any model your own name, context size and behaviour, and it becomes a callable model ID for clients, combos, and API keys.
         </p>
+        <div className="mt-2 flex items-start justify-between gap-3 rounded-xl border border-border bg-black/[0.02] dark:bg-white/[0.03] px-3 py-2">
+          <div className="min-w-0">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-text-main">
+              <span className="material-symbols-outlined text-[16px] leading-none text-primary">
+                shield_person
+              </span>
+              Anti-probe metadata
+            </span>
+            <p className="text-[11px] text-text-muted mt-0.5">
+              Warns in the form when a model&apos;s name or <code className="font-mono">owned_by</code> claims a
+              vendor the target model does not match - the shape BazaarLink&apos;s probe flags. Nothing is blocked
+              or rewritten; the checks only report what a probe would read.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            <Toggle checked={antiProbe} onChange={toggleAntiProbe} disabled={savingProbe} />
+            <span className="text-[10px] font-medium text-text-muted">{antiProbe ? "On" : "Off"}</span>
+          </div>
+        </div>
       </div>
-      <ModelStudioContent />
+      <ModelStudioContent antiProbe={antiProbe} />
     </div>
   );
 }
 
-function ModelStudioContent() {
+function ModelStudioContent({ antiProbe = true }) {
   const [models, setModels] = useState([]);
   const [providerNodes, setProviderNodes] = useState([]);
   const [activeProviders, setActiveProviders] = useState([]);
@@ -203,6 +344,7 @@ function ModelStudioContent() {
 
       {showForm && (
         <StudioFormModal
+          antiProbe={antiProbe}
           editing={editing}
           activeProviders={activeProviders}
           modelAliases={modelAliases}
@@ -220,6 +362,7 @@ function ModelStudioContent() {
 }
 
 function StudioFormModal({
+  antiProbe = true,
   editing,
   activeProviders,
   modelAliases,
@@ -235,7 +378,18 @@ function StudioFormModal({
   // Label this model claims in a model listing (owned_by). Free-form; blank means
   // "present itself as the model name clients call".
   const [ownedBy, setOwnedBy] = useState(editing?.ownedBy || "");
-  const [targetModel, setTargetModel] = useState(editing?.targetModel || "");
+  // The record stores both: `targetModel` is the resolved router target
+  // (provider id), `targetLabel` is what the user actually picked. Editing has
+  // to start from the label, otherwise saving writes the resolved prefix back
+  // and the picker's own spelling ("oc/...") is lost on every round trip.
+  const [targetModel, setTargetModel] = useState(
+    editing?.targetLabel || editing?.targetModel || ""
+  );
+  // True while the user has typed their own number: the suggestion then stops
+  // overriding, but stays visible so a stale value is obvious.
+  const [contextTouched, setContextTouched] = useState(
+    editing ? !!editing.contextWindow : false
+  );
   const [combos, setCombos] = useState([]);
   const [siblings, setSiblings] = useState([]);
   const [contextWindow, setContextWindow] = useState(
@@ -263,13 +417,21 @@ function StudioFormModal({
   );
   const nameError = useMemo(() => {
     if (!callName) return "";
-    if (callName.includes("/")) return "Use a name without \"/\" — it is the model ID clients send.";
+    if (callName.includes("/")) return "Use a name without \"/\" - it is the model ID clients send.";
     if (!NAME_RE.test(callName)) return "Letters, numbers, dot, dash and underscore only (max 64).";
     return "";
   }, [callName]);
 
   // Client-side precheck mirroring the server guard: warn before saving when
   // the picked combo leads back to this model. The server still decides.
+
+  // Only computed while the switch is on: the panel is not rendered otherwise,
+  // and re-deriving it on every keystroke for a hidden check is wasted work.
+  const maskFindings = useMemo(
+    () => (antiProbe ? antiMaskFindings({ callName, ownedBy, targetModel }) : []),
+    [antiProbe, callName, ownedBy, targetModel]
+  );
+  const maskWarns = maskFindings.filter((f) => f.level === "warn");
   const cycleError = useMemo(() => {
     const name = callName.trim();
     const target = targetModel.trim();
@@ -290,8 +452,9 @@ function StudioFormModal({
   const handlePickModel = (model) => {
     if (!model?.value || model.isPlaceholder) return;
     setTargetModel(model.value);
-    const caps = getCaps(model.value);
-    if (caps?.contextWindow && !contextWindow) setContextWindow(String(caps.contextWindow));
+    // Clear the "user typed this" flag: a new pick is a new model, so its own
+    // context window is the correct suggestion again.
+    setContextTouched(false);
   };
 
   const handleSubmit = async (e) => {
@@ -308,6 +471,8 @@ function StudioFormModal({
           displayName: displayName.trim(),
           ownedBy: ownedBy.trim(),
           targetModel,
+          // Sent verbatim: the server keeps this as targetLabel, so the picker
+          // keeps showing the spelling that was chosen here.
           contextWindow: contextWindow ? Number(contextWindow) : 0,
           systemPrompt,
         }),
@@ -377,7 +542,7 @@ function StudioFormModal({
               </span>
             </button>
             <p className="text-[11px] text-text-muted">
-              Any model you have connected — built-in, custom provider or combo.
+              Any model you have connected - built-in, custom provider or combo.
             </p>
             {cycleError && (
               <p className="text-[11px] text-red-500 mt-1">{cycleError}</p>
@@ -427,6 +592,64 @@ function StudioFormModal({
             </p>
           </div>
 
+          {/* Owned-by stays a plain field; the external probe link lived here. */}
+
+
+          {antiProbe ? (
+          <div className="rounded-xl border border-border bg-black/[0.02] dark:bg-white/[0.03] p-3 flex flex-col gap-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5 text-xs font-semibold text-text-main">
+                <span className="material-symbols-outlined text-[16px] leading-none text-primary">
+                  shield_person
+                </span>
+                Anti-mask check
+              </span>
+              <a
+                href="https://bazaarlink.ai/probe"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[11px] text-primary hover:underline whitespace-nowrap"
+              >
+                Run BazaarLink Probe
+                <span className="material-symbols-outlined text-[12px] leading-none">open_in_new</span>
+              </a>
+            </div>
+
+            {maskWarns.length === 0 ? (
+              <p className="text-[11px] text-text-muted flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-[13px] leading-none mt-px text-emerald-500">
+                  check_circle
+                </span>
+                No contradiction between this model&apos;s name and its target&apos;s vendor.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1.5">
+                {maskFindings.map((f, i) => (
+                  <li
+                    key={i}
+                    className={`text-[11px] flex items-start gap-1.5 ${
+                      f.level === "warn" ? "text-amber-500" : "text-text-muted"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[13px] leading-none mt-px shrink-0">
+                      {f.level === "warn" ? "warning" : "info"}
+                    </span>
+                    <span>{f.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <p className="text-[10px] text-text-muted leading-relaxed border-t border-border pt-2">
+              BazaarLink&apos;s probe sends behavioural checks and compares how the
+              endpoint answers against known baselines - it never trusts the name
+              a model calls itself. This panel only catches metadata that would
+              <em> read</em> as masked (a vendor claim your target does not
+              match); an honest endpoint passes on behaviour alone, and no
+              spelling of a name can make a probe pass or fail it.
+            </p>
+          </div>
+          ) : null}
           <div>
             <label className="block text-xs font-medium text-text-main mb-1">
               Context window <span className="text-text-muted font-normal">(tokens)</span>
@@ -435,12 +658,39 @@ function StudioFormModal({
               type="number"
               min="0"
               value={contextWindow}
-              onChange={(e) => setContextWindow(e.target.value)}
+              onChange={(e) => {
+                setContextWindow(e.target.value);
+                setContextTouched(true);
+              }}
               placeholder={targetCaps?.contextWindow ? String(targetCaps.contextWindow) : "0 = provider default"}
             />
+            {targetCaps?.contextWindow ? (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] text-text-muted">
+                  {targetModel} is listed at{" "}
+                  <code className="font-mono">{formatTokens(targetCaps.contextWindow)}</code>
+                  {targetCaps.maxOutput ? (
+                    <> · {formatTokens(targetCaps.maxOutput)} output</>
+                  ) : null}
+                </span>
+                {Number(contextWindow || 0) !== targetCaps.contextWindow ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContextWindow(String(targetCaps.contextWindow));
+                      setContextTouched(false);
+                    }}
+                    className="text-[11px] text-primary hover:underline whitespace-nowrap"
+                  >
+                    use {formatTokens(targetCaps.contextWindow)}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             <p className="text-[11px] text-text-muted mt-1">
               Advertised to clients reading <code className="font-mono">/v1/models</code>. Leave empty to
-              keep the provider default.
+              keep the provider default. A custom model that renames a target keeps
+              the target&apos;s own window unless you override it here.
             </p>
           </div>
 
@@ -533,7 +783,7 @@ function PrefixCard({ nodes, onSaved }) {
         <div>
           <h3 className="text-sm font-semibold text-text-main">Provider prefixes</h3>
           <p className="text-[11px] text-text-muted mt-0.5">
-            One prefix per custom provider — clients call{" "}
+            One prefix per custom provider - clients call{" "}
             <code className="font-mono">prefix/model-id</code>.
           </p>
         </div>

@@ -27,19 +27,19 @@ const navItems = [
   { href: "/dashboard/cli-tools", label: "CLI Tools", icon: "terminal" },
 ];
 
-// Custom features added by this fork — open-ended, new tools land here too.
+// Custom features added by this fork - open-ended, new tools land here too.
 const workshopItems = [
   { href: "/dashboard/arena", label: "Compare Models", icon: "swords" },
-  { href: "/dashboard/benchmark", label: "Benchmark", icon: "speed" },
   { href: "/dashboard/model-editor", label: "Custom Models", icon: "auto_awesome" },
   { href: "/dashboard/plugins", label: "Custom Plugins", icon: "widgets" },
   { href: "/dashboard/prompts", label: "System Prompts", icon: "description" },
   { href: "/dashboard/prd-builder", label: "PRD Builder", icon: "description" },
 ];
 
+// Security Log and Inbox Error live in the bell, not the menu - they are
+// conditions to review, not places you visit to work.
 const debugItems = [
   { href: "/dashboard/console-log", label: "Console Log", icon: "monitor" },
-  { href: "/dashboard/security-log", label: "Security Log", icon: "shield" },
   { href: "/dashboard/translator", label: "Translator", icon: "translate" },
 ];
 
@@ -120,7 +120,6 @@ export default function Sidebar({ onClose }) {
 
   const filteredWorkshopItems = workshopItems.filter((item) => {
     if (!isApiKeyUser) return true;
-    if (item.href === "/dashboard/benchmark") return false;
     if (item.href === "/dashboard/model-editor" || item.href === "/dashboard/arena" || item.href === "/dashboard/prd-builder") {
       return permissions.manageModels;
     }
@@ -130,10 +129,6 @@ export default function Sidebar({ onClose }) {
   });
 
   const filteredDebugItems = debugItems.filter((item) => {
-    // The security trail names who signed in and from where: administrators only,
-    // regardless of what a key holds. A password session is the administrator,
-    // so it is kept; a key-signed session is refused whatever it carries.
-    if (item.href === "/dashboard/security-log") return !isApiKeyUser;
     if (!isApiKeyUser) return true;
     return permissions.manageAdvanced;
   });
@@ -199,7 +194,7 @@ export default function Sidebar({ onClose }) {
             />
           ))}
 
-          {/* FEATURE+ section — custom tools added by this fork */}
+          {/* FEATURE+ section - custom tools added by this fork */}
           {filteredWorkshopItems.length > 0 && (
             <div className="pt-3 mt-2 space-y-0.5">
               <p className="px-4 text-xs font-semibold text-text-muted/60 uppercase tracking-wider mb-2">
@@ -218,7 +213,7 @@ export default function Sidebar({ onClose }) {
             </div>
           )}
 
-          {/* System section — an API key session sees only the parts it may use */}
+          {/* System section - an API key session sees only the parts it may use */}
           {(!isApiKeyUser || canOpenMedia || filteredSystemItems.length > 0 || filteredDebugItems.length > 0) && (
             <div className="pt-3 mt-2 space-y-0.5">
               <p className="px-4 text-xs font-semibold text-text-muted/60 uppercase tracking-wider mb-2">

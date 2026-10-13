@@ -135,7 +135,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/skills"))
     return {
       title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use 9Router — no install needed",
+      description: "Copy this link into your AI. No install needed.",
       icon: "extension",
       breadcrumbs: [],
     };
@@ -159,21 +159,6 @@ const getPageInfo = (pathname) => {
       description: "Debug translation flow between formats",
       icon: "translate",
       breadcrumbs: [],
-    };
-  if (pathname.includes("/benchmark"))
-    return {
-      title: "Benchmark",
-      description: "Model speed ranking",
-      icon: "speed",
-      breadcrumbs: [{ label: "Benchmark", href: "/dashboard/benchmark" }],
-    };
-
-  if (pathname.includes("/security-log"))
-    return {
-      title: "Security Log",
-      description: "Sign-ins, refusals and admin changes",
-      icon: "shield",
-      breadcrumbs: [{ label: "Security Log", href: "/dashboard/security-log" }],
     };
 
   if (pathname.includes("/console-log"))

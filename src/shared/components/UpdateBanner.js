@@ -9,6 +9,15 @@ import ManualUpdatePanel from "./ManualUpdatePanel";
 import { GITHUB_CONFIG, UPDATER_CONFIG } from "@/shared/constants/config";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
+// updateCheck reads the changelog heading verbatim, so the tag already rides
+// along ("v0.5.165", or "git-abc1234" when there is no release yet). A caller
+// that prints `v${latestVersion}` by hand ends up with "vv0.5.165" - one
+// leading "v", exactly once.
+function formatVersion(version) {
+  if (typeof version !== "string" || !version) return "";
+  return version.startsWith("v") ? version : `v${version}`;
+}
+
 // Ten minutes between checks: fast enough that a release shows up while the tab is
 // open, slow enough that GitHub is not polled on every navigation.
 const POLL_MS = 600000;
@@ -131,9 +140,11 @@ export default function UpdateBanner({ pollMs = POLL_MS }) {
   return (
     <>
       {visible && (
+        // In-flow, not fixed: this sits above the content inside the layout, so
+        // scrolling the page moves it like any other block instead of sticking.
         <div
           key={pathname}
-          className={`mx-6 lg:mx-10 mb-4 max-w-7xl ${closing ? "pointer-events-none -translate-y-2 opacity-0 transition-all duration-200 ease-in" : "slide-in-top"}`}
+          className={`w-full mb-4 ${closing ? "pointer-events-none -translate-y-2 opacity-0 transition-all duration-200 ease-in" : "slide-in-top"}`}
         >
           <div className="flex flex-col gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center">
             <span className="material-symbols-outlined shrink-0 text-[20px] text-amber-500">system_update_alt</span>
@@ -151,17 +162,12 @@ export default function UpdateBanner({ pollMs = POLL_MS }) {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {/* The command stays visible and selectable; copying it is the
+                  job of "Update now" -> "Copy & Shutdown", so a second Copy
+                  button here only offered the same clipboard write twice. */}
               <code className="hidden select-all overflow-x-auto whitespace-nowrap rounded-lg border border-border-subtle bg-bg px-2.5 py-1.5 font-mono text-[11px] text-text-muted sm:block">
                 {installCmd}
               </code>
-              <Button
-                variant="outline"
-                size="sm"
-                icon={copied ? "check" : "content_copy"}
-                onClick={() => copy(installCmd)}
-              >
-                {copied ? "Copied" : "Copy"}
-              </Button>
               <Button
                 variant="primary"
                 size="sm"
@@ -210,8 +216,8 @@ export default function UpdateBanner({ pollMs = POLL_MS }) {
           setIsUpdating(true);
         }}
         title="Update 9Router"
-        message={`Show install command for v${info.latestVersion || ""}? You can copy it and shutdown to install manually.`}
-        confirmText="Show Command"
+        message={`Update 9Router to ${formatVersion(info.latestVersion)}? The install command is copied and the server shuts down so you can run it in a terminal.`}
+        confirmText="Update"
         cancelText="Cancel"
         variant="primary"
       />

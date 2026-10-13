@@ -86,7 +86,7 @@ export async function enableTailscale(localPort = parseInt(process.env.PORT || "
     const hostname = new URL(result.tunnelUrl).hostname;
     await provisionCert(hostname);
 
-    // Verify funnel serves /api/health — timeout is non-fatal (DNS may still be propagating)
+    // Verify funnel serves /api/health - timeout is non-fatal (DNS may still be propagating)
     let reachableNow = false;
     try {
       await waitForHealth(result.tunnelUrl, token, { timeoutMs: HEALTH_CHECK.enableTimeoutMs });

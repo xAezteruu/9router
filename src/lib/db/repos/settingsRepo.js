@@ -1,4 +1,5 @@
 import { getAdapter } from "../driver.js";
+import { CUSTOM_PLUGIN_KEYS } from "@/shared/constants/pluginKeys";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 
 const DEFAULT_MITM_ROUTER_BASE = "http://localhost:20128";
@@ -23,17 +24,21 @@ const DEFAULT_SETTINGS = {
     audioInput: { enabled: true, roundRobin: false, models: [] },
     videoInput: { enabled: false, roundRobin: false, models: [] },
   },
+  // Keys come from CUSTOM_PLUGIN_KEYS so a new plugin cannot be missing here.
+  // systemPrompts is a fork-only plugin (custom prompts runtime) outside that list.
   customPlugins: {
-    imageVision: { enabled: false, models: [] },
-    thinkDeeper: { enabled: false, models: [] },
-    unrestrictedMode: { enabled: false, models: [] },
-    speedMode: { enabled: false, models: [] },
+    ...Object.fromEntries(
+      CUSTOM_PLUGIN_KEYS.map((key) => [key, { enabled: false, models: [] }])
+    ),
     systemPrompts: { enabled: false, prompts: [] },
-    jsonGuard: { enabled: false, models: [] },
-    contextSqueezer: { enabled: false, models: [] },
   },
   requireLogin: true,
   requireApiKey: false,
+  // Custom-model editor: warn about name/owned_by that claim a vendor the
+  // target model does not match. Persisted so every administrator sees the
+  // same editor rather than each browser deciding for itself.
+  antiProbeMetadata: true,
+
   // Site-wide theme (glass | dark). An administrator picks it once here instead
   // of every browser choosing its own: the value is rendered into the document
   // for all visitors, so the whole site matches what the admin selected.
