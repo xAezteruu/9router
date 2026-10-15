@@ -28,7 +28,7 @@ const DEFAULT_SETTINGS = {
   // systemPrompts is a fork-only plugin (custom prompts runtime) outside that list.
   customPlugins: {
     ...Object.fromEntries(
-      CUSTOM_PLUGIN_KEYS.map((key) => [key, { enabled: false, models: [] }])
+      [...CUSTOM_PLUGIN_KEYS, "unrestrictedMode"].map((key) => [key, { enabled: false, models: [] }])
     ),
     systemPrompts: { enabled: false, prompts: [] },
   },

@@ -48,7 +48,7 @@ export async function GET() {
     // Answer over the key list (upstream) + fork-only systemPrompts plugin.
     // A plugin missing from settings reads as off, never undefined.
     const customPlugins = {};
-    for (const key of CUSTOM_PLUGIN_KEYS) {
+    for (const key of [...CUSTOM_PLUGIN_KEYS, "unrestrictedMode"]) {
       const entry = stored[key];
       customPlugins[key] = {
         enabled: Boolean(entry?.enabled),
@@ -74,7 +74,7 @@ export async function PUT(request) {
 
     // Merged over the key list + fork-only systemPrompts plugin.
     const merged = {};
-    for (const key of CUSTOM_PLUGIN_KEYS) {
+    for (const key of [...CUSTOM_PLUGIN_KEYS, "unrestrictedMode"]) {
       const entry = customPlugins[key];
       merged[key] = {
         enabled: Boolean(entry?.enabled),
