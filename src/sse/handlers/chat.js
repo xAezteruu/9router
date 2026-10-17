@@ -87,8 +87,8 @@ export async function handleChat(request, clientRawRequest = null) {
   }
 
   if (apiKey) {
-    const clientIp = getClientIp(request);
-    const valid = await isValidApiKey(apiKey, modelStr, clientIp);
+    const keyIp = getClientIp(request);
+    const valid = await isValidApiKey(apiKey, modelStr, keyIp);
     if (valid === "KEY_DISABLED") {
       log.warn("AUTH", "API key is disabled");
       return errorResponse(HTTP_STATUS.FORBIDDEN, "API key is disabled");
