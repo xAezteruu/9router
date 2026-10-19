@@ -440,6 +440,7 @@ export default function CombosPage() {
               </button>
             )}
           </div>
+          </div>
           <Button icon="add" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto whitespace-nowrap">
             Create Combo
           </Button>
