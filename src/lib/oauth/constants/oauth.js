@@ -237,7 +237,6 @@ export const NOUS_CONFIG = {
   inferenceBaseUrl: "https://inference-api.nousresearch.com/v1",
   scope: "inference:invoke inference:mint_agent_key",
 };
->>>>>>> upstream/master
 
 // OAuth timeout (5 minutes)
 export const OAUTH_TIMEOUT = 300000;
