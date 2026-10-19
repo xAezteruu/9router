@@ -68,6 +68,7 @@ function matchesModel(modelList, modelKey) {
   const bare = key.includes("/") ? key.split("/").pop() : key;
   return modelList.some((m) => {
     const s = String(m).toLowerCase();
+    if (s === "*" || s === "**") return true; // fork: wildcard = all models
     const sBare = s.includes("/") ? s.split("/").pop() : s;
     return s === key || sBare === bare || s === bare || key === sBare;
   });
