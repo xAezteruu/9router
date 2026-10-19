@@ -12,6 +12,7 @@ import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS,
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { getThinkingLevels } from "open-sse/providers/thinkingLevels.js";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { useTaskStore } from "@/store/taskStore";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { translate } from "@/i18n/runtime";
 import { fetchSuggestedModels } from "@/shared/utils/providerModelsFetcher";
@@ -27,6 +28,8 @@ import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
 import CustomConfigCard from "./CustomConfigCard";
 import ImportModelsButton from "./ImportModelsButton";
+import AutoPingScheduleModal from "./AutoPingScheduleModal";
+import { getScheduleSlotLabels } from "@/shared/services/quotaPingSchedule";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -73,7 +76,8 @@ export default function ProviderDetailPage() {
   const [providerStrategy, setProviderStrategy] = useState(null);
   const [providerStickyLimit, setProviderStickyLimit] = useState("");
   const [thinkingMode, setThinkingMode] = useState("auto");
-  const [autoPing, setAutoPing] = useState({ enabled: false, connections: {} });
+  const [autoPing, setAutoPing] = useState({ enabled: false, connections: {}, schedules: {} });
+  const [scheduleConnection, setScheduleConnection] = useState(null);
   const [suggestedModels, setSuggestedModels] = useState([]);
   const [suggestedModelsError, setSuggestedModelsError] = useState(null);
   const [liveModels, setLiveModels] = useState([]);
@@ -349,7 +353,7 @@ export default function ProviderDetailPage() {
       setThinkingMode(thinkingCfg.mode || "auto");
       const autoPingSettingsKey = AUTO_PING_SETTINGS_KEYS[providerId];
       const apCfg = autoPingSettingsKey ? settingsData[autoPingSettingsKey] || {} : {};
-      setAutoPing({ enabled: apCfg.enabled === true, connections: apCfg.connections || {} });
+      setAutoPing({ enabled: apCfg.enabled === true, connections: apCfg.connections || {}, schedules: apCfg.schedules || {} });
       if (nodesRes.ok) {
         let node = (nodesData.nodes || []).find((entry) => entry.id === providerId) || null;
 
@@ -478,8 +482,12 @@ export default function ProviderDetailPage() {
     }
   };
 
-  const handleAutoPingConnection = (connectionId, on) => {
-    saveAutoPing({ ...autoPing, connections: { ...autoPing.connections, [connectionId]: on } });
+  const handleSaveAutoPing = (connectionId, { reactive, schedule }) => {
+    saveAutoPing({
+      ...autoPing,
+      connections: { ...autoPing.connections, [connectionId]: reactive },
+      schedules: { ...autoPing.schedules, [connectionId]: schedule },
+    });
   };
 
   useEffect(() => {
@@ -620,6 +628,26 @@ export default function ProviderDetailPage() {
     }
   };
 
+  // Long model imports report into the task store so the bell carries -
+  // mirroring how Setup / proxy-pools / token-saver long runs do it.
+  const startImportTask = (taskId, title) => {
+    useTaskStore.getState().start({
+      id: taskId,
+      title,
+      message: "Fetching model list...",
+      progress: 0,
+      href: typeof window !== "undefined" ? window.location.pathname : null,
+    });
+  };
+  const finishImportTask = (taskId, message) => {
+    useTaskStore.getState().update(taskId, {
+      message,
+      progress: 100,
+      state: "done",
+    });
+    useTaskStore.getState().finish(taskId);
+  };
+
   // Fetch Qoder model list and automatically add to available models
   const handleImportQoderModels = async () => {
     if (importingQoderModels) return;
@@ -629,24 +657,33 @@ export default function ProviderDetailPage() {
       return;
     }
 
+    const taskId = `import-qoder-models-${Date.now()}`;
     setImportingQoderModels(true);
+    startImportTask(taskId, "Importing Qoder models");
     try {
       const res = await fetch(`/api/providers/${activeConnection.id}/models`);
       const data = await res.json();
       if (!res.ok) {
         alert(data.error || translate("Failed to fetch models"));
+        finishImportTask(taskId, data.error || "Fetch failed");
         return;
       }
       const models = data.models || [];
       if (models.length === 0) {
         alert(translate("No models returned"));
+        finishImportTask(taskId, "No models returned");
         return;
       }
+      useTaskStore.getState().update(taskId, { message: `Adding ${models.length} models...`, progress: 0 });
 
       let importedCount = 0;
-      for (const model of models) {
+      for (const [index, model] of models.entries()) {
         const modelId = model.id || model.name;
         if (!modelId) continue;
+        useTaskStore.getState().update(taskId, {
+          message: `Checking ${modelId} (${index + 1}/${models.length})...`,
+          progress: Math.round(((index + 1) / models.length) * 100),
+        });
         
         // Qoder model ID format may be "qoder/auto", "qoder-cn/auto" or "auto",
         // need to remove the provider prefix before storing.
@@ -663,12 +700,15 @@ export default function ProviderDetailPage() {
       }
       
       if (importedCount === 0) {
+        finishImportTask(taskId, "All models already exist");
         alert(translate("All models already exist, no new models added"));
       } else {
+        finishImportTask(taskId, `Added ${importedCount} models`);
         alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
       }
     } catch (error) {
       console.log("Error importing Qoder models:", error);
+      finishImportTask(taskId, "Fetch failed");
       alert(translate("Error fetching models") + ": " + error.message);
     } finally {
       setImportingQoderModels(false);
@@ -683,23 +723,32 @@ export default function ProviderDetailPage() {
       alert(translate("Please add an active Cline connection first"));
       return;
     }
+    const taskId = `import-cline-models-${Date.now()}`;
     setImportingClineModels(true);
+    startImportTask(taskId, "Importing Cline models");
     try {
       const res = await fetch(`/api/providers/${activeConnection.id}/models`);
       const data = await res.json();
       if (!res.ok) {
         alert(data.error || translate("Failed to fetch models"));
+        finishImportTask(taskId, data.error || "Fetch failed");
         return;
       }
       const models = data.models || [];
       if (models.length === 0) {
         alert(translate("No models returned"));
+        finishImportTask(taskId, "No models returned");
         return;
       }
+      useTaskStore.getState().update(taskId, { message: `Adding ${models.length} models...`, progress: 0 });
       let importedCount = 0;
-      for (const model of models) {
+      for (const [index, model] of models.entries()) {
         const modelId = model.id || model.name;
         if (!modelId) continue;
+        useTaskStore.getState().update(taskId, {
+          message: `Checking ${modelId} (${index + 1}/${models.length})...`,
+          progress: Math.round(((index + 1) / models.length) * 100),
+        });
         const alreadyExists = customModels.some(
           (entry) => entry.providerAlias === providerStorageAlias && entry.id === modelId && (entry.kind || entry.type || "llm") === "llm"
         ) || Object.values(modelAliases).includes(`${providerStorageAlias}/${modelId}`);
@@ -710,12 +759,15 @@ export default function ProviderDetailPage() {
         importedCount += 1;
       }
       if (importedCount === 0) {
+        finishImportTask(taskId, "All models already exist");
         alert(translate("All models already exist, no new models added"));
       } else {
+        finishImportTask(taskId, `Added ${importedCount} models`);
         alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
       }
     } catch (error) {
       console.log("Error importing Cline models:", error);
+      finishImportTask(taskId, "Fetch failed");
       alert(translate("Error fetching models") + ": " + error.message);
     } finally {
       setImportingClineModels(false);
@@ -1075,9 +1127,12 @@ export default function ProviderDetailPage() {
                 onMoveDown={() => handleSwapPriority(index, index + 1)}
                 onToggleActive={(isActive) => handleUpdateConnectionStatus(conn.id, isActive)}
                 autoPing={AUTO_PING_SETTINGS_KEYS[providerId] && conn.authType === "oauth" ? {
-                  on: autoPing.connections[conn.id] === true,
-                  onToggle: (on) => handleAutoPingConnection(conn.id, on),
+                  isActive: autoPing.connections[conn.id] === true || autoPing.schedules?.[conn.id]?.enabled === true,
+                  reactiveOn: autoPing.connections[conn.id] === true,
                   provider: providerId,
+                  scheduleOn: autoPing.schedules?.[conn.id]?.enabled === true,
+                  scheduleSummary: getScheduleSlotLabels(autoPing.schedules?.[conn.id]).join(" / "),
+                  onConfigure: () => setScheduleConnection(conn),
                 } : null}
                 onUpdateProxy={async (proxyPoolId) => {
                   try {
@@ -2022,6 +2077,17 @@ export default function ProviderDetailPage() {
           isOpen={showBulkImportGrokCli}
           onClose={() => setShowBulkImportGrokCli(false)}
           onSuccess={fetchConnections}
+        />
+      )}
+
+      {scheduleConnection && (
+        <AutoPingScheduleModal
+          isOpen={!!scheduleConnection}
+          onClose={() => setScheduleConnection(null)}
+          connection={scheduleConnection}
+          reactive={autoPing.connections[scheduleConnection.id] === true}
+          schedule={autoPing.schedules?.[scheduleConnection.id] || null}
+          onSave={(result) => handleSaveAutoPing(scheduleConnection.id, result)}
         />
       )}
 

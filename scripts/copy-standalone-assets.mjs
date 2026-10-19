@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -38,7 +38,7 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
     console.log(`[standalone-assets] Copied custom-server.js to ${serverWrapperDestination}`);
   }
 
-  // Native helper binaries used at runtime by tunnel/network features:
+  // Native helper binaries used at runtime by tunnel/network features (fork):
   //  - cloudflared package binary (tunnel)
   //  - kmp-tor bundled Tor resources (socks proxy, extracted on demand)
   const pkgSource = resolve(projectRoot, "node_modules", "cloudflared", "bin");
@@ -52,6 +52,18 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
   if (existsSync(torSource)) {
     cpSync(torSource, torDest, { recursive: true, force: true });
     console.log(`[standalone-assets] Copied kmp-tor resources to ${torDest}`);
+  }
+
+  // custom-server.js imports server modules by absolute path under its own
+  // __dirname; next build only traces part of src/, so stage src/ and scripts/
+  // into standalone or getGuardModule() answers 503 "guard unavailable".
+  for (const dir of ["src", "scripts"]) {
+    const dirSource = resolve(projectRoot, dir);
+    const dirDestination = resolve(standaloneDir, dir);
+    if (!existsSync(dirSource)) continue;
+    rmSync(dirDestination, { recursive: true, force: true });
+    cpSync(dirSource, dirDestination, { recursive: true, force: true });
+    console.log(`[standalone-assets] Copied ${dir}/ to ${dirDestination}`);
   }
 }
 

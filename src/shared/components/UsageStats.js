@@ -139,7 +139,7 @@ function getGroupKey(item, keyField) {
   switch (keyField) {
     case "rawModel": return item.rawModel || "Unknown Model";
     case "accountName": return item.accountName || `Account ${item.connectionId?.slice(0, 8)}...` || "Unknown Account";
-    case "keyName": return item.keyName || "Unknown Key";
+    case "keyName": return item.apiKeyMasked ? `${item.keyName} (${item.apiKeyMasked})` : item.keyName || "Unknown Key";
     case "endpoint": return item.endpoint || "Unknown Endpoint";
     default: return item[keyField] || "Unknown";
   }
@@ -230,8 +230,11 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const sortBy = searchParams.get("sortBy") || "rawModel";
-  const sortOrder = searchParams.get("sortOrder") || "asc";
+  // The usage table opens on the most recently used row: a busy install is
+  // sorted by "what just moved", not alphabetically. Clicking a header still
+  // overrides this via the URL params.
+  const sortBy = searchParams.get("sortBy") || "lastUsed";
+  const sortOrder = searchParams.get("sortOrder") || "desc";
 
   const [stats, setStats] = useState(null);
   // Overview sparklines + activity heatmap. Trending on its own fetch so a
@@ -505,7 +508,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           ),
           renderDetailCells: (item) => (
             <>
-              <td className="px-6 py-3 font-medium">{item.keyName}</td>
+              <td className="px-6 py-3 font-medium font-mono text-xs">{item.apiKeyMasked || item.keyName}</td>
               <td className="px-6 py-3">
                 {item.rawModel}
                 {item.resolvedModel && item.resolvedModel !== item.rawModel && <div className="truncate text-xs text-text-muted" title={item.resolvedModel}>→ {item.resolvedModel}</div>}

@@ -11,68 +11,81 @@ import {
 } from "@/shared/components";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { useNotificationStore } from "@/store/notificationStore";
+import PluginMark from "@/shared/components/PluginMark";
 import { CUSTOM_PLUGIN_KEYS } from "@/shared/constants/pluginKeys";
 
 const PLUGINS = [
   {
     key: "imageVision",
     title: "Image Vision",
-    icon: "visibility",
-    iconColor: "text-blue-500",
-    iconBg: "bg-blue-500/10 border-blue-500/20",
     description:
       "Enable image understanding for models that don't natively support vision. Images are converted to text descriptions, allowing any model to process visual content in CLI tools and agents.",
   },
   {
     key: "thinkDeeper",
     title: "Think Deeper",
-    icon: "psychology",
-    iconColor: "text-purple-500",
-    iconBg: "bg-purple-500/10 border-purple-500/20",
     description:
       "Enhance reasoning with multi-step chain-of-thought analysis. Forces the model to break problems into steps before answering, producing more thorough and accurate responses.",
   },
   {
-    key: "unrestrictedMode",
-    title: "Uncensored Output",
-    icon: "local_fire_department",
-    iconColor: "text-red-500",
-    iconBg: "bg-red-500/10 border-red-500/20",
-    description:
-      "Bypass standard AI refusals and guardrails. Injects an unrestricted direct technical directive, compelling the model to provide raw code, analysis, and uncensored answers (Note: may not work on some provider models).",
-  },
-  {
     key: "speedMode",
     title: "Speed Mode",
-    icon: "bolt",
-    iconColor: "text-cyan-500",
-    iconBg: "bg-cyan-500/10 border-cyan-500/20",
     description:
       "Skip thinking for faster responses. Disables reasoning mode on the selected models and instructs them to answer directly, ideal for simple tasks where low latency matters more than deep analysis.",
   },
   {
     key: "jsonGuard",
     title: "JSON Guard",
-    icon: "data_object",
-    iconColor: "text-emerald-500",
-    iconBg: "bg-emerald-500/10 border-emerald-500/20",
     description:
       "Keep machine-readable output parseable. Strips prose and markdown fences around JSON, fixes Python-style literals and trailing commas, closes payloads the output limit cut off, and drops tool-call arguments the schema never declared.",
   },
   {
     key: "contextSqueezer",
     title: "Context Squeezer",
-    icon: "compress",
-    iconColor: "text-amber-500",
-    iconBg: "bg-amber-500/10 border-amber-500/20",
     description:
       "Fit long conversations into the model's context window. The oldest turns are replaced with a short recap and oversized tool output is trimmed, so the newest turns always arrive intact instead of the provider rejecting the request.",
   },
+  {
+    key: "openaiToolBridge",
+    title: "OpenAI Tool Bridge",
+    description:
+      "Keep tool calling working on models that cannot do it natively. Text-only providers (browser-session models with tools disabled) answer in prose; the bridge reads the tools you offered, picks the calls the model wrote out in its answer, and hands your client proper tool_calls with arguments filtered to the schema it declared.",
+  },
+  // Fork feature - not in upstream. Kept here so a merge cannot drop it.
+  {
+    key: "unrestrictedMode",
+    title: "Uncensored Output",
+    description:
+      "Bypass standard AI refusals and guardrails. Injects an unrestricted direct technical directive, compelling the model to provide raw code, analysis, and uncensored answers (Note: may not work on some provider models).",
+  },
+  {
+    key: "antiSlop",
+    title: "Anti Slop",
+    levelled: true,
+    description:
+      "Injects the antislop rules (https://github.com/miqdadbadjuber/anti-slop) into the system prompt of the models you pick, so they stop shipping generic AI UI, copy and code. Three intensities: Lite catches the obvious patterns, Full adds the hard-gate rules and the craftsmanship standard, Ultra adds the mandatory PASS/FAIL delivery report.",
+  },
 ];
 
-// One shape for every plugin: enabled flag + model list. Fork extras beyond the
-// upstream CUSTOM_PLUGIN_KEYS list (e.g. unrestrictedMode) ride the same shape.
+// One shape for every plugin: enabled flag plus the model list it applies to.
+// `stored` is whatever settings held, so an unknown key in settings is ignored
+// and a plugin missing from settings comes back off rather than undefined.
+// Anti Slop ships three intensities, mirroring Ponytail's levels. The level is
+// stored on the plugin entry so it rides along in settings rather than living in
+// a second place that could disagree with the toggle.
+export const ANTISLOP_LEVELS = [
+  { id: "lite", label: "Lite", desc: "Purpose test plus a scan for the obvious AI patterns." },
+  { id: "full", label: "Full", desc: "Adds the Hard Gate rules, the craftsmanship standard and the swap test." },
+  { id: "ultra", label: "Ultra", desc: "Adds the mandatory four-block PASS/FAIL delivery report." },
+];
+
+const DEFAULT_ANTISLOP_LEVEL = "full";
+
 const FORK_PLUGIN_KEYS = [...CUSTOM_PLUGIN_KEYS, "unrestrictedMode"];
+
+function normalizeAntislopLevel(level) {
+  return ANTISLOP_LEVELS.some((l) => l.id === level) ? level : DEFAULT_ANTISLOP_LEVEL;
+}
 
 function defaultPluginsFrom(stored) {
   const out = {};
@@ -81,6 +94,8 @@ function defaultPluginsFrom(stored) {
     out[key] = {
       enabled: Boolean(entry?.enabled),
       models: Array.isArray(entry?.models) ? entry.models.filter(Boolean) : [],
+      // Only Anti Slop has a level; every other plugin keeps {enabled, models}.
+      ...(key === "antiSlop" ? { level: normalizeAntislopLevel(entry?.level) } : {}),
     };
   }
   return out;
@@ -113,6 +128,10 @@ export default function PluginsPage() {
         if (pluginsRes.ok) {
           const data = await pluginsRes.json();
           if (data.customPlugins) {
+            // Derived from CUSTOM_PLUGIN_KEYS rather than spelled out again:
+            // a hand-written literal had drifted to five keys while the plugin
+            // table has six, so openaiToolBridge always came back undefined and
+            // its toggle rendered OFF after every reload.
             setCustomPlugins(defaultPluginsFrom(data.customPlugins));
           }
         }
@@ -145,6 +164,22 @@ export default function PluginsPage() {
       }
     },
     []
+  );
+
+  // Level lives on the plugin entry, so it saves through the same path as the
+  // toggle - no second settings key that could disagree with it.
+  const handleLevelChange = useCallback(
+    (pluginKey, level) => {
+      setCustomPlugins((prev) => {
+        const updated = {
+          ...prev,
+          [pluginKey]: { ...prev[pluginKey], level },
+        };
+        savePlugins(updated);
+        return updated;
+      });
+    },
+    [savePlugins]
   );
 
   const handleToggle = useCallback(
@@ -240,14 +275,21 @@ export default function PluginsPage() {
             <Card key={plugin.key} className="flex flex-col h-full">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
+                  {/* One tile, one mark, one ink for all seven cards. The marks
+                      used to be seven pictograms in seven saturated hues, which
+                      read as seven unrelated brands rather than one plugin
+                      system; they are monograms in the theme accent now, and the
+                      letters are what tell them apart. The tile is the only
+                      thing that changes with state - the ring says enabled, the
+                      glyph stays the same either way. */}
                   <div
-                    className={`size-10 rounded-xl flex items-center justify-center border shrink-0 ${plugin.iconBg}`}
+                    className={`size-11 rounded-xl flex items-center justify-center border shrink-0 border-border-subtle ${
+                      isEnabled
+                        ? "bg-primary/10 text-primary ring-1 ring-primary/50 shadow-[var(--shadow-elev)]"
+                        : "bg-surface text-text-muted"
+                    }`}
                   >
-                    <span
-                      className={`material-symbols-outlined text-[22px] leading-none ${plugin.iconColor}`}
-                    >
-                      {plugin.icon}
-                    </span>
+                    <PluginMark name={plugin.key} size={24} strokeWidth={2} />
                   </div>
                   <h3 className="font-semibold text-base text-text-main">
                     {plugin.title}
@@ -262,6 +304,34 @@ export default function PluginsPage() {
               <p className="text-sm text-text-muted leading-relaxed mb-5">
                 {plugin.description}
               </p>
+
+              {/* Intensity, shown only while the plugin is on - same shape as the
+                  Ponytail level picker on the Token Saver page. */}
+              {plugin.levelled && isEnabled && (
+                <div className="mb-4 space-y-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {ANTISLOP_LEVELS.map((lvl) => (
+                      <button
+                        key={lvl.id}
+                        type="button"
+                        onClick={() => handleLevelChange(plugin.key, lvl.id)}
+                        className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                          (customPlugins[plugin.key]?.level || "full") === lvl.id
+                            ? "bg-primary text-white border-primary"
+                            : "bg-transparent border-border text-text-muted hover:bg-surface-2"
+                        }`}
+                      >
+                        {lvl.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-text-muted">
+                    {ANTISLOP_LEVELS.find(
+                      (lvl) => lvl.id === (customPlugins[plugin.key]?.level || "full")
+                    )?.desc}
+                  </p>
+                </div>
+              )}
 
               {isEnabled && (
                 <div className="mt-auto pt-4 border-t border-border-subtle">

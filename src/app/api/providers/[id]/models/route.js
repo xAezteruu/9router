@@ -13,10 +13,23 @@ import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { resolveCursorModels } from "open-sse/services/cursorModels.js";
 import { resolveZedModels } from "open-sse/shared/zedAuth.js";
 import { resolveClineModels, resolveClinepassModels } from "open-sse/services/clinepassModels.js";
+import { NOUS_MODELS_URL, normalizeNousModels } from "open-sse/services/nous.js";
 import codexProvider from "open-sse/providers/registry/codex.js";
 import REGISTRY from "open-sse/providers/registry/index.js";
 
 const GEMINI_CLI_MODELS_URL = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
+
+// Model discovery talks to provider endpoints the operator does not control,
+// so every outbound list read races a fixed timeout. Without one, a stalled
+// provider holds the request open and the dashboard shows "Fetching model
+// list" with no end in sight. 20s matches what the retry budget elsewhere
+// treats as a dead upstream: long enough for a slow catalog, short enough
+// that a hung socket cannot pass for progress.
+const MODELS_TIMEOUT_MS = 20000;
+
+function withModelTimeout(init = {}) {
+  return { ...init, signal: AbortSignal.timeout(MODELS_TIMEOUT_MS) };
+}
 
 // Model discovery must identify as the same Codex CLI version as inference.
 const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${codexProvider.transport.cliVersion}`;
@@ -78,6 +91,15 @@ const createOpenAIModelsConfig = (url) => ({
   authPrefix: "Bearer ",
   parseResponse: parseOpenAIStyleModels
 });
+
+const normalizeRoutedNousModels = (data) => normalizeNousModels(data).map((model) => ({
+  ...model,
+  // Live upstream IDs include a vendor namespace (for example,
+  // stepfun/step-5-preview:free). Prefix the owning 9router provider so Basic
+  // Chat does not parse that namespace as the provider itself.
+  id: `nous/${model.id}`,
+  upstreamModelId: model.id,
+}));
 
 const getStaticProviderModels = (providerId) =>
   getModelsByProviderId(providerId).map((model) => ({
@@ -249,6 +271,10 @@ const PROVIDER_MODELS_CONFIG = {
   },
   openai: createOpenAIModelsConfig("https://api.openai.com/v1/models"),
   openrouter: createOpenAIModelsConfig("https://openrouter.ai/api/v1/models"),
+  nous: {
+    ...createOpenAIModelsConfig(NOUS_MODELS_URL),
+    parseResponse: normalizeRoutedNousModels,
+  },
   anthropic: {
     url: "https://api.anthropic.com/v1/models",
     method: "GET",
@@ -546,13 +572,16 @@ export async function GET(request, { params }) {
         return NextResponse.json({ error: "No base URL configured for OpenAI compatible provider" }, { status: 400 });
       }
       const url = `${baseUrl.replace(/\/$/, "")}/models`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${connection.apiKey}`,
-        },
-      });
+      const response = await fetch(
+        url,
+        withModelTimeout({
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${connection.apiKey}`,
+          },
+        })
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -585,15 +614,18 @@ export async function GET(request, { params }) {
       }
 
       const url = `${baseUrl}/models`;
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": connection.apiKey,
-          "anthropic-version": "2023-06-01",
-          "Authorization": `Bearer ${connection.apiKey}`
-        },
-      });
+      const response = await fetch(
+        url,
+        withModelTimeout({
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": connection.apiKey,
+            "anthropic-version": "2023-06-01",
+            "Authorization": `Bearer ${connection.apiKey}`
+          },
+        })
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -636,7 +668,22 @@ export async function GET(request, { params }) {
 
     // Config-driven custom resolver path (OAuth refresh, non-OpenAI shape, etc.)
     if (typeof derivedConfig.customResolver === "function") {
-      const result = await derivedConfig.customResolver(connection);
+      const ctrl = new AbortController();
+      const guard = setTimeout(() => ctrl.abort(), MODELS_TIMEOUT_MS);
+      let result;
+      try {
+        result = await Promise.race([
+          derivedConfig.customResolver(connection, { signal: ctrl.signal }),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(Object.assign(new Error("Model list fetch timed out"), { name: "TimeoutError" })),
+              MODELS_TIMEOUT_MS
+            )
+          ),
+        ]);
+      } finally {
+        clearTimeout(guard);
+      }
       if (result.error) {
         return NextResponse.json({ error: result.error }, { status: result.status || 500 });
       }
@@ -676,7 +723,7 @@ export async function GET(request, { params }) {
       fetchOptions.body = JSON.stringify(derivedConfig.body);
     }
 
-    const response = await fetch(url, fetchOptions);
+    const response = await fetch(url, withModelTimeout(fetchOptions));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -696,6 +743,12 @@ export async function GET(request, { params }) {
       models
     });
   } catch (error) {
+    if (error?.name === "TimeoutError") {
+      return NextResponse.json(
+        { error: `The provider did not answer within ${MODELS_TIMEOUT_MS / 1000} seconds` },
+        { status: 504 }
+      );
+    }
     console.log("Error fetching provider models:", error);
     return NextResponse.json({ error: "Failed to fetch models" }, { status: 500 });
   }

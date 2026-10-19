@@ -84,7 +84,7 @@ export default {
     { id: "mai-code-1-flash", name: "MAI-Code-1-Flash", targetFormat: "openai-responses", contextWindow: 256000, maxOutput: 128000 },
   ],
   serviceKinds: ["llm","embedding"],
-  embeddingConfig: { baseUrl: "https://models.github.ai/inference/embeddings", authType: "apikey", authHeader: "bearer" },
+  embeddingConfig: { baseUrl: "https://api.githubcopilot.com/embeddings", authType: "apikey", authHeader: "bearer" },
   oauth: {
     clientId: "Iv1.b507a08c87ecfe98",
     authorizeUrl: "https://github.com/login/oauth/authorize",
