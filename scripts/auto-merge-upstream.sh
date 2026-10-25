@@ -52,22 +52,21 @@ if [ $MERGE_EXIT -eq 0 ]; then
   echo "clean merge, rebuilding"
   npm install --registry=https://registry.npmjs.org --prefer-offline --no-audit --no-fund >/dev/null 2>&1
   if npm run build >/dev/null 2>&1; then
-    pm2 restart 9router >/dev/null 2>&1
-    sleep 5
-    if curl -sf -o /dev/null http://localhost:3000/dashboard; then
-      echo "DEPLOY OK — merged $BEHIND commits, build+restart healthy"
-      tg_notify "✅ DEPLOY OK — merged $BEHIND commit(s) dari upstream, build + restart healthy"
-      exit 0
+    # blue-green: update standby -> flip -> update old primary -> flip back (zero downtime)
+    if "$REPO/deploy/bgDeploy.sh" 1 >>"$LOG" 2>&1; then
+      echo "DEPLOY OK (blue-green) — merged $BEHIND commits"
+      tg_notify "✅ DEPLOY OK (blue-green) — merged $BEHIND commit(s) dari upstream, kedua node sehat di versi baru"
     else
-      echo "WARN: restart done but /dashboard not responding"
-      exit 1
+      echo "bgDeploy reported failure — see .bgdeploy.log"
+      tg_notify "⚠️ bgDeploy bermasalah setelah merge $BEHIND commit(s) — cek .bgdeploy.log"
     fi
+    exit 0
   else
     echo "BUILD FAILED after clean merge — rolling back"
     tg_notify "⚠️ BUILD FAILED setelah merge $BEHIND commit(s) — ROLLBACK ke ORIG_HEAD, prod tetap versi lama"
     git reset --hard ORIG_HEAD
     npm install --registry=https://registry.npmjs.org --prefer-offline >/dev/null 2>&1
-    npm run build >/dev/null 2>&1 && pm2 restart 9router >/dev/null 2>&1
+    npm run build >/dev/null 2>&1 && "$REPO/deploy/bgDeploy.sh" 1 >>"$LOG" 2>&1
     exit 1
   fi
 else

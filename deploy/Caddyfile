@@ -1,0 +1,8 @@
+# 9router blue-green flip proxy (systemd caddy, /etc/caddy/Caddyfile)
+{
+	admin localhost:2019
+}
+
+:3000 {
+	reverse_proxy 127.0.0.1:3100
+}
