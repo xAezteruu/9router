@@ -71,9 +71,45 @@ if [ $MERGE_EXIT -eq 0 ]; then
     exit 1
   fi
 else
-  # conflicts: abort to keep prod safe; notify via telegram
+  # conflicts: abort to keep prod safe, then hand off to a Hermes agent session
   echo "CONFLICTS — aborting merge, needs manual resolve"
-  tg_notify "❌ CONFLICT merging $BEHIND commit(s) dari upstream — merge di-ABORT, prod tetap jalan versi lama. Perlu resolve manual."
+  tg_notify "❌ CONFLICT merging $BEHIND commit(s) dari upstream — merge di-ABORT, prod tetap jalan versi lama. Dispatching agent buat resolve..."
   git merge --abort
+
+  # dispatch agent to auto-resolve conflicts in a scratch clone (prod untouched)
+  AGENT_LOG="$REPO/.automerge-agent.log"
+  {
+    echo "=== $(date -Is) agent dispatch for conflict resolution ==="
+    hermes chat -q "$(cat <<EOF
+Resolve the git merge conflicts between our fork and upstream in a THROWAWAY clone, then report back. Rules:
+
+1. Clone the repo fresh: git clone $REPO /tmp/automerge-resolve-$$ && cd there.
+2. git remote add upstream https://github.com/serenhope/9router.git && git fetch upstream
+3. git merge upstream/master (this will conflict — that's the point).
+4. Resolve conflicts following THESE conventions (established over multiple merges):
+   - src/lib/plugins/customPluginsRuntime.js: KEEP FORK side (unrestrictedMode, speedMode, processCoderFocus, imageVision, thinkDeeper, systemPrompts dispatch), but ADD any new upstream plugin blocks (e.g. adaptiveThinking) into DEFAULT_PLUGINS and dispatch.
+   - open-sse/providers/registry/index.js: REGENERATE the file instead of hand-merging (python: import all registry/*.js sorted alphabetically as p0..pN, export default array) — upstream frequently ships duplicate imports.
+   - src/shared/constants/pluginKeys.js + PLUGIN_MARK_META in models.js: UNION of fork + upstream keys.
+   - src/app/(dashboard)/dashboard/plugins/page.js + src/app/api/plugins/route.js: upstream side (UI follows upstream).
+   - Everything else: upstream side unless it's fork-feature code (unrestrictedMode/speedMode/coderFocus/tokenharbor) — those keep fork.
+   - Never leave <<<<<<< markers. Verify each resolved file parses: npx esbuild <file> --format=esm --outfile=/dev/null
+5. npm install --registry=https://registry.npmjs.org --prefer-offline --no-audit --no-fund
+6. npm run build — MUST succeed. If build fails, fix and retry up to 3 times.
+7. If everything passes: commit with message "merge: upstream <short-sha> (auto-resolved by agent)" and LEAVE the commits in the local clone at /tmp/automerge-resolve-$$ — do NOT push (no credentials). Print the resolved commit SHA and the clone path clearly at the end.
+8. If you cannot resolve or build keeps failing: do NOT commit, print exactly "AGENT-RESOLVE-FAILED: <reason>".
+
+Do not touch $REPO itself — the merge there stays aborted; a human applies the resolved clone.
+EOF
+)" 2>&1
+    echo "=== agent dispatch done, exit=$? ==="
+  } >> "$AGENT_LOG" 2>&1
+
+  # relay agent result to Telegram
+  if grep -q "AGENT-RESOLVE-FAILED" "$AGENT_LOG" 2>/dev/null && tail -20 "$AGENT_LOG" | grep -q "AGENT-RESOLVE-FAILED"; then
+    tg_notify "🤖 Agent GAGAL resolve konflik: $(tail -20 "$AGENT_LOG" | grep 'AGENT-RESOLVE-FAILED' | tail -1 | cut -c1-200). Perlu manual."
+  else
+    RESULT=$(tail -30 "$AGENT_LOG" | grep -oE '[0-9a-f]{40}|\bmerge: upstream [^\"]*' | tail -1)
+    tg_notify "🤖 Agent selesai resolve konflik. Result: ${RESULT:-cek $AGENT_LOG}. Clone siap-review di /tmp (commit belum diterapkan ke prod — gabungkan manual atau bilang 'apply hasil agent')."
+  fi
   exit 1
 fi
