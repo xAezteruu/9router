@@ -37,8 +37,14 @@ activate() { # $1=a|b — point caddy at node (must be healthy), return 0 on suc
 import sys, re, pathlib
 p = pathlib.Path("/etc/caddy/Caddyfile")
 t = p.read_text()
-t = re.sub(r"reverse_proxy 127\.0\.0\.1:\d+", f"reverse_proxy 127.0.0.1:{sys.argv[1]}", t)
-p.write_text(t)
+lines = t.split("\n")
+in_hook = False
+for i, ln in enumerate(lines):
+    if "/deploy-webhook" in ln: in_hook = True
+    elif ln.strip() == "}": in_hook = False
+    if not in_hook:
+        lines[i] = re.sub(r"reverse_proxy 127\.0\.0\.1:\d+", f"reverse_proxy 127.0.0.1:{sys.argv[1]}", ln)
+p.write_text("\n".join(lines))
 PYEOF
   sudo caddy reload --config "$CADDYFILE" >/dev/null 2>&1 || return 1
   sleep 1

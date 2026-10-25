@@ -24,8 +24,15 @@ import sys, re, pathlib
 p = pathlib.Path("/etc/caddy/Caddyfile")
 port = sys.argv[1]
 t = p.read_text()
-t = re.sub(r"reverse_proxy 127\.0\.0\.1:\d+", f"reverse_proxy 127.0.0.1:{port}", t)
-p.write_text(t)
+# only rewrite the MAIN handle block (not /deploy-webhook which points at :3102)
+lines = t.split("\n")
+in_hook = False
+for i, ln in enumerate(lines):
+    if "/deploy-webhook" in ln: in_hook = True
+    elif ln.strip() == "}": in_hook = False
+    if not in_hook:
+        lines[i] = re.sub(r"reverse_proxy 127\.0\.0\.1:\d+", f"reverse_proxy 127.0.0.1:{port}", ln)
+p.write_text("\n".join(lines))
 PYEOF
 sudo caddy reload --config "$CADDYFILE" >/dev/null 2>&1
 
