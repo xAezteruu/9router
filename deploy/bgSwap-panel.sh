@@ -67,9 +67,9 @@ caddy_flip(){ # $1 target port
 ACTIVE=$(cat "$STATE" 2>/dev/null || caddy_active)
 # ACTIVE node keeps serving; STANDBY gets rebuilt & swapped in.
 if [ "$ACTIVE" = "B" ]; then
-  SA=$A_IDENT; SB=$B_IDENT; PA=$A_PORT; PB=$B_PORT; VA=$A_VOL; VB=$B_VOL
+  SA=$A_IDENT; SB=$B_IDENT; PA=$A_PORT; PB=$B_PORT; VA=$B_VOL; VB=$A_VOL
 else
-  SA=$B_IDENT; SB=$A_IDENT; PA=$B_PORT; PB=$A_PORT; VA=$B_VOL; VB=$A_VOL
+  SA=$B_IDENT; SB=$A_IDENT; PA=$B_PORT; PB=$A_PORT; VA=$A_VOL; VB=$B_VOL
 fi
 log "=== deploy start; ACTIVE=$ACTIVE (standby will be built & swapped in) ==="
 
@@ -82,11 +82,11 @@ git pull --ff-only >> "$LOG" 2>&1 || log "WARN: git pull failed, using current t
 SB_NAME=$([ "$SA" = "$B_IDENT" ] && echo "9router-b" || echo "9router-a")
 log "building standby volume $SB_NAME ..."
 if ! sudo docker run --rm --user 995:995 -v "$VB":/home/container -w /home/container \
-     ghcr.io/parkervcp/yolks:nodejs_21 bash -c '
+     ghcr.io/parkervcp/yolks:nodejs_24 bash -c '
        npm install --registry=https://registry.npmjs.org --prefer-offline --no-audit --no-fund >/dev/null 2>&1
        npx --yes node-gyp rebuild --directory=node_modules/better-sqlite3 >/dev/null 2>&1
        npm run build >/dev/null 2>&1
-       [ -d .next ] && echo BUILD-OK
+       [ -f .next/BUILD_ID ] && echo BUILD-OK
      ' | grep -q BUILD-OK; then
   log "FATAL: standby build failed"; exit 1
 fi
@@ -97,7 +97,7 @@ power "$SA" start
 if ! wait_state "$SA" up 360; then log "WARN: state not running after 360s — trying wings direct restart"; power "$SA" stop; sleep 5; power "$SA" start; wait_state "$SA" up 360 || { log "FATAL: standby failed to boot"; exit 1; }; fi
 wait_http "$PB" 360 || { log "FATAL: standby /login not healthy"; power "$SA" stop; exit 1; }
 # wajib: 1 chunk JS asli harus 200 (anti stale-manifest)
-CHUNK=$(sudo ls "$VA"/.next/static/chunks/ 2>/dev/null | grep '\.js$' | head -1)
+CHUNK=$(sudo ls "$VB"/.next/static/chunks/ 2>/dev/null | grep '\.js$' | head -1)
 if [ -n "$CHUNK" ] && [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://100.64.1.3:$PB/_next/static/chunks/$CHUNK")" != "200" ]; then
   log "FATAL: chunk JS 404 — stale build"; power "$SA" stop; exit 1
 fi
