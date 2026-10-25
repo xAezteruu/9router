@@ -134,6 +134,11 @@ function applyDotEnvPort() {
   if (!seen) argv.push("--port", port);
 }
 applyDotEnvPort();
+// Pterodactyl containers resolve their hostname to an IPv6 addr that is NOT
+// reachable via the mapped port; force bind all interfaces unless overridden.
+if (!process.env.HOSTNAME || !/^\d+\.\d+\.\d+\.\d+$/.test(process.env.HOSTNAME)) {
+  process.env.HOSTNAME = "0.0.0.0";
+}
 
 // --- Dashboard auth guard (loader hooks: scripts/auth-guard-hooks.mjs) -----
 // Upstream enforces auth in middleware.js -> proxy.js (Next.js 16, Node
