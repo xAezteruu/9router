@@ -108,3 +108,4 @@ debug.log
 # local build artifacts
 /^9r$
 *.tar.gz
+.automerge.log
