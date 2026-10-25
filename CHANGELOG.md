@@ -1,3 +1,19 @@
+# v0.5.314 (2026-10-25) · 2 commits
+
+## What Was Changed
+
+- **Unified Adaptive Thinking & Multi-Framework Cognitive Architecture Plugin:**
+  - Removed deprecated scattered custom plugins (imageVision, thinkDeeper, jsonGuard, openaiToolBridge, antiSlop) and replaced them with a single unified **Adaptive Thinking & Cognitive Architecture** plugin.
+  - Synthesized proven cognitive reasoning frameworks from top open-source agent skill repositories:
+    1. **Depth Protocol v2.0** (`Kshitijpalsinghtomar/depth-skills`): Prevents premature closure, demands root problem reframing, and establishes explicit failure envelopes.
+    2. **Adversaria Dialectic Crucible** (`damionrashford/Adversaria`): Socratic elenchus, steelmanning, and internal hostile red-team challenge.
+    3. **First Principles Framework** (`tjboudreaux/cc-thinking-skills`): Separates hard physical/mathematical facts from conventions and analogies.
+    4. **Superpowers Methodology** (`obra/superpowers`): Systematic multi-branch hypothesis exploration and grounded verification before final synthesis.
+  - Integrated provider-native deep reasoning parameters (`budget_tokens: 10240` on Claude, `reasoning_effort: high` on OpenAI/compatible providers).
+  - Streamlined `/dashboard/plugins` UI into a dedicated single-focus card with model assignment and clean toggle controls.
+
+---
+
 # v0.5.313 (2026-10-25) · 2 commits
 
 ## What Was Changed

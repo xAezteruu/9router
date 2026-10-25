@@ -1,8 +1,11 @@
-// The five custom plugins, in the order they are listed on the plugin page.
-// speedMode and contextSqueezer removed per user configuration.
+// The custom plugins in 9Router.
+// Dedicated Adaptive Thinking & Multi-Framework Cognitive Architecture plugin.
 export const CUSTOM_PLUGIN_KEYS = [
+  "adaptiveThinking",
   "imageVision",
   "thinkDeeper",
+  "unrestrictedMode",
+  "speedMode",
   "jsonGuard",
   "openaiToolBridge",
   "antiSlop",

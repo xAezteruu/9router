@@ -13,100 +13,23 @@ import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { useNotificationStore } from "@/store/notificationStore";
 import PluginMark from "@/shared/components/PluginMark";
 import { CUSTOM_PLUGIN_KEYS } from "@/shared/constants/pluginKeys";
-import { ANTISLOP_LEVEL_CHARS } from "open-sse/rtk/antislopPrompt.js";
 
 const PLUGINS = [
   {
-    key: "imageVision",
-    title: "OCR Auto Image-to-Text",
+    key: "adaptiveThinking",
+    title: "Adaptive Thinking & Cognitive Architecture",
     description:
-      "Automatically extracts and transcribes text from images using intelligent OCR scripts. Attached images are converted into structured text blocks so that non-vision text models can process visual content seamlessly without errors.",
-  },
-  {
-    key: "thinkDeeper",
-    title: "Adaptive Thinking & Superpowers CoT",
-    description:
-      "Integrates deep analytical reasoning combining Superpowers multi-perspective exploration and structured Chain-of-Thought (CoT). Models follow an adaptive step-by-step thinking process (deconstruction, hypothesis testing, self-verification, and synthesis) tailored to task complexity.",
-  },
-  {
-    key: "jsonGuard",
-    title: "JSON Guard & Schema Protector",
-    description:
-      "Ensures machine-readable output is always parseable and valid JSON. Cleans conversational preamble and markdown code fences around JSON, fixes Python syntax and trailing commas, repairs truncated JSON payloads, and validates tool-call arguments against declared schemas.",
-  },
-  {
-    key: "openaiToolBridge",
-    title: "Universal Tool Calling Bridge",
-    description:
-      "Provides function calling (OpenAI Tools) capabilities for text-only models or web-session providers without native tool support. Model responses written in prose are parsed and transformed into standard OpenAI tool_calls payloads.",
-  },
-  // Fork feature - not in upstream. Kept here so a merge cannot drop it.
-  {
-    key: "unrestrictedMode",
-    title: "Uncensored Output",
-    description:
-      "Bypass standard AI refusals and guardrails. Injects an unrestricted direct technical directive, compelling the model to provide raw code, analysis, and uncensored answers (Note: may not work on some provider models).",
-  },
-  {
-    key: "antiSlop",
-    title: "Anti-Slop Natural AI",
-    levelled: true,
-    description:
-      "Strips generic AI boilerplate, robotic conversational cliches, and repetitive jargon. Injects curated anti-slop guidelines into system prompts so code and generated prose remain crisp, natural, concise, and straight to the point.",
+      "A synthesized cognitive stack uniting Depth Protocol v2.0, Adversaria Dialectic Crucible, First Principles Decomposition, and Superpowers. Blocks premature closure, demands root problem reframing, explores 3 distinct hypothesis branches, mounts adversarial stress-tests, and verifies failure envelopes before answering.",
   },
 ];
-
-// One shape for every plugin: enabled flag plus the model list it applies to.
-// `stored` is whatever settings held, so an unknown key in settings is ignored
-// and a plugin missing from settings comes back off rather than undefined.
-// Anti Slop ships three intensities, mirroring Ponytail's levels. The level is
-// stored on the plugin entry so it rides along in settings rather than living in
-// a second place that could disagree with the toggle.
-// Token figures are derived from the generated prompt itself, not typed by hand: the moment
-// someone re-syncs `antislop-src/` the number moves with it instead of going stale.
-const approxTokens = (chars) => Math.round(chars / 4).toLocaleString("en-US");
-
-export const ANTISLOP_LEVELS = [
-  {
-    id: "lite",
-    label: "Lite",
-    desc: `Condensed: the purpose test plus a scan for the obvious AI patterns. About ${approxTokens(
-      ANTISLOP_LEVEL_CHARS.lite
-    )} tokens per request.`,
-  },
-  {
-    id: "full",
-    label: "Full",
-    desc: `The skill's core text verbatim - all 38 rules, the three dials, Design Read and the delivery gate. About ${approxTokens(
-      ANTISLOP_LEVEL_CHARS.full
-    )} tokens per request.`,
-  },
-  {
-    id: "ultra",
-    label: "Ultra",
-    desc: `Core plus all five concern skills (UI, copy, human, mobile, code), verbatim. About ${approxTokens(
-      ANTISLOP_LEVEL_CHARS.ultra
-    )} tokens per request.`,
-  },
-];
-
-const DEFAULT_ANTISLOP_LEVEL = "full";
-
-const FORK_PLUGIN_KEYS = [...CUSTOM_PLUGIN_KEYS, "unrestrictedMode"];
-
-function normalizeAntislopLevel(level) {
-  return ANTISLOP_LEVELS.some((l) => l.id === level) ? level : DEFAULT_ANTISLOP_LEVEL;
-}
 
 function defaultPluginsFrom(stored) {
   const out = {};
-  for (const key of FORK_PLUGIN_KEYS) {
+  for (const key of CUSTOM_PLUGIN_KEYS) {
     const entry = stored?.[key];
     out[key] = {
       enabled: Boolean(entry?.enabled),
       models: Array.isArray(entry?.models) ? entry.models.filter(Boolean) : [],
-      // Only Anti Slop has a level; every other plugin keeps {enabled, models}.
-      ...(key === "antiSlop" ? { level: normalizeAntislopLevel(entry?.level) } : {}),
     };
   }
   return out;
@@ -175,22 +98,6 @@ export default function PluginsPage() {
       }
     },
     []
-  );
-
-  // Level lives on the plugin entry, so it saves through the same path as the
-  // toggle - no second settings key that could disagree with it.
-  const handleLevelChange = useCallback(
-    (pluginKey, level) => {
-      setCustomPlugins((prev) => {
-        const updated = {
-          ...prev,
-          [pluginKey]: { ...prev[pluginKey], level },
-        };
-        savePlugins(updated);
-        return updated;
-      });
-    },
-    [savePlugins]
   );
 
   const handleToggle = useCallback(
@@ -273,7 +180,7 @@ export default function PluginsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 max-w-2xl">
         {PLUGINS.map((plugin) => {
           const config = customPlugins[plugin.key] || {
             enabled: false,
@@ -315,34 +222,6 @@ export default function PluginsPage() {
               <p className="text-sm text-text-muted leading-relaxed mb-5">
                 {plugin.description}
               </p>
-
-              {/* Intensity, shown only while the plugin is on - same shape as the
-                  Ponytail level picker on the Token Saver page. */}
-              {plugin.levelled && isEnabled && (
-                <div className="mb-4 space-y-1.5">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {ANTISLOP_LEVELS.map((lvl) => (
-                      <button
-                        key={lvl.id}
-                        type="button"
-                        onClick={() => handleLevelChange(plugin.key, lvl.id)}
-                        className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
-                          (customPlugins[plugin.key]?.level || "full") === lvl.id
-                            ? "bg-primary text-white border-primary"
-                            : "bg-transparent border-border text-text-muted hover:bg-surface-2"
-                        }`}
-                      >
-                        {lvl.label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-text-muted">
-                    {ANTISLOP_LEVELS.find(
-                      (lvl) => lvl.id === (customPlugins[plugin.key]?.level || "full")
-                    )?.desc}
-                  </p>
-                </div>
-              )}
 
               {isEnabled && (
                 <div className="mt-auto pt-4 border-t border-border-subtle">

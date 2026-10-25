@@ -20,24 +20,12 @@ export async function GET() {
     const disabled = await getDisabledModels();
     const settings = await getSettings().catch(() => ({}));
     const customPlugins = settings?.customPlugins || {};
-    const ivEnabled = Boolean(customPlugins.imageVision?.enabled);
-    const ivModels = new Set(customPlugins.imageVision?.models || []);
-    const tdEnabled = Boolean(customPlugins.thinkDeeper?.enabled);
-    const tdModels = new Set(customPlugins.thinkDeeper?.models || []);
-    const jgEnabled = Boolean(customPlugins.jsonGuard?.enabled);
-    const jgModels = new Set(customPlugins.jsonGuard?.models || []);
-    const otbEnabled = Boolean(customPlugins.openaiToolBridge?.enabled);
-    const otbModels = new Set(customPlugins.openaiToolBridge?.models || []);
-    const asEnabled = Boolean(customPlugins.antiSlop?.enabled);
-    const asModels = new Set(customPlugins.antiSlop?.models || []);
+    const atEnabled = Boolean(customPlugins.adaptiveThinking?.enabled);
+    const atModels = new Set(customPlugins.adaptiveThinking?.models || []);
 
     // One resolver for every branch below.
     const PLUGIN_SOURCES = [
-      ["imageVision", ivEnabled, ivModels, { vision: true, imageVision: true }],
-      ["thinkDeeper", tdEnabled, tdModels, { reasoning: true, thinkDeeper: true }],
-      ["jsonGuard", jgEnabled, jgModels, { jsonGuard: true }],
-      ["openaiToolBridge", otbEnabled, otbModels, { openaiToolBridge: true }],
-      ["antiSlop", asEnabled, asModels, { antiSlop: true }],
+      ["adaptiveThinking", atEnabled, atModels, { reasoning: true, adaptiveThinking: true }],
     ];
 
     /**

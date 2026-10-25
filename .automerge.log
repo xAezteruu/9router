@@ -1,0 +1,16 @@
+=== 2026-10-25T16:37:56+08:00 automerge run ===
+working tree dirty, skip
+=== 2026-10-25T16:38:12+08:00 automerge run ===
+   696f0349..9ef6439d  master     -> upstream/master
+behind upstream by 1 commits — merging
+Auto-merging CHANGELOG.md
+Auto-merging package.json
+Auto-merging src/app/(dashboard)/dashboard/plugins/page.js
+CONFLICT (content): Merge conflict in src/app/(dashboard)/dashboard/plugins/page.js
+Auto-merging src/app/api/plugins/route.js
+CONFLICT (content): Merge conflict in src/app/api/plugins/route.js
+Auto-merging src/lib/plugins/customPluginsRuntime.js
+CONFLICT (content): Merge conflict in src/lib/plugins/customPluginsRuntime.js
+Auto-merging src/shared/components/PluginMark.js
+Automatic merge failed; fix conflicts and then commit the result.
+CONFLICTS — aborting merge, needs manual resolve
