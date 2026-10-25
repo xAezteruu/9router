@@ -1,4 +1,4 @@
-import { Inter } from "next/font/google";
+// font disabled for offline automerge build
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import { ThemeProvider } from "@/shared/components/ThemeProvider";
@@ -10,7 +10,7 @@ import { RuntimeI18nProvider } from "@/i18n/RuntimeI18nProvider";
 // Hook console immediately at module load time (server-side only, runs once)
 initConsoleLogCapture();
 
-const inter = Inter({
+const inter = ({
   subsets: ["latin"],
   variable: "--font-inter",
 });
