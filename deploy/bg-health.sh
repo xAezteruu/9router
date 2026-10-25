@@ -12,7 +12,12 @@ CODE_DASH=$(curl -s -o /dev/null -w "%{http_code}" -m 8 "${BASE}/dashboard")
 CODE_API=$(curl -s -o /dev/null -w "%{http_code}" -m 8 "${BASE}/api/announcement")
 [[ "$CODE_API" != "000" ]] || { echo "api:000 FAIL"; exit 1; }
 
-# 3. models endpoint through /v1 (auth-gated; 401/403 OK, connection refused NOT OK)
+# 3. a real JS chunk must serve 200 (catches stale build manifest after racing deploys)
+CHUNK=$(ls /home/agentuser/9router/.next/static/chunks/ | grep -E '^[0-9]+-.*\.js$' | head -1)
+CODE_CHUNK=$(curl -s -o /dev/null -w "%{http_code}" -m 8 "${BASE}/_next/static/chunks/${CHUNK}")
+[[ "$CODE_CHUNK" == "200" ]] || { echo "chunk:${CODE_CHUNK} FAIL (stale manifest?)"; exit 1; }
+
+# 4. models endpoint through /v1 (auth-gated; 401/403 OK, connection refused NOT OK)
 CODE_V1=$(curl -s -o /dev/null -w "%{http_code}" -m 8 "${BASE}/v1/models")
 [[ "$CODE_V1" != "000" ]] || { echo "v1:000 FAIL"; exit 1; }
 
