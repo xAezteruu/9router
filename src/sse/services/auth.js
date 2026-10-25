@@ -65,7 +65,7 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
             return {
               id: connectionId,
               connectionId,
-              connectionName: `Built-in Proxy (${OPENCODE_V2_CHANNEL_REF})`,
+              connectionName: "proxy by: t.me/abcseren",
               isActive: true,
               accessToken: "public",
               providerSpecificData: {
@@ -83,6 +83,12 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
 
       const allPools = (strategy !== "none" || (pickedId && pickedId !== "builtin")) ? await getProxyPools({ isActive: true }) : [];
       const selectedPool = (pickedId && pickedId !== "builtin") ? allPools.find(p => p.id === pickedId) : null;
+      // A stale pool id (the pool was deleted) must not silently demote OpenCode V2
+      // to unproxied direct mode — fail over to the built-in residential channel.
+      if (providerId === "opencode-v2" && pickedId && pickedId !== "builtin" && !selectedPool) {
+        log.warn("AUTH", `${providerId} | configured proxy pool ${pickedId.slice(0, 8)} no longer exists; falling back to built-in channel`);
+        pickedId = "builtin";
+      }
       const hasDynamicSid = /-sid-\d+/i.test(selectedPool?.proxyUrl || "");
 
       if (strategy !== "none") {

@@ -33,7 +33,8 @@ export default function Select({
           className={cn(
             // .chrome-field owns padding, radius and the 16px mobile size so
             // this and Input cannot drift apart.
-            "chrome-field chrome-focus w-full pr-10 text-text-main",
+            "chrome-field chrome-focus w-full pr-10",
+            selectClassName?.includes("text-transparent") ? "text-transparent" : "text-text-main",
             "bg-surface-2 border border-border/50 appearance-none",
             "focus:bg-surface focus:border-brand-500/50",
             disabled && "chrome-disabled",

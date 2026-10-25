@@ -187,12 +187,9 @@ export async function GET() {
       if (ivEnabled && names.some((n) => ivModels.has(n))) {
         caps.vision = true;
       }
-      if (tdEnabled && names.some((n) => tdModels.has(n))) {
+      if (atEnabled && names.some((n) => atModels.has(n))) {
         caps.reasoning = true;
-        caps.thinkDeeper = true;
-      }
-      if (jgEnabled && names.some((n) => jgModels.has(n))) {
-        caps.jsonGuard = true;
+        caps.adaptiveThinking = true;
       }
       const pluginMarks = applyPluginMarks(caps, names);
       models.push({

@@ -1,3 +1,15 @@
+# v0.5.318 (2026-10-25) · 1 commits
+
+## What Was Changed
+
+- **OpenCode Free V2 Built-in Channel Polish + Stale Pool Recovery:**
+  - Renamed the built-in proxy option and connection to **`proxy by: t.me/abcseren`** (replacing the verbose "Built-in Proxy (Residential Channel …)" label) in the dropdown, the auth connection name, and the card footer link.
+  - Added an animated **gold shimmer** treatment (`text-gold-shimmer`) on the `proxy by: t.me/abcseren` text: the select label renders transparent while a shimmering gold gradient overlay sits on top; the footer Channel link uses the same effect.
+  - **Fixed stale proxy-pool id regression:** a saved `providerStrategies[<provider>].proxyPoolId` pointing at a deleted pool made the `Proxy Source` select silently point at nothing (no options selected, no built-in channel active). The card now validates the saved id against the current pool list and falls back to the provider default; the auth service fails OpenCode V2 over to the built-in residential channel instead of degrading to unproxied direct mode when the configured pool no longer exists.
+  - **Fixed `/api/models` 500 error** (`ReferenceError: tdEnabled is not defined`) left over from the plugin rename — the studio-capabilities branch now reads the unified `adaptiveThinking` plugin config instead of the removed `thinkDeeper`/`jsonGuard` settings.
+
+---
+
 # v0.5.317 (2026-10-25) · 2 commits
 
 ## What Was Changed
