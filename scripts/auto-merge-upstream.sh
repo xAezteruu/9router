@@ -8,6 +8,19 @@ LOCK=/tmp/9router-automerge.lock
 BRANCH="master"
 UPSTREAM="upstream/master"
 
+# Telegram notify (token & chat di ~/.hermes/.env, never logged)
+TG_ENV="$HOME/.hermes/.env"
+tg_notify() { # $1 = message
+  if [ -f "$TG_ENV" ]; then
+    local token chat
+    token=$(grep -E '^TELEGRAM_BOT_TOKEN=' "$TG_ENV" | cut -d= -f2-)
+    chat=$(grep -E '^TELEGRAM_ALLOWED_USERS=' "$TG_ENV" | cut -d= -f2- | cut -d, -f1)
+    [ -n "$token" ] && [ -n "$chat" ] && \
+      curl -sf -m 10 "https://api.telegram.org/bot${token}/sendMessage" \
+        -d chat_id="$chat" -d text="[9router automerge] $1" >/dev/null 2>&1
+  fi
+}
+
 exec >>"$LOG" 2>&1
 echo "=== $(date -Is) automerge run ==="
 
@@ -43,6 +56,7 @@ if [ $MERGE_EXIT -eq 0 ]; then
     sleep 5
     if curl -sf -o /dev/null http://localhost:3000/dashboard; then
       echo "DEPLOY OK — merged $BEHIND commits, build+restart healthy"
+      tg_notify "✅ DEPLOY OK — merged $BEHIND commit(s) dari upstream, build + restart healthy"
       exit 0
     else
       echo "WARN: restart done but /dashboard not responding"
@@ -50,14 +64,16 @@ if [ $MERGE_EXIT -eq 0 ]; then
     fi
   else
     echo "BUILD FAILED after clean merge — rolling back"
+    tg_notify "⚠️ BUILD FAILED setelah merge $BEHIND commit(s) — ROLLBACK ke ORIG_HEAD, prod tetap versi lama"
     git reset --hard ORIG_HEAD
     npm install --registry=https://registry.npmjs.org --prefer-offline >/dev/null 2>&1
     npm run build >/dev/null 2>&1 && pm2 restart 9router >/dev/null 2>&1
     exit 1
   fi
 else
-  # conflicts: abort to keep prod safe; notify via log (add telegram later)
+  # conflicts: abort to keep prod safe; notify via telegram
   echo "CONFLICTS — aborting merge, needs manual resolve"
+  tg_notify "❌ CONFLICT merging $BEHIND commit(s) dari upstream — merge di-ABORT, prod tetap jalan versi lama. Perlu resolve manual."
   git merge --abort
   exit 1
 fi
