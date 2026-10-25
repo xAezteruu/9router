@@ -1,3 +1,44 @@
+# v0.5.317 (2026-10-25) · 2 commits
+
+## What Was Changed
+
+- **OpenCode Free V2 Flexible Proxy Selector (Built-in, Direct, or Custom Pools):**
+  - Restored full proxy selection flexibility on OpenCode Free V2 detail page (`/dashboard/providers/opencode-v2`).
+  - Added seamless **Proxy Source** dropdown allowing users to select:
+    1. **Built-in Proxy**: Automated residential broadband rotation channel (`t.me/abcseren`) to avoid cloud 403 `FreeTierError`.
+    2. **None (direct / unproxied)**: Standard direct connection.
+    3. **Custom Proxy Pools**: User's configured proxy pools from Proxy Pools dashboard, with optional round-robin or random rotation.
+  - Aligned auth service (`auth.js`) and executor (`opencode-v2.js`) to honor the selected proxy source dynamically.
+
+---
+
+# v0.5.316 (2026-10-25) · 3 commits
+
+## What Was Changed
+
+- **Merge PR #15: OpenCode Executor Wiring, Fallback Spam Prevention, and CLI Concurrency:**
+  - **CLI Tool-Calling Bridge**: Enabled local CLI execution when client tools are present; piped prompt formatting and OpenAI `tool_calls` response streaming into `@opencode/cli run` so agent requests with tools execute through the local engine.
+  - **Prompt Piping via Stdin**: Switched prompt delivery to `stdin` stream instead of command-line arguments to eliminate Windows `ENAMETOOLONG: name too long, uv_spawn` crashes.
+  - **Process Management & Concurrency Cap**: Added `MAX_CONCURRENT_CLI = 3` concurrency limiter to queue parallel requests, a 90s hard execution deadline, and cross-platform process tree cleanup (`taskkill /F /T` on Windows, `pkill -P` + `SIGKILL` on POSIX) on abort and server shutdown.
+  - **Auth Fallback Loop**: Fixed `getProviderCredentials` in `auth.js` to inspect `excludeSet.has("noauth")`, terminating immediately instead of looping 15+ times when the unproxied public connection is rejected.
+  - **Network Channel Routing**: Updated `resolveV2ChannelRoute()` to use `OPENCODE_V2_ROUTE` when configured and default to a direct connection, removing the dead hardcoded proxy returning HTTP 407.
+  - **Dashboard Provider View**: Mapped `opencode-v1` to `opencode` in provider detail resolution so `/dashboard/providers/opencode-v1` renders properly.
+  - **Build Fix**: Added `src/app/not-found.js` to prevent Next 14 Windows NFT build trace failure.
+
+---
+
+# v0.5.315 (2026-10-25) · 2 commits
+
+## What Was Changed
+
+- **Add Dedicated OCR Auto Image-to-Text Plugin:**
+  - Added **OCR Auto Image-to-Text (`imageVision`)** alongside Adaptive Thinking in the Custom Plugins suite.
+  - Automatically intercepts base64 images and URLs in prompt payloads, parses dimensions and metadata via Sharp, and converts images into structured markdown OCR text blocks.
+  - Enables text-only models (e.g. DeepSeek-R1, Llama-text, GLM, CLI engines) to process visual content without 400 errors, and provides high-precision OCR transcripts for vision models.
+  - Updated `/dashboard/plugins` with a balanced 2-column card layout, capacity markers, and per-model assignment pickers.
+
+---
+
 # v0.5.314 (2026-10-25) · 2 commits
 
 ## What Was Changed

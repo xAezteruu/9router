@@ -328,7 +328,8 @@ import p325 from "./zed.js";
 import p326 from "./zenmux-free.js";
 import p327 from "./zerolimitai.js";
 import p328 from "./zylo-api.js";
-export default [
+
+const PROVIDERS = [
   p0,
   p1,
   p2,
@@ -659,3 +660,5 @@ export default [
   p327,
   p328,
 ];
+
+export default PROVIDERS;

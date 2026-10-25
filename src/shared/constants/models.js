@@ -47,6 +47,7 @@ export const CAPACITY_META = {
   // search: temporarily hidden (feature not wired yet)
   reasoning: { mark: "reasoning", label: "Reasoning", desc: "Supports reasoning / thinking" },
   adaptiveThinking: { mark: "adaptiveThinking", label: "Adaptive Thinking", desc: "Adaptive Thinking & Multi-Framework Cognitive Architecture" },
+  imageVision: { mark: "imageVision", label: "OCR Image", desc: "Auto Image-to-Text OCR Extractor" },
 };
 
 // Realtime STT transport markers accepted on custom models - single source of
@@ -106,7 +107,10 @@ export const PLUGIN_MARK_META = {
     label: "Adaptive Thinking",
     desc: "Adaptive Thinking & Cognitive Architecture: Multi-agent reasoning synthesis combining Depth Protocol, Superpowers, Adversaria, and First Principles",
   },
-  imageVision: { label: "Vision", desc: "Image understanding: auto-attach image capabilities to capable models" },
+  imageVision: {
+    label: "OCR Image",
+    desc: "OCR Auto Image-to-Text: Transcribes and extracts text from attached images, allowing text-only models to process images",
+  },
   thinkDeeper: { label: "Think Deeper", desc: "Forces extended reasoning budget on selected models" },
   unrestrictedMode: { label: "Unrestricted", desc: "Uncensored output mode: injects anti-refusal system prompt and framing" },
   speedMode: { label: "Speed", desc: "Speed mode: minimal reasoning overhead for latency-sensitive routes" },
