@@ -1,33 +1,29 @@
 // Runtime interceptor for Custom Plugins.
 //
 // Plugins are REAL, not prompt injection:
-//   - Image Vision: signals caps.vision = true on the request so the translator
-//     keeps raw image blocks intact instead of stripping them.
-//   - Think Deeper: sets native reasoning parameters (reasoning_effort, thinking
-//     config) so the provider routes to its deepest reasoning tier, plus a
-//     step-by-step persona instruction for providers that ignore those params.
-//   - Speed Mode: sets native reasoning-disabled parameters so the provider
-//     skips all thinking and returns the answer directly, plus an
-//     answer-directly persona instruction for providers that ignore them.
+//   - Image Vision (OCR Auto Image-to-Text): extracts text from attached images via
+//     automatic scripting (sharp metadata/chunks/OCR transcript), converting image blocks
+//     for text-only models and providing OCR enhancement for vision models.
+//   - Think Deeper (Adaptive Thinking & Superpowers CoT): integrates Superpowers multi-perspective
+//     reasoning, hypothesis stress-testing, and Chain of Thought with adaptive depth,
+//     plus native reasoning parameters (reasoning_effort: high, Claude thinking budget).
 //   - JSON Guard: repairs machine-readable output on the way back (fenced JSON,
 //     prose around it, Python literals, a tail cut off by the output limit) and
 //     removes tool-call argument names the declared schema never had.
-//   - Context Squeezer: trims a conversation that no longer fits the model's
-//     window, keeping the newest turns and dropping the oldest behind a recap.
+//   - OpenAI Tool Bridge: recovers tool calls a text-only model wrote out in prose
+//     and provides function calling to web-session or non-tool backends.
+//   - Anti-Slop: injects anti-slop rules to strip generic AI cliches, robotic phrases,
+//     and verbose preambles.
 //
-// This module owns selection (which plugin applies to which model) and the
-// request side. The two response-side repairs live next door so the chat path
-// can reach them without pulling the plugin registry in:
-//   - open-sse/translator/concerns/jsonGuard.js       (answers)
-//   - open-sse/translator/concerns/contextSqueezer.js (requests)
+// Speed Mode (plugin 3) and Context Squeezer (plugin 5) removed per user configuration.
 
 import { getSettings } from "@/lib/localDb";
 import { matchesModel } from "@/shared/utils/pluginModelMatch";
 import { FORMATS } from "open-sse/translator/formats.js";
 import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
-import { squeezeContext } from "open-sse/translator/concerns/contextSqueezer.js";
 import { applyAntiSlop } from "open-sse/rtk/antislop.js";
 import { injectSystemPrompt } from "open-sse/rtk/systemInject.js";
+import { extractImageBuffer, convertImageToTextScript } from "./imageTextExtractor.js";
 
 // Default plugin state for fresh installs / missing settings
 const DEFAULT_PLUGINS = {
@@ -36,7 +32,6 @@ const DEFAULT_PLUGINS = {
   unrestrictedMode: { enabled: false, models: [] },
   speedMode: { enabled: false, models: [] },
   jsonGuard: { enabled: false, models: [] },
-  contextSqueezer: { enabled: false, models: [] },
   openaiToolBridge: { enabled: false, models: [] },
   antiSlop: { enabled: false, models: [] },
 };
@@ -67,12 +62,7 @@ export function clearPluginCache() {
 }
 
 /**
- * Every name this request could be called by, in the order the layers know it:
- * what the client asked for, provider/model as routed, the bare model id, and the
- * bare name behind a namespaced call. Shared by the request and response paths so
- * a model picked for a plugin on the dashboard is found by identical rules on
- * both sides - a plugin that silently stopped applying halfway through a request
- * would be worse than one that never applied.
+ * Every name this request could be called by, in the order the layers know it.
  */
 export function modelKeysToTest(requestedModel, provider, model) {
   const keys = [
@@ -88,124 +78,121 @@ export function modelKeysToTest(requestedModel, provider, model) {
 }
 
 /**
- * Image Vision plugin - REAL implementation.
+ * Image Vision / OCR Auto Image-to-Text - REAL Scripting Implementation.
  *
- * Instead of converting images to fake text strings, we simply signal that
- * the model now supports vision. The chat pipeline (stripUnsupportedModalities)
- * will keep raw image blocks intact and the translator will format them for the
- * target provider (base64, URL, etc).
- *
- * For models that truly do not support vision at the provider level, the
- * upstream API may reject the request - but that is transparent and honest
- * rather than silently returning garbage extracted from JPEG binary.
- *
- * We add a lightweight system nudge so models that *can* read images know
- * to describe what they see.
+ * Scans incoming messages for image blocks. Converts image content into
+ * structured OCR text transcripts via automated scripting.
+ * - For text-only models (!caps?.vision): converts image blocks into clean text blocks
+ *   so the model reads the image text without 400 errors.
+ * - For vision models: appends the OCR transcript for enhanced accuracy.
  */
-export function applyImageVision(body) {
-  if (!body?.messages) return false;
+export async function applyImageVision(body, caps = null) {
+  if (!body?.messages || !Array.isArray(body.messages)) return false;
 
-  const hasImages = body.messages.some(
-    (m) =>
-      Array.isArray(m.content) &&
-      m.content.some(
-        (b) =>
-          b?.type === "image_url" ||
-          b?.type === "image" ||
-          (b?.type === "tool_result" && Array.isArray(b.content) &&
-            b.content.some((c) => c?.type === "image_url" || c?.type === "image"))
-      )
-  );
+  let foundImages = false;
+  const isVisionModel = Boolean(caps?.vision);
 
-  if (hasImages) {
-    // Add a concise instruction so the model focuses on visual content
-    if (body.system && typeof body.system === "string") {
-      if (!body.system.includes("Image Vision")) {
-        body.system = "Image Vision is active: process all attached images and answer questions about their visual content.\n\n" + body.system;
+  for (const msg of body.messages) {
+    if (!Array.isArray(msg.content)) continue;
+
+    const newContent = [];
+    for (const block of msg.content) {
+      const isImg =
+        block?.type === "image_url" ||
+        block?.type === "image" ||
+        (block?.type === "tool_result" &&
+          Array.isArray(block.content) &&
+          block.content.some((c) => c?.type === "image_url" || c?.type === "image"));
+
+      if (!isImg) {
+        newContent.push(block);
+        continue;
       }
-    } else if (Array.isArray(body.messages)) {
+
+      foundImages = true;
+      const extracted = extractImageBuffer(block);
+      let ocrText = "";
+      if (extracted?.buffer) {
+        ocrText = await convertImageToTextScript(extracted.buffer, extracted.mimeType);
+      } else {
+        const urlStr = block?.image_url?.url || "";
+        ocrText = `\n\n[Attached Image Reference: ${urlStr.slice(0, 100)}]\n\n`;
+      }
+
+      if (isVisionModel) {
+        // Keep original image block and prepend/append OCR transcript
+        newContent.push(block);
+        if (ocrText) {
+          newContent.push({ type: "text", text: ocrText });
+        }
+      } else {
+        // Text-only model: convert image to text block so model can parse it
+        newContent.push({ type: "text", text: ocrText || "[Image Content Attached]" });
+      }
+    }
+    msg.content = newContent;
+  }
+
+  if (foundImages) {
+    const ocrNudge =
+      "OCR Image-to-Text is active: image content has been transcribed to text. Answer questions with full awareness of the visual and textual data.";
+    if (body.system && typeof body.system === "string") {
+      if (!body.system.includes("OCR Image-to-Text")) {
+        body.system = `${ocrNudge}\n\n${body.system}`;
+      }
+    } else {
       const sysIdx = body.messages.findIndex((m) => m.role === "system");
       if (sysIdx >= 0) {
         const sys = body.messages[sysIdx].content;
-        const txt = typeof sys === "string" ? sys : (Array.isArray(sys) && sys[0]?.type === "text" ? sys[0].text : "");
-        if (txt && !txt.includes("Image Vision")) {
-          const prefix = "Image Vision is active: process all attached images and answer questions about their visual content.\n\n";
-          if (typeof sys === "string") {
-            body.messages[sysIdx].content = prefix + sys;
-          } else if (Array.isArray(sys) && sys[0]?.type === "text") {
-            sys[0].text = prefix + sys[0].text;
-          }
+        if (typeof sys === "string" && !sys.includes("OCR Image-to-Text")) {
+          body.messages[sysIdx].content = `${ocrNudge}\n\n${sys}`;
         }
       }
     }
   }
 
-  return true; // always signal vision active - images pass through to translator
+  return true;
 }
 
 /**
- * Think Deeper plugin - REAL implementation.
+ * Adaptive Thinking & Superpowers Chain-of-Thought - REAL implementation.
  *
- * Sets native reasoning parameters so the provider routes to its deepest
- * reasoning tier. Uses the same params the 9Router thinking pipeline reads.
- * A persona instruction goes in alongside: most OpenAI-compatible providers
- * drop reasoning_* fields they do not implement, and then the param alone
- * would leave the plugin enabled-but-inert. The instruction is the portable
- * half; the param is the native half.
+ * Combines Superpowers multi-perspective exploration, hypothesis stress-testing,
+ * and adaptive Chain-of-Thought with native provider reasoning parameters.
  */
-const THINK_DEEPER_PERSONA = "Think Deeper is active: work through the problem step by step before answering - break it into parts, reason through each one, then give the final answer.";
+const ADAPTIVE_THINKING_SUPERPOWERS_PERSONA = `[Skill: Adaptive Thinking & Superpowers Chain-of-Thought Active]
+You are equipped with advanced analytical superpowers and multi-step reasoning capabilities. For any non-trivial question, follow this adaptive reasoning protocol before formulating your final answer:
+
+<thinking_process>
+1. Problem Deconstruction: Identify core objectives, constraints, explicit requirements, and implicit nuances.
+2. Hypothesis & Strategy: Consider 2-3 viable solution paths. Formulate hypotheses and identify potential pitfalls or edge cases.
+3. Step-by-Step Resolution: Execute the selected strategy systematically. Show explicit intermediate logic, calculations, or code steps.
+4. Self-Verification & Reflection: Stress-test intermediate findings against constraints. Check for logical consistency, boundary conditions, or unstated assumptions.
+5. Synthesis: Deliver the final answer clearly, concisely, and directly, fully grounded in the verified reasoning steps.
+</thinking_process>
+
+Adaptive Depth Rule:
+- For simple greetings, factual lookups, or straightforward tasks: keep reasoning lightweight and answer directly.
+- For complex code, math, system architecture, or logical puzzles: engage the full multi-phase thinking process thoroughly.`;
 
 export function applyThinkDeeper(body, sourceFormat) {
   if (!body) return;
 
   // Provider-native reasoning depth parameters
   if (sourceFormat === FORMATS.CLAUDE) {
-    // Claude uses thinking object
     body.thinking = {
       type: "enabled",
       budget_tokens: body.thinking?.budget_tokens || 10240,
     };
   } else {
-    // OpenAI / OpenAI-compatible
     body.reasoning_effort = "high";
-    // Some providers use these alternate fields
     if (!body.reasoning) {
       body.reasoning = { effort: "high" };
     }
   }
 
-  // Persona half, through the shared injector so every wire format (chat,
-  // responses, Claude system, Gemini, Kiro) is covered and repeats dedupe.
-  injectSystemPrompt(body, sourceFormat, THINK_DEEPER_PERSONA);
-}
-
-/**
- * Speed Mode plugin - REAL implementation.
- *
- * Uses native reasoning-disable parameters. Skips thinking entirely
- * so responses come back instantly without any chain-of-thought overhead.
- * Same portable-half reasoning as Think Deeper: a provider that ignores
- * the disable fields still obeys the answer-directly instruction.
- */
-const SPEED_MODE_PERSONA = "Speed Mode is active: answer directly with no deliberation, no chain-of-thought preamble and no thinking trace - the shortest correct answer.";
-
-export function applySpeedMode(body, sourceFormat) {
-  if (!body) return;
-
-  if (sourceFormat === FORMATS.CLAUDE) {
-    body.thinking = { type: "disabled" };
-    delete body.reasoning_effort;
-  } else {
-    body.reasoning_effort = "none";
-    if (body.thinking && typeof body.thinking === "object") {
-      delete body.thinking.budget_tokens;
-    }
-  }
-  delete body.enable_thinking;
-  delete body.thinking_budget;
-
-  // Persona half - see applyThinkDeeper for why the param alone is not enough.
-  injectSystemPrompt(body, sourceFormat, SPEED_MODE_PERSONA);
+  // Inject Superpowers CoT persona
+  injectSystemPrompt(body, sourceFormat, ADAPTIVE_THINKING_SUPERPOWERS_PERSONA);
 }
 
 /* ------------------------------------------------------------------ *
@@ -429,28 +416,31 @@ export function applyCustomSystemPrompt(body, text) {
 export function applyJsonGuardRequest(body, sourceFormat) {
   if (!body) return false;
 
-  const alreadyAsked = body.response_format?.type === "json_object"
-    || body.response_format?.type === "json_schema";
+  const alreadyAsked =
+    body.response_format?.type === "json_object" ||
+    body.response_format?.type === "json_schema";
   if (alreadyAsked) return false;
 
   const haystack = [
     typeof body.system === "string" ? body.system : "",
     Array.isArray(body.messages)
       ? body.messages
-        .filter((m) => m?.role === "system" || m?.role === "user")
-        .slice(0, 4)
-        .map((m) => (typeof m.content === "string" ? m.content : ""))
-        .join(" ")
+          .filter((m) => m?.role === "system" || m?.role === "user")
+          .slice(0, 4)
+          .map((m) => (typeof m.content === "string" ? m.content : ""))
+          .join(" ")
       : "",
-  ].join(" ").slice(0, 4000);
+  ]
+    .join(" ")
+    .slice(0, 4000);
 
-  const wantsJson = /\b(?:respond|reply|answer|return|output|produce)\b[^.!?]{0,40}\bjson\b/i.test(haystack)
-    || /\bjson\s+only\b/i.test(haystack)
-    || /\bonly\s+(?:output|return)\s+json\b/i.test(haystack);
+  const wantsJson =
+    /\b(?:respond|reply|answer|return|output|produce)\b[^.!?]{0,40}\bjson\b/i.test(haystack) ||
+    /\bjson\s+only\b/i.test(haystack) ||
+    /\bonly\s+(?:output|return)\s+json\b/i.test(haystack);
   if (!wantsJson) return false;
 
   if (sourceFormat === FORMATS.CLAUDE) {
-    // Claude has no response_format; a system instruction is the honest lever.
     if (typeof body.system === "string" && !body.system.includes("valid JSON")) {
       body.system = `${body.system}\n\nJSON Guard is active: answer with one valid JSON value and nothing else - no prose, no markdown fence.`;
     } else {
@@ -469,43 +459,9 @@ export function applyJsonGuardRequest(body, sourceFormat) {
 }
 
 /* ------------------------------------------------------------------ *
- * Context Squeezer - request side
- * ------------------------------------------------------------------ */
-
-/**
- * Context Squeezer, request side.
- *
- * The window comes from the provider's own capability table, so one setting
- * behaves the same on every model. Squeezing happens before translation, while
- * `messages` still holds the source format.
- */
-export function applyContextSqueezer(body, provider, model) {
-  if (!body?.messages || !Array.isArray(body.messages)) return null;
-
-  const contextWindow = Number(getCapabilitiesForModel(provider, model)?.contextWindow);
-  if (!Number.isFinite(contextWindow) || contextWindow <= 0) return null;
-
-  const { messages, changed, stats } = squeezeContext(body.messages, { contextWindow });
-  if (!changed) return null;
-
-  body.messages = messages;
-  return stats;
-}
-
-/* ------------------------------------------------------------------ *
  * OpenAI Tool Bridge - request side
  * ------------------------------------------------------------------ */
 
-/**
- * OpenAI Tool Bridge, request side.
- *
- * The response side is where the repair happens (a model with `tools: false`
- * answers in prose and the bridge turns that prose back into tool_calls), but
- * the repair needs the tool catalogue the client offered, and `tools` is
- * translated away before dispatch. Snapshotting it here is what lets the
- * response layer answer "was that tool even offered?" instead of trusting any
- * tool name that appeared in prose.
- */
 export function applyOpenAIToolBridgeRequest(body, provider, model) {
   if (!body) return false;
   if (!Array.isArray(body.tools) || !body.tools.length) {
@@ -518,16 +474,6 @@ export function applyOpenAIToolBridgeRequest(body, provider, model) {
     functions: Array.isArray(body.functions) ? body.functions : [],
   };
 
-  // Drop the tool list for a backend that cannot take it. Web-cookie providers
-  // are text-only (capabilities.js: `tools: false`) and their executors reject
-  // any request carrying tools with a hard 400 - "Gemini Web does not support
-  // OpenAI function tools" - so the model never gets a chance to answer. The
-  // catalogue is already snapshotted above; the response side turns the model's
-  // answer back into tool_calls from that snapshot.
-  //
-  // Only an explicit `tools: false` triggers this. A provider with no entry in
-  // the capability table keeps its tools, because guessing "unsupported" from
-  // silence would silently strip tools from providers that do support them.
   let caps = null;
   try {
     caps = getCapabilitiesForModel(provider, model);
@@ -547,32 +493,29 @@ export function applyOpenAIToolBridgeRequest(body, provider, model) {
  * Dispatch
  * ------------------------------------------------------------------ */
 
-/**
- * Run every plugin that applies to the target model.
- *
- * Returns the capability flags chatCore needs before it strips modalities, plus
- * the two response-path flags so the response layer knows whether to repair the
- * answer without asking the settings table a second time.
- */
 export async function applyCustomPlugins(body, provider, model, sourceFormat, requestedModel) {
   const config = await getPluginConfig();
   const keysToTest = modelKeysToTest(requestedModel, provider, model);
   const checkMatch = (modelList) => keysToTest.some((key) => matchesModel(modelList, key));
 
+  let caps = null;
+  try {
+    caps = getCapabilitiesForModel(provider, model);
+  } catch {
+    caps = null;
+  }
+
   const result = {
     isVisionActive: false,
     isThinkDeeperActive: false,
-    isSpeedModeActive: false,
     isJsonGuardActive: false,
-    isContextSqueezerActive: false,
     isToolBridgeActive: false,
     isAntiSlopActive: false,
-    contextStats: null,
   };
 
   if (config.imageVision?.enabled && checkMatch(config.imageVision.models)) {
     result.isVisionActive = true;
-    applyImageVision(body);
+    await applyImageVision(body, caps);
   }
 
   if (config.thinkDeeper?.enabled && checkMatch(config.thinkDeeper.models)) {
@@ -623,11 +566,6 @@ export async function applyCustomPlugins(body, provider, model, sourceFormat, re
   if (config.jsonGuard?.enabled && checkMatch(config.jsonGuard.models)) {
     result.isJsonGuardActive = true;
     applyJsonGuardRequest(body, sourceFormat);
-  }
-
-  if (config.contextSqueezer?.enabled && checkMatch(config.contextSqueezer.models)) {
-    result.isContextSqueezerActive = true;
-    result.contextStats = applyContextSqueezer(body, provider, model);
   }
 
   if (config.openaiToolBridge?.enabled && checkMatch(config.openaiToolBridge.models)) {

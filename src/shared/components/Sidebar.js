@@ -38,7 +38,7 @@ const workshopItems = [
 // Security Log and Inbox Error live in the bell, not the menu - they are
 // conditions to review, not places you visit to work.
 const debugItems = [
-  { href: "/dashboard/console-log", label: "Console Log", icon: "monitor" },
+  { href: "/dashboard/logs", label: "Error & Console Logs", icon: "receipt_long" },
   { href: "/dashboard/translator", label: "Translator", icon: "translate" },
 ];
 
@@ -323,6 +323,7 @@ export default function Sidebar({ onClose }) {
 
               {/* Settings */}
               {sessionReady && !isApiKeyUser && (
+              <>
               <NavLink
                 href='/dashboard/profile'
                 icon='settings'
@@ -330,6 +331,14 @@ export default function Sidebar({ onClose }) {
                 active={isActive('/dashboard/profile')}
                 onClick={onClose}
               />
+              <NavLink
+                href='/dashboard/experiments'
+                icon='science'
+                label='Experiment Features'
+                active={isActive('/dashboard/experiments')}
+                onClick={onClose}
+              />
+              </>
               )}
             </div>
           )}

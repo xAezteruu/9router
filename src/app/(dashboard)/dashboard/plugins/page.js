@@ -13,43 +13,32 @@ import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { useNotificationStore } from "@/store/notificationStore";
 import PluginMark from "@/shared/components/PluginMark";
 import { CUSTOM_PLUGIN_KEYS } from "@/shared/constants/pluginKeys";
+import { ANTISLOP_LEVEL_CHARS } from "open-sse/rtk/antislopPrompt.js";
 
 const PLUGINS = [
   {
     key: "imageVision",
-    title: "Image Vision",
+    title: "OCR Auto Image-to-Text",
     description:
-      "Enable image understanding for models that don't natively support vision. Images are converted to text descriptions, allowing any model to process visual content in CLI tools and agents.",
+      "Automatically extracts and transcribes text from images using intelligent OCR scripts. Attached images are converted into structured text blocks so that non-vision text models can process visual content seamlessly without errors.",
   },
   {
     key: "thinkDeeper",
-    title: "Think Deeper",
+    title: "Adaptive Thinking & Superpowers CoT",
     description:
-      "Enhance reasoning with multi-step chain-of-thought analysis. Forces the model to break problems into steps before answering, producing more thorough and accurate responses.",
-  },
-  {
-    key: "speedMode",
-    title: "Speed Mode",
-    description:
-      "Skip thinking for faster responses. Disables reasoning mode on the selected models and instructs them to answer directly, ideal for simple tasks where low latency matters more than deep analysis.",
+      "Integrates deep analytical reasoning combining Superpowers multi-perspective exploration and structured Chain-of-Thought (CoT). Models follow an adaptive step-by-step thinking process (deconstruction, hypothesis testing, self-verification, and synthesis) tailored to task complexity.",
   },
   {
     key: "jsonGuard",
-    title: "JSON Guard",
+    title: "JSON Guard & Schema Protector",
     description:
-      "Keep machine-readable output parseable. Strips prose and markdown fences around JSON, fixes Python-style literals and trailing commas, closes payloads the output limit cut off, and drops tool-call arguments the schema never declared.",
-  },
-  {
-    key: "contextSqueezer",
-    title: "Context Squeezer",
-    description:
-      "Fit long conversations into the model's context window. The oldest turns are replaced with a short recap and oversized tool output is trimmed, so the newest turns always arrive intact instead of the provider rejecting the request.",
+      "Ensures machine-readable output is always parseable and valid JSON. Cleans conversational preamble and markdown code fences around JSON, fixes Python syntax and trailing commas, repairs truncated JSON payloads, and validates tool-call arguments against declared schemas.",
   },
   {
     key: "openaiToolBridge",
-    title: "OpenAI Tool Bridge",
+    title: "Universal Tool Calling Bridge",
     description:
-      "Keep tool calling working on models that cannot do it natively. Text-only providers (browser-session models with tools disabled) answer in prose; the bridge reads the tools you offered, picks the calls the model wrote out in its answer, and hands your client proper tool_calls with arguments filtered to the schema it declared.",
+      "Provides function calling (OpenAI Tools) capabilities for text-only models or web-session providers without native tool support. Model responses written in prose are parsed and transformed into standard OpenAI tool_calls payloads.",
   },
   // Fork feature - not in upstream. Kept here so a merge cannot drop it.
   {
@@ -60,10 +49,10 @@ const PLUGINS = [
   },
   {
     key: "antiSlop",
-    title: "Anti Slop",
+    title: "Anti-Slop Natural AI",
     levelled: true,
     description:
-      "Injects the antislop rules (https://github.com/miqdadbadjuber/anti-slop) into the system prompt of the models you pick, so they stop shipping generic AI UI, copy and code. Three intensities: Lite catches the obvious patterns, Full adds the hard-gate rules and the craftsmanship standard, Ultra adds the mandatory PASS/FAIL delivery report.",
+      "Strips generic AI boilerplate, robotic conversational cliches, and repetitive jargon. Injects curated anti-slop guidelines into system prompts so code and generated prose remain crisp, natural, concise, and straight to the point.",
   },
 ];
 
@@ -73,10 +62,32 @@ const PLUGINS = [
 // Anti Slop ships three intensities, mirroring Ponytail's levels. The level is
 // stored on the plugin entry so it rides along in settings rather than living in
 // a second place that could disagree with the toggle.
+// Token figures are derived from the generated prompt itself, not typed by hand: the moment
+// someone re-syncs `antislop-src/` the number moves with it instead of going stale.
+const approxTokens = (chars) => Math.round(chars / 4).toLocaleString("en-US");
+
 export const ANTISLOP_LEVELS = [
-  { id: "lite", label: "Lite", desc: "Purpose test plus a scan for the obvious AI patterns." },
-  { id: "full", label: "Full", desc: "Adds the Hard Gate rules, the craftsmanship standard and the swap test." },
-  { id: "ultra", label: "Ultra", desc: "Adds the mandatory four-block PASS/FAIL delivery report." },
+  {
+    id: "lite",
+    label: "Lite",
+    desc: `Condensed: the purpose test plus a scan for the obvious AI patterns. About ${approxTokens(
+      ANTISLOP_LEVEL_CHARS.lite
+    )} tokens per request.`,
+  },
+  {
+    id: "full",
+    label: "Full",
+    desc: `The skill's core text verbatim - all 38 rules, the three dials, Design Read and the delivery gate. About ${approxTokens(
+      ANTISLOP_LEVEL_CHARS.full
+    )} tokens per request.`,
+  },
+  {
+    id: "ultra",
+    label: "Ultra",
+    desc: `Core plus all five concern skills (UI, copy, human, mobile, code), verbatim. About ${approxTokens(
+      ANTISLOP_LEVEL_CHARS.ultra
+    )} tokens per request.`,
+  },
 ];
 
 const DEFAULT_ANTISLOP_LEVEL = "full";

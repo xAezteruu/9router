@@ -1,17 +1,3 @@
-// A custom plugin must change the model's behaviour, not just draw a badge on
-// the model row. Think Deeper and Speed Mode carry native reasoning params, but
-// most OpenAI-compatible providers ignore the reasoning_* fields they do not
-// implement - a plugin that only sets those fields is enabled-but-inert on
-// those providers. What every model-facing plugin therefore owes the request is
-// a line in the persona (the composed system prompt), injected through the same
-// shared injector Ponytail, Caveman and Anti Slop use.
-//
-// Pins the persona half for every plugin that speaks to the model:
-//   - the instruction lands when the plugin is enabled for the called model;
-//   - the native param half still lands next to it;
-//   - repeats do not stack a second copy;
-//   - a plugin selected for some other model injects nothing;
-//   - the Claude wire shape (body.system string) gets the same instruction.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -60,21 +46,10 @@ describe("custom plugin → persona injection", () => {
     const result = await applyCustomPlugins(body, "prov", "m1", FORMATS.OPENAI, MODEL);
 
     expect(result.isThinkDeeperActive).toBe(true);
-    // Persona half.
-    expect(systemText(body)).toContain("Think Deeper is active");
-    // Native half is untouched.
+    // Superpowers & Chain of Thought persona
+    expect(systemText(body)).toContain("Adaptive Thinking & Superpowers Chain-of-Thought Active");
+    // Native half
     expect(body.reasoning_effort).toBe("high");
-  });
-
-  it("changes the composed persona when Speed Mode is enabled for the model", async () => {
-    enable({ speedMode: { enabled: true, models: [MODEL] } });
-    const body = chatBody();
-
-    const result = await applyCustomPlugins(body, "prov", "m1", FORMATS.OPENAI, MODEL);
-
-    expect(result.isSpeedModeActive).toBe(true);
-    expect(systemText(body)).toContain("Speed Mode is active");
-    expect(body.reasoning_effort).toBe("none");
   });
 
   it("leaves the persona alone while the plugin is disabled", async () => {
@@ -106,16 +81,16 @@ describe("custom plugin → persona injection", () => {
 
     const systems = body.messages.filter((m) => m.role === "system");
     expect(systems).toHaveLength(1);
-    expect(systems[0].content.match(/Think Deeper is active/g)).toHaveLength(1);
+    expect(systems[0].content.match(/Adaptive Thinking/g)).toHaveLength(1);
   });
 
   it("injects into body.system on the Claude wire shape", async () => {
-    enable({ speedMode: { enabled: true, models: [MODEL] } });
+    enable({ thinkDeeper: { enabled: true, models: [MODEL] } });
     const body = { model: "m1", system: "You are terse.", messages: [] };
 
     await applyCustomPlugins(body, "prov", "m1", FORMATS.CLAUDE, MODEL);
 
-    expect(body.system).toContain("Speed Mode is active");
+    expect(body.system).toContain("Adaptive Thinking & Superpowers Chain-of-Thought Active");
     // The model's own persona stays in front of the plugin line.
     expect(body.system.startsWith("You are terse.")).toBe(true);
   });

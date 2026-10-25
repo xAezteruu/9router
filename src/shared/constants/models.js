@@ -46,10 +46,11 @@ export const CAPACITY_META = {
   vision: { mark: "vision", label: "Vision", desc: "Supports image input" },
   // search: temporarily hidden (feature not wired yet)
   reasoning: { mark: "reasoning", label: "Reasoning", desc: "Supports reasoning / thinking" },
-  thinkDeeper: { mark: "thinkDeeper", label: "Think Deeper", desc: "Think Deeper Plugin: multi-step deep reasoning" },
-  speedMode: { mark: "speedMode", label: "Speed", desc: "Speed Mode: skips thinking for faster responses" },
-  jsonGuard: { mark: "jsonGuard", label: "JSON", desc: "JSON Guard: repairs unparseable JSON and tool arguments" },
-  contextSqueezer: { mark: "contextSqueezer", label: "Squeeze", desc: "Context Squeezer: trims old turns to fit the context window" },
+  imageVision: { mark: "imageVision", label: "OCR Image", desc: "Auto Image-to-Text OCR script" },
+  thinkDeeper: { mark: "thinkDeeper", label: "Adaptive CoT", desc: "Adaptive Thinking & Superpowers Chain of Thought" },
+  jsonGuard: { mark: "jsonGuard", label: "JSON Guard", desc: "JSON Guard & Schema Protector" },
+  openaiToolBridge: { mark: "openaiToolBridge", label: "Tool Bridge", desc: "Universal Tool Calling Bridge" },
+  antiSlop: { mark: "antiSlop", label: "Anti Slop", desc: "Anti-Slop Natural Output" },
 };
 
 // Realtime STT transport markers accepted on custom models - single source of
@@ -106,31 +107,23 @@ export function pluginMarksFor(entry) {
 // a plugin cannot have a key with no mark to draw or no label to explain it.
 export const PLUGIN_MARK_META = {
   imageVision: {
-    label: "Image Vision",
-    desc: "Image Vision plugin: image input handled by the plugin",
+    label: "OCR Image",
+    desc: "OCR Auto Image-to-Text: Automatically transcribes and converts text inside images for text-only models",
   },
   thinkDeeper: {
-    label: "Think Deeper",
-    desc: "Think Deeper plugin: multi-step deep reasoning",
-  },
-  speedMode: {
-    label: "Speed",
-    desc: "Speed Mode plugin: skips thinking for faster responses",
+    label: "Adaptive CoT",
+    desc: "Adaptive Thinking & Superpowers CoT: Deep multi-step reasoning combining Superpowers exploration and Chain of Thought",
   },
   jsonGuard: {
     label: "JSON Guard",
-    desc: "JSON Guard plugin: repairs unparseable JSON and tool arguments",
-  },
-  contextSqueezer: {
-    label: "Squeeze",
-    desc: "Context Squeezer plugin: trims old turns to fit the context window",
+    desc: "JSON Guard: Ensures output is valid JSON, strips markdown code fences, and protects tool-call schemas",
   },
   openaiToolBridge: {
     label: "Tool Bridge",
-    desc: "OpenAI Tool Bridge plugin: recovers tool calls a text-only model wrote out in prose",
+    desc: "Universal Tool Bridge: Bridges Function Calling / Tools for text-only models without native tool support",
   },
   antiSlop: {
     label: "Anti Slop",
-    desc: "Anti Slop plugin: injects the antislop rules so the model avoids generic AI UI, copy and code",
+    desc: "Anti-Slop Natural: Strips generic AI boilerplate and robotic preambles without repetitive jargon",
   },
 };

@@ -5,6 +5,7 @@ import PropTypes from "prop-types";
 import Modal from "./Modal";
 import ProviderIcon from "./ProviderIcon";
 import CapacityBadges from "./CapacityBadges";
+import ModelTierBadge from "./ModelTierBadge";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias } from "@/shared/constants/providers";
@@ -217,7 +218,10 @@ export default function ModelSelectModal({
         const { data } = await fetchSuggestedModels(fetcher);
         // The provider panel needs the whole catalogue, but this picker only
         // offers free-tier ids: the paid ones answer 401 without a key.
-        return [id, Array.isArray(data) ? data.filter((m) => m?.isFree === true) : []];
+        // Jev ids are free-tier but have no chat route (upstream answers
+        // ModelProtocolUnsupported on /chat/completions for them), so they are
+        // dropped here the same way the panel filter drops them.
+        return [id, Array.isArray(data) ? data.filter((m) => m?.isFree === true && m?.id !== "jev-1.13" && m?.id !== "jev-1.13-free" && m?.id !== "minimax-m3.1-flash-free") : []];
       })
     ).then((lists) => {
       if (cancelled) return;
@@ -315,6 +319,14 @@ export default function ModelSelectModal({
   const allProviders = useMemo(() => ({ ...OAUTH_PROVIDERS, ...FREE_PROVIDERS, ...FREE_TIER_PROVIDERS, ...APIKEY_PROVIDERS }), []);
 
   // Group models by provider with priority order
+  // Component scope, not inside the memo below: the count is printed in the group
+  // header at render time, and a helper closed over only the memo's locals throws a
+  // ReferenceError there - which unmounts the page through the error boundary.
+  const disabledCountFor = (providerId, alias) => {
+    const ids = new Set([...(disabledModels[alias] || []), ...(disabledModels[providerId] || [])]);
+    return ids.size;
+  };
+
   const groupedModels = useMemo(() => {
     const groups = {};
 
@@ -537,10 +549,10 @@ export default function ModelSelectModal({
         const customAliasIds = new Set(customAliasModels.map((m) => m.id));
         const customRegisteredModels = customModels
           .filter((m) => (m.providerAlias === alias || m.providerAlias?.toLowerCase() === alias?.toLowerCase()) && !hardcodedIds.has(m.id) && !customAliasIds.has(m.id))
-          .map((m) => ({ id: m.id, name: m.name || m.id, value: `${alias}/${m.id}`, isCustom: true }));
+          .map((m) => ({ id: m.id, name: m.name || m.id, value: `${alias}/${m.id}`, isCustom: true, isFree: m.isFree }));
 
         const merged = [
-          ...hardcodedModels.map((m) => ({ id: m.id, name: m.name, value: `${alias}/${m.id}`, kind: getModelKind(m) })),
+          ...hardcodedModels.map((m) => ({ id: m.id, name: m.name, value: `${alias}/${m.id}`, kind: getModelKind(m), isFree: m.isFree })),
           ...customAliasModels,
           ...customRegisteredModels,
         ];
@@ -614,6 +626,7 @@ export default function ModelSelectModal({
           value: modelAlias ? `${modelAlias}/${m.id}` : m.id,
           kind: getModelKind(m),
           isCustom: true,
+          isFree: m.isFree,
         };
 
         // A group already standing in for this alias keeps ownership of the model.
@@ -1030,6 +1043,7 @@ export default function ModelSelectModal({
                     )}
                     {studio.callName}
                     <span className="text-[9px] opacity-60 font-normal">custom</span>
+                    <ModelTierBadge model={studio.callName} />
                     <ContextTag caps={getCaps(studio.callName)} />
                     <CapacityBadges caps={getCaps(studio.callName)} />
                   </button>
@@ -1082,6 +1096,17 @@ export default function ModelSelectModal({
                 <span className="text-[10px] text-text-muted">
                   ({group.models.length})
                 </span>
+                {/* Disabled ids are filtered out of every group above, so without this
+                    count the picker silently offers fewer models than the provider
+                    publishes and reads as if the free tier were half-missing. */}
+                {disabledCountFor(providerId, group.alias) > 0 && (
+                  <span
+                    className="text-[10px] text-text-muted/70"
+                    title="Disabled models are hidden here - restore them on the provider page"
+                  >
+                    · {disabledCountFor(providerId, group.alias)} disabled
+                  </span>
+                )}
               </div>
 
             <div className="flex flex-wrap gap-1.5">
@@ -1118,12 +1143,14 @@ export default function ModelSelectModal({
                         <>
                           {model.name}
                           <span className="text-[9px] opacity-60 font-normal">custom</span>
+                          <ModelTierBadge model={model.id || model.value} providerId={providerId} isFree={model.isFree} />
                           <ContextTag caps={getCaps(model.value)} />
                           <CapacityBadges caps={getCaps(model.value)} />
                         </>
                       ) : (
                         <>
                           {model.name}
+                          <ModelTierBadge model={model.id || model.value} providerId={providerId} isFree={model.isFree} />
                           <ContextTag caps={getCaps(model.value)} />
                           <CapacityBadges caps={getCaps(model.value)} />
                         </>

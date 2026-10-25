@@ -38,32 +38,37 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
     console.log(`[standalone-assets] Copied custom-server.js to ${serverWrapperDestination}`);
   }
 
-  // Native helper binaries used at runtime by tunnel/network features (fork):
-  //  - cloudflared package binary (tunnel)
-  //  - kmp-tor bundled Tor resources (socks proxy, extracted on demand)
-  const pkgSource = resolve(projectRoot, "node_modules", "cloudflared", "bin");
-  const pkgDest = resolve(standaloneDir, "node_modules", "cloudflared", "bin");
-  if (existsSync(pkgSource)) {
-    cpSync(pkgSource, pkgDest, { recursive: true, force: true });
-    console.log(`[standalone-assets] Copied cloudflared binary to ${pkgDest}`);
-  }
-  const torSource = resolve(projectRoot, "node_modules", "kmp-tor.resource-exec-tor.linux-libc");
-  const torDest = resolve(standaloneDir, "node_modules", "kmp-tor.resource-exec-tor.linux-libc");
-  if (existsSync(torSource)) {
-    cpSync(torSource, torDest, { recursive: true, force: true });
-    console.log(`[standalone-assets] Copied kmp-tor resources to ${torDest}`);
-  }
-
   // custom-server.js imports server modules by absolute path under its own
-  // __dirname; next build only traces part of src/, so stage src/ and scripts/
-  // into standalone or getGuardModule() answers 503 "guard unavailable".
-  for (const dir of ["src", "scripts"]) {
+  // __dirname (dashboardGuard + auth-guard-hooks, securityLogRepo,
+  // dashboardSession, telegramBackup, backgroundTokenRefresh). `next build`
+  // only traces the subset of src/ that reached the webpack graph, so those
+  // files are absent from standalone/ and getGuardModule() finds nothing,
+  // answering 503 "guard unavailable" instead of serving. assemble.sh stages
+  // the same tree for the systemd unit; this makes the plain
+  // `npm run build && npm start` (and `bun run build:bun && bun run start:bun`)
+  // path work without running assemble.sh first.
+  for (const dir of ["src", "scripts", "open-sse"]) {
     const dirSource = resolve(projectRoot, dir);
     const dirDestination = resolve(standaloneDir, dir);
     if (!existsSync(dirSource)) continue;
     rmSync(dirDestination, { recursive: true, force: true });
     cpSync(dirSource, dirDestination, { recursive: true, force: true });
     console.log(`[standalone-assets] Copied ${dir}/ to ${dirDestination}`);
+  }
+
+  // The auth guard is one of those absolutely-loaded modules, and it imports
+  // `next/server`. Output-file tracing never sees that import - it is not in the
+  // webpack graph, it is a runtime import from a file copied after the build - so
+  // the standalone tree kept only a partial `next` package and the server
+  // answered 503 "guard unavailable" with ENOENT node_modules/next/server.js.
+  // assemble.sh has always mirrored the full package for the systemd unit; the
+  // npm/bun build path needs the same tree to be servable.
+  const nextPackageSource = resolve(projectRoot, "node_modules", "next");
+  const nextPackageDestination = resolve(standaloneDir, "node_modules", "next");
+  if (existsSync(nextPackageSource)) {
+    rmSync(nextPackageDestination, { recursive: true, force: true });
+    cpSync(nextPackageSource, nextPackageDestination, { recursive: true, force: true });
+    console.log(`[standalone-assets] Mirrored the next package to ${nextPackageDestination}`);
   }
 }
 
