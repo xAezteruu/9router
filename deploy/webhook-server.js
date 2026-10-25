@@ -33,7 +33,7 @@ http.createServer((req,res) => {
     running = true;
     res.writeHead(202); res.end("deploy triggered");
 
-    const child = spawn("/home/agentuser/9router/deploy/bgSwap.sh", ["1"], { detached: true, stdio: "ignore" });
+    const child = spawn("/home/agentuser/9router/deploy/bgSwap-panel.sh", ["1"], { detached: true, stdio: "ignore" });
     child.on("exit", c => { log(`bgSwap exit=${c}`); running = false; });
   });
 }).listen(PORT, "127.0.0.1", () => log(`webhook listening :${PORT}`));
