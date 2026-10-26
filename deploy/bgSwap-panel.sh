@@ -85,6 +85,15 @@ sudo cp -a "$REPO/.next/standalone/." "$ARTIFACT/"
 sudo cp -a "$REPO/.next/static" "$ARTIFACT/.next/static"
 sudo cp -a "$REPO/public" "$ARTIFACT/public"
 [ -f "$ARTIFACT/server.js" ] || { log "FATAL: artifact missing server.js"; exit 1; }
+# src/ raw imports need full runtime deps; standalone tracing misses some.
+# Hardlink complete node_modules from proven full install on ACTIVE volume.
+AV_NM="$([ "$ACTIVE" = B ] && echo "$A_VOL" || echo "$B_VOL")/node_modules"
+if [ -d "$AV_NM/uuid" ]; then
+  sudo rm -rf "$ARTIFACT/node_modules"
+  sudo cp -al "$AV_NM" "$ARTIFACT/node_modules"
+  sudo chown -R agentuser:agentuser "$ARTIFACT/node_modules"
+  log "node_modules hardlinked from active volume"
+fi
 # .env: dari repo (sumber kebenaran), buang DATA_DIR override (shared DB mount), force bind 0.0.0.0
 grep -v '^DATA_DIR=' "$REPO/.env" > "$ARTIFACT/.env" 2>/dev/null || sudo cp "$REPO/.env" "$ARTIFACT/.env"
 grep -q '^HOSTNAME=' "$ARTIFACT/.env" && sudo sed -i 's/^HOSTNAME=.*/HOSTNAME=0.0.0.0/' "$ARTIFACT/.env" || echo 'HOSTNAME=0.0.0.0' | sudo tee -a "$ARTIFACT/.env" >/dev/null
