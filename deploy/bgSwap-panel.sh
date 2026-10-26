@@ -106,12 +106,12 @@ sudo chown -R 995:987 "$VB/.9router"
 
 # 4. start standby, wait healthy
 power "$SA" start
-if ! wait_state "$SA" up 360; then
-  log "WARN: state not running after 360s - direct restart retry"
+# wings state flaps during npm-install boot phase; judge by HTTP health only
+if ! wait_http "$PB" 600; then
+  log "WARN: no HTTP health after 600s - direct restart retry"
   power "$SA" stop; sleep 5; power "$SA" start
-  wait_state "$SA" up 360 || { log "FATAL: standby failed to boot"; exit 1; }
+  wait_http "$PB" 600 || { log "FATAL: standby failed to boot"; exit 1; }
 fi
-wait_http "$PB" 360 || { log "FATAL: standby /login not healthy"; power "$SA" stop; exit 1; }
 CHUNK=$(sudo ls "$VB/.next/static/chunks/" 2>/dev/null | grep '\.js$' | head -1)
 if [ -n "$CHUNK" ] && [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "http://$NODE_UUID:$PB/_next/static/chunks/$CHUNK")" != "200" ]; then
   log "FATAL: chunk JS 404 - stale build"; power "$SA" stop; exit 1
