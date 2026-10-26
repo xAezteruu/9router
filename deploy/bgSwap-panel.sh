@@ -100,6 +100,9 @@ sudo cp -al "$ARTIFACT/." "$VB/"   # hardlink: volume hampir 0 extra storage
 sudo cp "$ARTIFACT/.env" "$VB/.env"
 if [ "$SA" = "$A_IDENT" ]; then sudo sed -i "s/^PORT=.*/PORT=$A_PORT/" "$VB/.env"; else sudo sed -i "s/^PORT=.*/PORT=$B_PORT/" "$VB/.env"; fi
 sudo chown -R 995:995 "$VB"
+# runtime dirs: app writes .9router/logs etc (db comes from panel mount)
+sudo mkdir -p "$VB/.9router/logs" "$VB/.9router/db"
+sudo chown -R 995:987 "$VB/.9router"
 
 # 4. start standby, wait healthy
 power "$SA" start
