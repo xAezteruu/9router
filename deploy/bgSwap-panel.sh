@@ -96,7 +96,7 @@ log "host build OK ($(du -sh "$ARTIFACT" | cut -f1))"
 VB_NAME=$([ "$SA" = "$B_IDENT" ] && echo "9router-b" || echo "9router-a")
 log "deploying artifact to standby volume $VB_NAME ..."
 sudo find "$VB" -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null
-sudo cp -a "$ARTIFACT/." "$VB/"
+sudo cp -al "$ARTIFACT/." "$VB/"   # hardlink: volume hampir 0 extra storage
 sudo cp "$ARTIFACT/.env" "$VB/.env"
 if [ "$SA" = "$A_IDENT" ]; then sudo sed -i "s/^PORT=.*/PORT=$A_PORT/" "$VB/.env"; else sudo sed -i "s/^PORT=.*/PORT=$B_PORT/" "$VB/.env"; fi
 sudo chown -R 995:995 "$VB"
