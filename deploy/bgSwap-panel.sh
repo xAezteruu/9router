@@ -85,6 +85,10 @@ sudo cp -a "$REPO/.next/standalone/." "$ARTIFACT/"
 sudo cp -a "$REPO/.next/static" "$ARTIFACT/.next/static"
 sudo cp -a "$REPO/public" "$ARTIFACT/public"
 [ -f "$ARTIFACT/server.js" ] || { log "FATAL: artifact missing server.js"; exit 1; }
+# .env: dari repo (sumber kebenaran), buang DATA_DIR override (shared DB mount), force bind 0.0.0.0
+grep -v '^DATA_DIR=' "$REPO/.env" > "$ARTIFACT/.env" 2>/dev/null || sudo cp "$REPO/.env" "$ARTIFACT/.env"
+grep -q '^HOSTNAME=' "$ARTIFACT/.env" && sudo sed -i 's/^HOSTNAME=.*/HOSTNAME=0.0.0.0/' "$ARTIFACT/.env" || echo 'HOSTNAME=0.0.0.0' | sudo tee -a "$ARTIFACT/.env" >/dev/null
+sudo chown agentuser:agentuser "$ARTIFACT/.env"
 sudo chown -R agentuser:agentuser "$ARTIFACT"
 log "host build OK ($(du -sh "$ARTIFACT" | cut -f1))"
 
