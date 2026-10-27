@@ -64,7 +64,7 @@ function injectZcodePlanShape(body, model, credentials) {
   return {
     ...body,
     system: [...zcodeBlocks(model), ...userSystem],
-    metadata: { ...(body.metadata || {}), user_id: `user_${jwt.slice(0, 8)}` },
+    metadata: { ...(body.metadata || {}), user_id: credentials?.providerSpecificData?.userId || `user_${jwt.slice(0, 8)}` },
     messages: [
       { role: "user", content: [{ type: "text", text: `${sr.open}\n${prefixText}\n${sr.close}` }] },
       ...messages,
@@ -105,7 +105,7 @@ export class ZcodeExecutor extends GlmExecutor {
    * providers). The zcode-plan leg validates the Bearer header; a request
    * carrying only x-api-key is rejected 401.
    */
-  buildHeaders(credentials, stream = true, model = null, opencodeIdentity = null, urlIndex = 0) {
+  buildHeaders(credentials, stream = true, model = null, opencodeIdentity = null, urlIndex = 0, body = null) {
     // Track the leg even when the retry loop calls buildUrl() first (it sets
     // this._urlIndex); urlIndex param wins when the caller passes it.
     const leg = typeof urlIndex === "number" && urlIndex > 0 ? urlIndex : this._urlIndex;
@@ -124,6 +124,16 @@ export class ZcodeExecutor extends GlmExecutor {
         || token;
       if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
       delete headers["x-api-key"];
+      // Desktop-client runtime headers: the zcode-plan gateway fingerprints
+      // them (verified via zcode-agent-kit 3.11.2 mirror — without them the
+      // gateway answers 3012 "unusual activity").
+      headers["X-Device-Mid"] = credentials?.providerSpecificData?.deviceMid
+        || credentials?.providerSpecificData?.device_mid
+        || headers["X-Device-Mid"]
+        || "9r-" + (credentials?.id || "anon");
+      headers["X-Platform"] = "linux";
+      headers["X-ZCode-App-Version"] = "3.11.2";
+      headers["User-Agent"] = "ZCode/3.11.2";
     } else if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
