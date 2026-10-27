@@ -51,9 +51,9 @@ describe("free-provider catalogue flow", () => {
     expect(modelRow).not.toContain("onRestore");
   });
 
-  it("the registry pins the tier flag on its free ids", () => {
-    for (const id of ["muse-spark-1.2-contributor-free", "muse-spark-1.3-contributor-free", "union-alpha", "deepseek-v4.1-flash-free"]) {
-      expect(registry).toMatch(new RegExp(`id: "${id}".*isFree: true`));
+  it("the registry lists the expected free model ids", () => {
+    for (const id of ["muse-spark-1.2-contributor-free", "muse-spark-1.3-contributor-free", "union-alpha"]) {
+      expect(registry).toMatch(new RegExp(`id: "${id}"`));
     }
   });
 

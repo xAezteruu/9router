@@ -16,7 +16,7 @@ describe("OpenCode Transport Sidecar Fallback and Isolation", () => {
       OPENCODE_TRANSPORT_CONFIG.mode = "off";
       const res = await fetchViaTransport("https://opencode.ai/inference/v1/chat/completions", {
         method: "POST",
-        body: JSON.stringify({ model: "deepseek-v4.1-flash-free", messages: [{ role: "user", content: "hi" }] }),
+        body: JSON.stringify({ model: "muse-spark-1.2-contributor-free", messages: [{ role: "user", content: "hi" }] }),
       });
       expect(res).toBeNull();
     } finally {

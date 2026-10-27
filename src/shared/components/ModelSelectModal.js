@@ -221,7 +221,7 @@ export default function ModelSelectModal({
         // Jev ids are free-tier but have no chat route (upstream answers
         // ModelProtocolUnsupported on /chat/completions for them), so they are
         // dropped here the same way the panel filter drops them.
-        return [id, Array.isArray(data) ? data.filter((m) => m?.isFree === true && m?.id !== "jev-1.13" && m?.id !== "jev-1.13-free" && m?.id !== "minimax-m3.1-flash-free") : []];
+        return [id, Array.isArray(data) ? data.filter((m) => (m?.isFree === true || m?.id?.endsWith("-free")) && m?.id !== "jev-1.13" && m?.id !== "jev-1.13-free" && m?.id !== "minimax-m3.1-flash-free") : []];
       })
     ).then((lists) => {
       if (cancelled) return;

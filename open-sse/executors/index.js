@@ -11,13 +11,9 @@ import { CodexExecutor } from "./codex.js";
 import { CursorExecutor } from "./cursor.js";
 import { VertexExecutor } from "./vertex.js";
 import { OpenCodeExecutor } from "./opencode.js";
-import { OpenCodeV2Executor } from "./opencode-v2.js";
 import { OpenCodeGoExecutor } from "./opencode-go.js";
 import { OpenCodeZenExecutor } from "./opencode-zen.js";
 import { GrokCliExecutor } from "./grok-cli.js";
-import { DeepSeekWebExecutor } from "./deepseek-web.js";
-import { GeminiWebExecutor } from "./gemini-web.js";
-import { KimiWebExecutor } from "./kimi-web.js";
 import { OllamaLocalExecutor } from "./ollama-local.js";
 import { CommandCodeExecutor } from "./commandcode.js";
 import { XiaomiTokenplanExecutor } from "./xiaomi-tokenplan.js";
@@ -51,24 +47,12 @@ const executors = {
   vertex: new VertexExecutor("vertex"),
   "vertex-partner": new VertexExecutor("vertex-partner"),
   opencode: new OpenCodeExecutor(),
-  oc1: new OpenCodeExecutor(),
   oc: new OpenCodeExecutor(),
-  "opencode-v2": new OpenCodeV2Executor(),
-  oc2: new OpenCodeV2Executor(),
   "opencode-go": new OpenCodeGoExecutor(),
   "opencode-zen": new OpenCodeZenExecutor(),
   "grok-cli": new GrokCliExecutor(),
   gcli: new GrokCliExecutor(), // Alias
   gb: new GrokCliExecutor(), // Alias (Grok Build)
-  "deepseek-web": new DeepSeekWebExecutor(),
-  dsw: new DeepSeekWebExecutor(),
-  "deepseek-cookie": new DeepSeekWebExecutor(),
-  "gemini-web": new GeminiWebExecutor(),
-  gweb: new GeminiWebExecutor(),
-  "gemini-cookie": new GeminiWebExecutor(),
-  "kimi-web": new KimiWebExecutor(),
-  kweb: new KimiWebExecutor(),
-  "kimi-cookie": new KimiWebExecutor(),
   "ollama-local": new OllamaLocalExecutor(),
   commandcode: new CommandCodeExecutor(),
   "xiaomi-tokenplan": new XiaomiTokenplanExecutor(),
@@ -127,7 +111,6 @@ export { CursorExecutor } from "./cursor.js";
 export { VertexExecutor } from "./vertex.js";
 export { DefaultExecutor } from "./default.js";
 export { OpenCodeExecutor } from "./opencode.js";
-export { OpenCodeV2Executor } from "./opencode-v2.js";
 export { OpenCodeGoExecutor } from "./opencode-go.js";
 export { OpenCodeZenExecutor } from "./opencode-zen.js";
 export { GrokCliExecutor } from "./grok-cli.js";

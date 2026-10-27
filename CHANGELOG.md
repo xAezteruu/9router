@@ -1,3 +1,19 @@
+# v0.5.321 (2026-10-27)
+
+## Breaking Changes
+- **Removed all webCookie providers**: deepseek-web, gemini-web, kimi-web, muse-web, chatgpt-web, uc-web, and opencode-v2 (OpenCode Free V2) have been removed from the registry, executors, and all related UI/API routes.
+- **Renamed `oc1/` prefix to `oc/`**: OpenCode Free V1 now uses `oc/` as its primary alias instead of `oc1/`. The `oc1` alias is removed; use `oc` or `opencode` going forward.
+
+## What Was Changed
+- Deleted registry files: `deepseek-web.js`, `gemini-web.js`, `kimi-web.js`, `muse-web.js`, `chatgpt-web.js`, `uc-web.js`, `opencode-v2.js`.
+- Deleted executor files: `deepseek-web.js`, `gemini-web.js`, `kimi-web.js`, `opencode-v2.js`.
+- Cleaned up all references in `registry/index.js`, `executors/index.js`, `providerModels.js`, `chat.js`, `providerIcon.js`, `probeBudget.js`, `cookieCapture.js`, `validate/route.js`, `testUtils.js`, `AddApiKeyModal.js`, and test files.
+- Updated `opencode.js` registry: `alias: "oc"`, `uiAlias: "oc"`, `textIcon: "OC"`, `display.name: "OpenCode Free"`.
+- Simplified `WEB_COOKIE_PROVIDERS` set to empty (all web cookie providers removed).
+- Removed opencode-v2 specific UI badges and conditional logic from dashboard pages.
+
+---
+
 # v0.5.320 (2026-10-27)
 
 ## Features

@@ -526,16 +526,11 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     // The session branch carries the same deadline as the generic one below:
     // past the caller's budget every further proxy answers the same
     // spent-quota 429 into a void, so hand back the last error now.
-    if ((provider === "opencode" && result.status === 429 || provider === "opencode-v2" && result.status === 429)
+    if (provider === "opencode" && result.status === 429
         && /free\s*usage\s*limit/i.test(result.error || "")) {
       try {
-        if (provider === "opencode-v2") {
-          const { rotateOpencodeV2Session } = await import("open-sse/executors/opencode-v2.js");
-          rotateOpencodeV2Session(refreshedCredentials);
-        } else {
-          const { rotateOpencodeSession } = await import("open-sse/executors/opencode.js");
-          rotateOpencodeSession(refreshedCredentials);
-        }
+        const { rotateOpencodeSession } = await import("open-sse/executors/opencode.js");
+        rotateOpencodeSession(refreshedCredentials);
       } catch { /* a failed rotation must not block the fallback */ }
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} SESSION ROTATED (free quota spent) → NEXT ACCOUNT`);
       excludeConnectionIds.add(credentials.connectionId);

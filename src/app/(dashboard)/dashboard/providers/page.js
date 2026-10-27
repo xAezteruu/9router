@@ -810,17 +810,11 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, opencod
                   </Badge>
                 ) : isNoAuth ? (
                   <Badge
-                    variant={
-                      providerId === "opencode-v2" && !opencodeInstalled
-                        ? "warning"
-                        : provider.statusBadge?.variant || "success"
-                    }
+                    variant={provider.statusBadge?.variant || "success"}
                     size="sm"
                     dot
                   >
-                    {providerId === "opencode-v2" && !opencodeInstalled
-                      ? "Need Configuration"
-                      : provider.statusBadge?.label || "Ready"}
+                    {provider.statusBadge?.label || "Ready"}
                   </Badge>
                 ) : (
                   <>

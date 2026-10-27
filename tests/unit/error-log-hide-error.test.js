@@ -9,8 +9,8 @@ describe("Error Log & Hide Error System", () => {
 
   it("records error logs with timestamp and metadata", async () => {
     await recordErrorLog({
-      provider: "opencode-v2",
-      model: "oc2/beam-free",
+      provider: "opencode",
+      model: "oc/beam-free",
       endpoint: "chat",
       statusCode: 502,
       errorMessage: "Provider rate limit 429",
@@ -20,8 +20,8 @@ describe("Error Log & Hide Error System", () => {
 
     const logs = await getErrorLogs();
     expect(logs.length).toBe(1);
-    expect(logs[0].provider).toBe("opencode-v2");
-    expect(logs[0].model).toBe("oc2/beam-free");
+    expect(logs[0].provider).toBe("opencode");
+    expect(logs[0].model).toBe("oc/beam-free");
     expect(logs[0].statusCode).toBe(502);
     expect(logs[0].errorMessage).toBe("Provider rate limit 429");
     expect(logs[0].stack).toContain("test.js:1");
