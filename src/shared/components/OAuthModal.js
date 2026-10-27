@@ -290,6 +290,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         "freebuff",
         "muse",
         "glm",
+        "zcode",
         "minimax-code",
         "minimax-code-global",
         "nous",
@@ -335,7 +336,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
             }
           : (provider === "kimi" || provider === "kimi-coding")
           ? { _kimiDeviceId: data._kimiDeviceId }
-          : provider === "glm"
+          : (provider === "glm" || provider === "zcode")
           ? { _zcodePollToken: data._zcodePollToken }
           : (provider === "minimax-code" || provider === "minimax-code-global")
           ? { _minimaxPollByUser: data._minimaxPollByUser }

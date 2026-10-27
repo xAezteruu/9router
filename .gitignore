@@ -109,3 +109,4 @@ debug.log
 /^9r$
 *.tar.gz
 .automerge.log
+.bgdeploy.log

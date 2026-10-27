@@ -77,7 +77,8 @@ export { extractCodexAccountInfo, fetchKiroProfileArn };
  */
 export function getProvider(name) {
   // Legacy kimi-coding → kimi (dual-auth merge)
-  const key = name === "kimi-coding" ? "kimi" : name;
+  // zcode → glm (ZCode OAuth rides the glm device-code flow; connection saved as zcode)
+  const key = name === "kimi-coding" ? "kimi" : name === "zcode" ? "glm" : name;
   const provider = PROVIDERS[key];
   if (!provider) {
     throw new Error(`Unknown provider: ${name}`);
