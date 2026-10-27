@@ -79,3 +79,25 @@ export default function Loading({ type = "spinner", ...props }) {
       return <Spinner {...props} />;
   }
 }
+
+export function ProgressCard({ title, message, progress = null, fixed = true, className, onCancel, onBackground }) {
+  // Keyed by title: a second operation remounts the banner instead of
+  // inheriting the previous one's collapsed state.
+  return (
+    <LongTaskBanner
+      key={title}
+      title={title}
+      message={message}
+      progress={progress ?? null}
+      fixed={fixed}
+      className={className}
+      onCancel={onCancel}
+      // The banner offers "Run in background" itself on a fixed overlay, so an
+      // absent callback still leaves the operator a way out.
+      onBackground={onBackground}
+      canExpand
+    />
+  );
+}
+
+// Skeleton loading
