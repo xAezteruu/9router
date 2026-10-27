@@ -1,0 +1,106 @@
+[2026-10-26 05:36:34] === deploy start; ACTIVE=B (standby will be built & swapped in) ===
+error: cannot open '.git/FETCH_HEAD': Permission denied
+[2026-10-26 05:36:34] WARN: git pull failed, using current tree
+[2026-10-26 05:36:34] building standby volume 9router-b ...
+[2026-10-26 05:44:15] standby build OK
+[2026-10-26 05:45:06] FATAL: standby failed to boot
+[2026-10-26 05:48:52] === deploy start; ACTIVE=B (standby will be built & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 05:48:53] WARN: git pull failed, using current tree
+[2026-10-26 05:48:53] building standby volume 9router-a ...
+[2026-10-26 05:53:21] standby build OK
+[2026-10-26 05:57:31] === deploy start; ACTIVE=A (standby will be built & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 05:57:33] WARN: git pull failed, using current tree
+[2026-10-26 05:57:33] building standby volume 9router-b ...
+[2026-10-26 06:17:41] === deploy start; ACTIVE=A (standby will be built & swapped in) ===
+error: cannot open '.git/FETCH_HEAD': Permission denied
+[2026-10-26 06:17:41] WARN: git pull failed, using current tree
+[2026-10-26 06:17:41] building standby volume 9router-b ...
+[2026-10-26 06:29:41] standby build OK
+[2026-10-26 06:30:57] WARN: state not running after 360s — trying wings direct restart
+[2026-10-26 06:32:17] FATAL: standby failed to boot
+[2026-10-26 06:47:23] === deploy start; ACTIVE=A (standby will be built & swapped in) ===
+error: cannot open '.git/FETCH_HEAD': Permission denied
+[2026-10-26 06:47:23] WARN: git pull failed, using current tree
+[2026-10-26 06:47:23] building standby volume 9router-b ...
+[2026-10-26 06:49:44] standby build OK
+[2026-10-26 06:50:59] WARN: state not running after 360s — trying wings direct restart
+[2026-10-26 06:52:19] FATAL: standby failed to boot
+[2026-10-26 06:53:23] === deploy start; ACTIVE=A (standby will be built & swapped in) ===
+error: cannot open '.git/FETCH_HEAD': Permission denied
+[2026-10-26 06:53:23] WARN: git pull failed, using current tree
+[2026-10-26 06:53:23] building standby volume 9router-b ...
+[2026-10-26 06:56:56] standby build OK
+[2026-10-26 06:58:11] WARN: state not running after 360s — trying wings direct restart
+[2026-10-26 06:59:31] FATAL: standby failed to boot
+[2026-10-26 07:17:03] === deploy start; ACTIVE=B (standby will be rebuilt & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 07:17:05] WARN: git pull failed, using current tree
+[2026-10-26 07:17:05] host build starting ...
+[2026-10-26 07:18:43] host build OK (230M)
+[2026-10-26 07:18:43] deploying artifact to standby volume 9router-a ...
+[2026-10-26 07:24:45] WARN: state not running after 360s - direct restart retry
+[2026-10-26 07:30:51] FATAL: standby failed to boot
+[2026-10-26 07:47:15] === deploy start; ACTIVE=B (standby will be rebuilt & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 07:47:17] WARN: git pull failed, using current tree
+[2026-10-26 07:47:17] host build starting ...
+[2026-10-26 07:49:24] host build OK (989M)
+[2026-10-26 07:49:24] deploying artifact to standby volume 9router-a ...
+[2026-10-26 07:55:37] WARN: state not running after 360s - direct restart retry
+[2026-10-26 08:01:43] FATAL: standby failed to boot
+[2026-10-26 08:08:18] === deploy start; ACTIVE=A (standby will be rebuilt & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 08:08:20] WARN: git pull failed, using current tree
+[2026-10-26 08:08:20] host build starting ...
+[2026-10-26 08:10:01] host build OK (230M)
+[2026-10-26 08:10:01] deploying artifact to standby volume 9router-b ...
+[2026-10-26 08:16:03] WARN: state not running after 360s - direct restart retry
+[2026-10-26 08:22:09] FATAL: standby failed to boot
+[2026-10-26 08:44:42] === deploy start; ACTIVE=A (standby will be rebuilt & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 08:44:44] WARN: git pull failed, using current tree
+[2026-10-26 08:44:44] host build starting ...
+[2026-10-26 08:46:30] host build OK (989M)
+[2026-10-26 08:46:30] deploying artifact to standby volume 9router-b ...
+[2026-10-26 08:52:31] WARN: state not running after 360s - direct restart retry
+[2026-10-26 08:58:37] FATAL: standby failed to boot
+[2026-10-26 08:59:28] === deploy start; ACTIVE=A (standby will be rebuilt & swapped in) ===
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26 08:59:30] WARN: git pull failed, using current tree
+[2026-10-26 08:59:30] host build starting ...
+[2026-10-26 09:01:11] host build OK (230M)
+[2026-10-26 09:01:11] deploying artifact to standby volume 9router-b ...
+[2026-10-26 09:01:12] standby healthy on :3101
+[2026-10-26 09:01:14] traffic flipped to :3101
+[2026-10-26 09:01:14] drain done (0s)
+[2026-10-26 09:01:19] === deploy done; NEW ACTIVE=B ===

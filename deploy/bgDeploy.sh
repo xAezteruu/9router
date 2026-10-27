@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# bgDeploy.sh — blue-green deploy: update standby, flip, update primary, flip back
+# bgDeploy.sh v2 — alur: git pull → build → ship standby (B) → flip caddy →
+#                  drain A → stop A → ship primary (A) → flip balik → drain B → stop B
+# End state: A aktif (primary), B standby mati. Keduanya versi baru.
 # usage: bgDeploy.sh [notify]
-#   notify=1 → send Telegram updates per step
+#   notify=1 → Telegram updates per step
 set -uo pipefail
 REPO="/home/agentuser/9router"
 DEPLOY="$REPO/deploy"
 NOTIFY="${1:-1}"
 LOG="$REPO/.bgdeploy.log"
+TS_IP="100.64.1.3"
 
 TG_ENV="$HOME/.hermes/.env"
 tg() { # $1 message
@@ -21,92 +24,156 @@ tg() { # $1 message
 
 log() { echo "[$(date -Is)] $*" >> "$LOG"; }
 
-which_bg() { # prints a or b — the node Caddy currently points to (source of truth: /etc/caddy/Caddyfile)
-  sudo grep -q 'reverse_proxy 127.0.0.1:3100' /etc/caddy/Caddyfile && echo a || echo b
+# node a = :3100 (primary), node b = :3101 (standby) — keduanya container Ptero
+port_of()  { [ "$1" = "a" ] && echo 3100 || echo 3101; }
+cid_of()   { # container NAME (bukan ID — volume pterodactyl pakai nama penuh UUID)
+  for c in $(sudo docker ps -aq); do
+    sudo docker inspect "$c" --format '{{json .HostConfig.PortBindings}}' 2>/dev/null \
+      | grep -q "\"${1}/tcp\"" && { sudo docker inspect "$c" --format '{{.Name}}' | sed 's|/||'; return 0; }
+  done
+  return 1
+}
+which_bg() { # node yang sedang dilayani caddy
+  sudo grep -q "reverse_proxy ${TS_IP}:3100" /etc/caddy/Caddyfile && echo a || echo b
 }
 
-other() { [ "$1" = "a" ] && echo b || echo a; }
-port_of() { [ "$1" = "a" ] && echo 3100 || echo 3101; }
+health() { bash "$DEPLOY/bg-health.sh" "$1" >/dev/null 2>&1; }
 
-restart_node() { # $1 = a|b
-  local n="$1" p; p=$(port_of "$n")
-  pm2 restart "9router-${n}" --update-env >/dev/null 2>&1 \
-    || pm2 start "$REPO/custom-server.js" --name "9router-${n}" --cwd "$REPO" --update-env --env production -- --port "$p" >/dev/null 2>&1
+sync_build() { # $1 = volume path — build artifact saja, TANPA node_modules & TANPA dotfiles runtime
+  sudo rsync -a --delete \
+    --exclude node_modules --exclude .git --exclude .local \
+    --exclude .npm --exclude .config --exclude .env \
+    --exclude '.env.*' --exclude logs --exclude deploy \
+    --exclude '.9router' --exclude '.cache' --exclude '.pm2' \
+    --exclude '.automerge*' --exclude '.bgdeploy.log' --exclude '.bgswap*' \
+    --exclude 'tests' --exclude 'docs' --exclude 'images' --exclude 'gitbook' \
+    --exclude 'cli' --exclude 'ecosystem*' --exclude '.next/cache' \
+    "$REPO/" "$1/"
 }
 
-# custom-server.js reads PORT env; ensure each node binds its port via PM2 env
-ensure_node_env() {
-  # node a
-  pm2 delete 9router-a >/dev/null 2>&1 || true
-  PORT=3100 pm2 start "$REPO/custom-server.js" --name 9router-a --cwd "$REPO" --env production >/dev/null 2>&1
-  # node b
-  pm2 delete 9router-b >/dev/null 2>&1 || true
-  PORT=3101 pm2 start "$REPO/custom-server.js" --name 9router-b --cwd "$REPO" --env production >/dev/null 2>&1
+refresh_nm() { # $1 = volume path — hardlink ulang node_modules host (hemat disk, ikut versi baru)
+  sudo rm -rf "$1/node_modules"
+  sudo cp -al "$REPO/node_modules" "$1/node_modules"
+}
+
+start_node() { # $1 = a|b — stop → refresh nm → build sync → start → health
+  local n="$1" p cid vol
+  p=$(port_of "$n"); cid=$(cid_of "$p"); vol="/var/lib/pterodactyl/volumes/$cid"
+  [ -n "$cid" ] || { log "start_node FAIL: container node $n tidak ketemu"; return 1; }
+  sudo docker stop "$cid" >/dev/null 2>&1
+  refresh_nm "$vol" || return 1
+  sync_build "$vol" || return 1
+  sudo docker start "$cid" >/dev/null 2>&1
+  for i in $(seq 1 12); do health "$p" && return 0; sleep 5; done
+  log "start_node FAIL: node $n unhealthy: $(bash "$DEPLOY/bg-health.sh" "$p" 2>&1 | tail -1)"
+  return 1
+}
+
+drain() { # $1 = a|b — tunggu sampai node tidak ada request lagi (max 180s, lalu paksa)
+  local n="$1" p cid quiet=0 elapsed=0 hits
+  p=$(port_of "$n"); cid=$(cid_of "$p")
+  log "drain node $n (:${p})..."
+  while [ $elapsed -lt 180 ]; do
+    hits=$(sudo docker logs --since 8s "$cid" 2>&1 | grep -cE "▶|POST|GET /" || true)
+    if [ "$hits" -eq 0 ]; then
+      quiet=$((quiet+1))
+      [ $quiet -ge 2 ] && { log "drain: node $n quiet ${elapsed}s — aman dimatikan"; return 0; }
+    else
+      quiet=0
+    fi
+    sleep 8; elapsed=$((elapsed+8))
+  done
+  log "drain WARN: node $n masih ada traffic setelah 180s — paksa lanjut"
+  return 0
 }
 
 exec >>"$LOG" 2>&1
-log "=== bgDeploy start (notify=$NOTIFY) ==="
+log "=== bgDeploy v2 start (notify=$NOTIFY) ==="
+tg "🚀 Deploy mulai: git pull → build → B → flip → A → flip balik"
 
-ACTIVE=$(which_bg)
-STANDBY=$(other "$ACTIVE")
-log "active=$ACTIVE standby=$STANDBY"
-
-# -------- STEP 1: update standby --------
-SP=$(port_of "$STANDBY")
-log "step1: update node $STANDBY (:${SP})"
-tg "1/5 Update node ${STANDBY^^} (standby)..."
-
-restart_node "$STANDBY"
-sleep 6
-
-# -------- STEP 2: warm & verify standby --------
-HEALTH=""
-for i in $(seq 1 12); do
-  HEALTH=$("$DEPLOY/bg-health.sh" "$SP") && break
-  sleep 5
-done
-if ! "$DEPLOY/bg-health.sh" "$SP" >/dev/null 2>&1; then
-  log "step2 FAIL: standby $STANDBY unhealthy: $HEALTH"
-  tg "❌ Node ${STANDBY^^} gagal health check setelah update — BATAL, traffic tetap di ${ACTIVE^^}. Prod aman."
-  exit 1
-fi
-log "step2: standby healthy: $HEALTH"
-
-# -------- STEP 3: flip to standby --------
-if ! "$DEPLOY/bgSetActive.sh" "$STANDBY" >>"$LOG" 2>&1; then
-  log "step3 FAIL: flip refused (target was unhealthy)"
-  tg "❌ Flip ke ${STANDBY^^} ditolak (target unhealthy). Traffic tetap di ${ACTIVE^^}."
-  exit 1
-fi
-ACTIVE="$STANDBY"
-log "step3: traffic flipped to $ACTIVE"
-OLD=$(other "$STANDBY")
-tg "🔄 Traffic pindah ke ${STANDBY^^} (versi BARU). Sekarang update ${OLD^^}..."
-
-# -------- STEP 4: update old primary --------
-OP=$(port_of "$OLD")
-log "step4: update node $OLD (:${OP})"
-restart_node "$OLD"
-sleep 6
-
-# -------- STEP 5: verify old node, flip back if healthy --------
-for i in $(seq 1 12); do
-  HEALTH=$("$DEPLOY/bg-health.sh" "$OP") && break
-  sleep 5
-done
-if "$DEPLOY/bg-health.sh" "$OP" >/dev/null 2>&1; then
-  if "$DEPLOY/bgSetActive.sh" "$OLD" >>"$LOG" 2>&1; then
-    ACTIVE="$OLD"
-    log "step5: flipped back to primary $ACTIVE — both nodes healthy on NEW version"
-    tg "✅ DEPLOY SELESAI — kedua node sehat di versi baru. Traffic kembali ke ${ACTIVE^^} (primary), ${STANDBY^^} standby."
-  else
-    log "step5 WARN: old node healthy but flip back failed — staying on $ACTIVE"
-    tg "⚠️ Node lama sehat tapi flip-back gagal. Traffic tetap di ${ACTIVE^^} (jalan normal)."
-  fi
+# -------- STEP 0: git pull dari upstream (conflict: upstream menang, package.json tetap fork) --------
+cd "$REPO" || exit 1
+LOCK_BEFORE=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1)
+git fetch upstream >>"$LOG" 2>&1 \
+  || { log "step0 FAIL: git fetch upstream"; tg "❌ git fetch gagal — deploy dibatalkan, prod aman"; exit 1; }
+BEHIND=$(git rev-list --count HEAD..upstream/master 2>/dev/null || echo 0)
+if [ "$BEHIND" -eq 0 ]; then
+  log "step0: sudah up-to-date dengan upstream/master (behind=0)"
 else
-  log "step5 WARN: old node $OLD unhealthy after update — traffic stays on $ACTIVE (new version)"
-  tg "⚠️ Node lama ${OLD^^} unhealthy setelah update — traffic TETAP di ${ACTIVE^^} (versi baru, jalan normal). Node lama butuh dicek."
+  if ! git merge upstream/master --no-edit -X theirs >>"$LOG" 2>&1; then
+    if git status --porcelain | grep -q '^UU'; then
+      git checkout --theirs . >/dev/null 2>&1
+      git checkout --ours package.json >/dev/null 2>&1
+      git add -A && git commit -m "chore: merge upstream (keep fork package.json)" >>"$LOG" 2>&1 || true
+      log "git merge: conflict di-resolve (upstream wins, package.json fork)"
+    else
+      log "step0 FAIL: git merge gagal total"
+      tg "❌ git merge gagal — deploy dibatalkan, prod aman"
+      exit 1
+    fi
+  fi
+  log "step0: merged upstream/master ($BEHIND commits)"
 fi
+LOCK_AFTER=$(md5sum package-lock.json 2>/dev/null | cut -d' ' -f1)
+log "step0: git pull OK (lock changed: $([ "$LOCK_BEFORE" != "$LOCK_AFTER" ] && echo yes || echo no))"
 
-log "=== bgDeploy done, active=$ACTIVE ==="
+# -------- STEP 1: npm install (hanya kalau lockfile berubah) + build --------
+if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
+  tg "📦 npm install (lockfile berubah)..."
+  npm install --registry=https://registry.npmjs.org --no-audit --no-fund >>"$LOG" 2>&1 \
+    || { log "step1 FAIL: npm install"; tg "❌ npm install gagal — prod aman"; exit 1; }
+fi
+tg "🔨 Build..."
+npm run build >>"$LOG" 2>&1 \
+  || { log "step1 FAIL: build"; tg "❌ Build gagal — prod aman, tidak ada flip"; exit 1; }
+log "step1: build OK"
+
+ACTIVE=$(which_bg)   # harusnya b
+STANDBY=$( [ "$ACTIVE" = "a" ] && echo b || echo a )
+log "state: active=$ACTIVE standby=$STANDBY"
+
+# -------- STEP 2: ship build + aktifkan node standby (B) --------
+tg "2/5 Update & aktifkan node ${STANDBY^^} (standby)..."
+if ! start_node "$STANDBY"; then
+  log "step2 FAIL: standby $STANDBY gagal"; tg "❌ Node ${STANDBY^^} gagal — prod tetap di ${ACTIVE^^}"
+  exit 1
+fi
+log "step2: node $STANDBY up & healthy"
+
+# -------- STEP 3: flip caddy ke standby (B) --------
+if ! bash "$DEPLOY/bgSetActive.sh" "$STANDBY" >>"$LOG" 2>&1; then
+  log "step3 FAIL: flip ditolak"; tg "❌ Flip ke ${STANDBY^^} ditolak — prod tetap di ${ACTIVE^^}"
+  exit 1
+fi
+tg "🔄 Traffic pindah ke ${STANDBY^^} (versi baru). Drain ${ACTIVE^^}..."
+log "step3: caddy → $STANDBY"
+
+# -------- STEP 4: drain node A lama → stop → ship build → start --------
+drain "$ACTIVE"
+p_old=$(port_of "$ACTIVE"); cid_old=$(cid_of "$p_old")
+sudo docker stop "$cid_old" >/dev/null 2>&1
+log "step4: node $ACTIVE stopped"
+if ! start_node "$ACTIVE"; then
+  log "step4 FAIL: node $ACTIVE gagal setelah update — traffic tetap di $STANDBY"
+  tg "⚠️ Node ${ACTIVE^^} gagal — traffic tetap di ${STANDBY^^} (jalan normal)"
+  exit 0
+fi
+log "step4: node $ACTIVE up & healthy"
+tg "4/5 Node ${ACTIVE^^} sehat. Flip balik ke ${ACTIVE^^}..."
+
+# -------- STEP 5: flip balik ke A → drain B → stop B --------
+if ! bash "$DEPLOY/bgSetActive.sh" "a" >>"$LOG" 2>&1; then
+  log "step5 WARN: flip balik gagal — traffic tetap di $STANDBY"
+  tg "⚠️ Flip balik gagal — traffic tetap di ${STANDBY^^}"
+  exit 0
+fi
+sleep 2
+drain "$STANDBY"
+p_sb=$(port_of "$STANDBY"); cid_sb=$(cid_of "$p_sb")
+log "step5: stopping container $cid_sb (node $STANDBY :$p_sb)"
+sudo docker stop "$cid_sb" >/dev/null 2>&1
+log "step5: node $STANDBY stopped (standby mati, versi baru)"
+tg "✅ DEPLOY SELESAI — A aktif (primary), B standby mati. Keduanya versi baru."
+
+log "=== bgDeploy v2 done, active=a ==="
 exit 0

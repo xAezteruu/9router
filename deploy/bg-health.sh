@@ -2,7 +2,7 @@
 # bg-health.sh — deep health check for one node (port as $1). Exit 0 only if fully healthy.
 set -uo pipefail
 PORT="${1:?usage: bg-health.sh <port>}"
-BASE="http://localhost:${PORT}"
+BASE="http://100.64.1.3:${PORT}"
 
 # 1. dashboard reachable (200 or 307 auth redirect both fine)
 CODE_DASH=$(curl -s -o /dev/null -w "%{http_code}" -m 8 "${BASE}/dashboard")

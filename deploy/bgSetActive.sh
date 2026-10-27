@@ -13,7 +13,7 @@ case "$TARGET" in
 esac
 
 # sanity: target must answer before we flip
-if ! curl -sf -o /dev/null -m 5 "http://localhost:${PORT}/dashboard"; then
+if ! curl -sf -o /dev/null -m 5 "http://100.64.1.3:${PORT}/dashboard"; then
   echo "ERROR: node ${TARGET^^} (:${PORT}) is not healthy — refusing to flip" >&2
   exit 1
 fi
@@ -31,13 +31,13 @@ for i, ln in enumerate(lines):
     if "/deploy-webhook" in ln: in_hook = True
     elif ln.strip() == "}": in_hook = False
     if not in_hook:
-        lines[i] = re.sub(r"reverse_proxy 127\.0\.0\.1:\d+", f"reverse_proxy 127.0.0.1:{port}", ln)
+        lines[i] = re.sub(r"reverse_proxy (?:127\.0\.0\.1|100\.64\.1\.3):\d+", f"reverse_proxy 100.64.1.3:{port}", ln)
 p.write_text("\n".join(lines))
 PYEOF
-sudo caddy reload --config "$CADDYFILE" >/dev/null 2>&1
+sudo caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1
 
 # record state + verify through the proxy
-echo "BG_UPSTREAM=127.0.0.1:${PORT}" > "$REPO/deploy/bg.env"
+echo "BG_UPSTREAM=100.64.1.3:${PORT}" > "$REPO/deploy/bg.env"
 sleep 1
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 5 http://localhost:3000/dashboard)
 echo "active=${TARGET^^} :${PORT} — proxy check: ${CODE}"

@@ -1,0 +1,1003 @@
+[2026-10-26T00:49:45+08:00] === bgSwap start (notify=1) ===
+[2026-10-26T00:49:45+08:00] active=a standby=b
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26T00:49:47+08:00] PHASE1 FAIL: pull/build b gagal — traffic tetap di a, nothing touched
+[2026-10-26T00:50:48+08:00] === bgSwap start (notify=1) ===
+[2026-10-26T00:50:48+08:00] active=a standby=b
+From /home/agentuser/9router
+ * branch              master     -> FETCH_HEAD
+HEAD is now at a42e79d2 fix(bg-health): require JS chunk 200 to catch stale build manifest after racing deploys
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26T00:50:55+08:00] note: GitHub pull skipped for b (no creds — using local repo state)
+
+added 8 packages in 6s
+
+> 9router-app@0.5.318 build
+> next build
+
+ ⚠ Invalid next.config.mjs options detected: 
+ ⚠     Unrecognized key(s) in object: 'proxyClientMaxBodySize', 'serverComponentsHmrCache' at "experimental"
+ ⚠     Unrecognized key(s) in object: 'serverExternalPackages', 'turbopack'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+  ▲ Next.js 14.2.35
+  - Experiments (use with caution):
+    · outputFileTracingRoot
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+export 'getInstalledCloudflaredVersion' (reexported as 'getInstalledCloudflaredVersion') was not found in './cloudflared.js' (possible exports: ensureCloudflared, getDownloadStatus, isCloudflaredRunning, killCloudflared, setUnexpectedExitHandler, spawnCloudflared, spawnQuickTunnel)
+
+Import trace for requested module:
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+./src/lib/tunnel/index.js
+./src/app/api/tunnel/cloudflared-update/route.js
+
+   Linting and checking validity of types ...
+   Collecting page data ...
+(node:2653289) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[DB] Driver: better-sqlite3 | file: /home/agentuser/.9router/db/data.sqlite
+   Generating static pages (0/36) ...
+   Generating static pages (9/36) 
+   Generating static pages (18/36) 
+   Generating static pages (27/36) 
+ ✓ Generating static pages (36/36)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                        Size     First Load JS
+┌ ○ /                                              152 B          88.3 kB
+├ ○ /_not-found                                    152 B          88.3 kB
+├ ƒ /api/auth/login                                0 B                0 B
+├ ƒ /api/auth/logout                               0 B                0 B
+├ ƒ /api/auth/oidc/callback                        0 B                0 B
+├ ƒ /api/auth/oidc/start                           0 B                0 B
+├ ƒ /api/auth/oidc/test                            0 B                0 B
+├ ƒ /api/auth/reset-password                       0 B                0 B
+├ ƒ /api/auth/saml/acs                             0 B                0 B
+├ ƒ /api/auth/saml/metadata                        0 B                0 B
+├ ƒ /api/auth/saml/start                           0 B                0 B
+├ ƒ /api/auth/saml/test                            0 B                0 B
+├ ƒ /api/auth/status                               0 B                0 B
+├ ƒ /api/changelog                                 0 B                0 B
+├ ƒ /api/cli-tools/all-statuses                    0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm                0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm/alias          0 B                0 B
+├ ƒ /api/cli-tools/claude-settings                 0 B                0 B
+├ ƒ /api/cli-tools/cline-settings                  0 B                0 B
+├ ƒ /api/cli-tools/codewhale-settings              0 B                0 B
+├ ƒ /api/cli-tools/codex-profiles                  0 B                0 B
+├ ƒ /api/cli-tools/codex-settings                  0 B                0 B
+├ ƒ /api/cli-tools/copilot-settings                0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-registry             0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-tools                0 B                0 B
+├ ƒ /api/cli-tools/cowork-settings                 0 B                0 B
+├ ƒ /api/cli-tools/crush-settings                  0 B                0 B
+├ ƒ /api/cli-tools/deepseek-tui-settings           0 B                0 B
+├ ƒ /api/cli-tools/devin-settings                  0 B                0 B
+├ ƒ /api/cli-tools/droid-settings                  0 B                0 B
+├ ƒ /api/cli-tools/forge-settings                  0 B                0 B
+├ ƒ /api/cli-tools/grok-build-settings             0 B                0 B
+├ ƒ /api/cli-tools/hermes-profiles                 0 B                0 B
+├ ƒ /api/cli-tools/hermes-settings                 0 B                0 B
+├ ƒ /api/cli-tools/jcode-settings                  0 B                0 B
+├ ƒ /api/cli-tools/kilo-settings                   0 B                0 B
+├ ƒ /api/cli-tools/omp-settings                    0 B                0 B
+├ ƒ /api/cli-tools/openclaw-settings               0 B                0 B
+├ ƒ /api/cli-tools/opencode-settings               0 B                0 B
+├ ƒ /api/cli-tools/pi-settings                     0 B                0 B
+├ ƒ /api/cli-tools/smelt-settings                  0 B                0 B
+├ ƒ /api/combos                                    0 B                0 B
+├ ƒ /api/combos/[id]                               0 B                0 B
+├ ƒ /api/combos/presets                            0 B                0 B
+├ ƒ /api/dashboard-jobs                            0 B                0 B
+├ ƒ /api/error-logs                                0 B                0 B
+├ ƒ /api/headroom/extras                           0 B                0 B
+├ ƒ /api/headroom/proxy/[...path]                  0 B                0 B
+├ ƒ /api/headroom/restart                          0 B                0 B
+├ ƒ /api/headroom/start                            0 B                0 B
+├ ƒ /api/headroom/status                           0 B                0 B
+├ ƒ /api/headroom/stop                             0 B                0 B
+├ ƒ /api/health                                    0 B                0 B
+├ ƒ /api/init                                      0 B                0 B
+├ ƒ /api/keys                                      0 B                0 B
+├ ƒ /api/keys/[id]                                 0 B                0 B
+├ ƒ /api/keys/bulk                                 0 B                0 B
+├ ƒ /api/locale                                    0 B                0 B
+├ ƒ /api/mcp/[plugin]/message                      0 B                0 B
+├ ƒ /api/mcp/[plugin]/sse                          0 B                0 B
+├ ƒ /api/media-providers/tts/deepgram/voices       0 B                0 B
+├ ƒ /api/media-providers/tts/elevenlabs/voices     0 B                0 B
+├ ƒ /api/media-providers/tts/inworld/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/minimax/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/voices                0 B                0 B
+├ ƒ /api/model-editor                              0 B                0 B
+├ ƒ /api/models                                    0 B                0 B
+├ ƒ /api/models/alias                              0 B                0 B
+├ ƒ /api/models/availability                       0 B                0 B
+├ ƒ /api/models/catalog-sync                       0 B                0 B
+├ ƒ /api/models/custom                             0 B                0 B
+├ ƒ /api/models/disabled                           0 B                0 B
+├ ƒ /api/models/test                               0 B                0 B
+├ ƒ /api/notifications                             0 B                0 B
+├ ƒ /api/notifications/scan                        0 B                0 B
+├ ƒ /api/oauth/[provider]/[action]                 0 B                0 B
+├ ƒ /api/oauth/codex/bulk-import                   0 B                0 B
+├ ƒ /api/oauth/codex/import-token                  0 B                0 B
+├ ƒ /api/oauth/cursor/auto-import                  0 B                0 B
+├ ƒ /api/oauth/cursor/import                       0 B                0 B
+├ ƒ /api/oauth/gitlab/pat                          0 B                0 B
+├ ƒ /api/oauth/grok-cli/bulk-import                0 B                0 B
+├ ƒ /api/oauth/iflow/cookie                        0 B                0 B
+├ ƒ /api/oauth/kiro/api-key                        0 B                0 B
+├ ƒ /api/oauth/kiro/auto-import                    0 B                0 B
+├ ƒ /api/oauth/kiro/import                         0 B                0 B
+├ ƒ /api/oauth/kiro/import-cli-proxy               0 B                0 B
+├ ƒ /api/oauth/kiro/social-authorize               0 B                0 B
+├ ƒ /api/oauth/kiro/social-exchange                0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/api-key                 0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/auto-import             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/start             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/status            0 B                0 B
+├ ƒ /api/oauth/zed/auto-import                     0 B                0 B
+├ ƒ /api/oauth/zed/import                          0 B                0 B
+├ ƒ /api/plugins                                   0 B                0 B
+├ ƒ /api/pricing                                   0 B                0 B
+├ ƒ /api/provider-nodes                            0 B                0 B
+├ ƒ /api/provider-nodes/[id]                       0 B                0 B
+├ ƒ /api/provider-nodes/validate                   0 B                0 B
+├ ƒ /api/providers                                 0 B                0 B
+├ ƒ /api/providers/[id]                            0 B                0 B
+├ ƒ /api/providers/[id]/models                     0 B                0 B
+├ ƒ /api/providers/[id]/overrides                  0 B                0 B
+├ ƒ /api/providers/[id]/test                       0 B                0 B
+├ ƒ /api/providers/[id]/test-models                0 B                0 B
+├ ƒ /api/providers/client                          0 B                0 B
+├ ƒ /api/providers/kilo/free-models                0 B                0 B
+├ ƒ /api/providers/suggested-models                0 B                0 B
+├ ƒ /api/providers/test-batch                      0 B                0 B
+├ ƒ /api/providers/validate                        0 B                0 B
+├ ƒ /api/proxy-pools                               0 B                0 B
+├ ƒ /api/proxy-pools/[id]                          0 B                0 B
+├ ƒ /api/proxy-pools/[id]/test                     0 B                0 B
+├ ƒ /api/proxy-pools/bulk                          0 B                0 B
+├ ƒ /api/proxy-pools/cloudflare-deploy             0 B                0 B
+├ ƒ /api/proxy-pools/deno-deploy                   0 B                0 B
+├ ƒ /api/proxy-pools/import-jobs                   0 B                0 B
+├ ƒ /api/proxy-pools/netlify-deploy                0 B                0 B
+├ ƒ /api/proxy-pools/vercel-deploy                 0 B                0 B
+├ ƒ /api/pxpipe/health                             0 B                0 B
+├ ƒ /api/pxpipe/install                            0 B                0 B
+├ ƒ /api/pxpipe/logs                               0 B                0 B
+├ ƒ /api/pxpipe/restart                            0 B                0 B
+├ ƒ /api/pxpipe/start                              0 B                0 B
+├ ƒ /api/pxpipe/stats                              0 B                0 B
+├ ƒ /api/pxpipe/status                             0 B                0 B
+├ ƒ /api/pxpipe/stop                               0 B                0 B
+├ ƒ /api/settings                                  0 B                0 B
+├ ƒ /api/settings/auto-backup                      0 B                0 B
+├ ƒ /api/settings/database                         0 B                0 B
+├ ƒ /api/settings/database/jobs                    0 B                0 B
+├ ƒ /api/settings/database/jobs/[jobId]            0 B                0 B
+├ ƒ /api/settings/history                          0 B                0 B
+├ ƒ /api/settings/proxy-test                       0 B                0 B
+├ ƒ /api/settings/require-login                    0 B                0 B
+├ ƒ /api/settings/rollback                         0 B                0 B
+├ ƒ /api/shutdown                                  0 B                0 B
+├ ƒ /api/tags                                      0 B                0 B
+├ ƒ /api/theme                                     0 B                0 B
+├ ƒ /api/token-saver/cache-stats                   0 B                0 B
+├ ƒ /api/translator/console-logs                   0 B                0 B
+├ ƒ /api/translator/console-logs/stream            0 B                0 B
+├ ƒ /api/translator/load                           0 B                0 B
+├ ƒ /api/translator/save                           0 B                0 B
+├ ƒ /api/translator/send                           0 B                0 B
+├ ƒ /api/translator/translate                      0 B                0 B
+├ ƒ /api/tunnel/cloudflared-update                 0 B                0 B
+├ ƒ /api/tunnel/disable                            0 B                0 B
+├ ƒ /api/tunnel/enable                             0 B                0 B
+├ ƒ /api/tunnel/status                             0 B                0 B
+├ ƒ /api/tunnel/tailscale-check                    0 B                0 B
+├ ƒ /api/tunnel/tailscale-disable                  0 B                0 B
+├ ƒ /api/tunnel/tailscale-enable                   0 B                0 B
+├ ƒ /api/tunnel/tailscale-install                  0 B                0 B
+├ ƒ /api/usage/[connectionId]                      0 B                0 B
+├ ƒ /api/usage/[connectionId]/claude-reset         0 B                0 B
+├ ƒ /api/usage/[connectionId]/codex-reset-credits  0 B                0 B
+├ ƒ /api/usage/antigravity-tier                    0 B                0 B
+├ ƒ /api/usage/api-keys                            0 B                0 B
+├ ƒ /api/usage/available-models                    0 B                0 B
+├ ƒ /api/usage/chart                               0 B                0 B
+├ ƒ /api/usage/errors                              0 B                0 B
+├ ƒ /api/usage/history                             0 B                0 B
+├ ƒ /api/usage/ip-access-log                       0 B                0 B
+├ ƒ /api/usage/leaderboard                         0 B                0 B
+├ ƒ /api/usage/logs                                0 B                0 B
+├ ƒ /api/usage/providers                           0 B                0 B
+├ ƒ /api/usage/request-details                     0 B                0 B
+├ ƒ /api/usage/request-details/[id]                0 B                0 B
+├ ƒ /api/usage/request-logs                        0 B                0 B
+├ ƒ /api/usage/sparks                              0 B                0 B
+├ ƒ /api/usage/stats                               0 B                0 B
+├ ƒ /api/usage/stream                              0 B                0 B
+├ ƒ /api/usage/token-savings                       0 B                0 B
+├ ƒ /api/v1                                        0 B                0 B
+├ ƒ /api/v1/api/chat                               0 B                0 B
+├ ƒ /api/v1/audio/speech                           0 B                0 B
+├ ƒ /api/v1/audio/transcriptions                   0 B                0 B
+├ ƒ /api/v1/audio/voices                           0 B                0 B
+├ ƒ /api/v1/chat/completions                       0 B                0 B
+├ ƒ /api/v1/embeddings                             0 B                0 B
+├ ƒ /api/v1/images/generations                     0 B                0 B
+├ ƒ /api/v1/messages                               0 B                0 B
+├ ƒ /api/v1/messages/count_tokens                  0 B                0 B
+├ ƒ /api/v1/models                                 0 B                0 B
+├ ƒ /api/v1/models/[...model]                      0 B                0 B
+├ ƒ /api/v1/models/info                            0 B                0 B
+├ ƒ /api/v1/responses                              0 B                0 B
+├ ƒ /api/v1/responses/compact                      0 B                0 B
+├ ƒ /api/v1/search                                 0 B                0 B
+├ ƒ /api/v1/systemone                              0 B                0 B
+├ ƒ /api/v1/videos/[id]                            0 B                0 B
+├ ƒ /api/v1/videos/edits                           0 B                0 B
+├ ƒ /api/v1/videos/extensions                      0 B                0 B
+├ ƒ /api/v1/videos/generations                     0 B                0 B
+├ ƒ /api/v1/web/fetch                              0 B                0 B
+├ ƒ /api/v1beta/models                             0 B                0 B
+├ ƒ /api/v1beta/models/[...path]                   0 B                0 B
+├ ƒ /api/version                                   0 B                0 B
+├ ƒ /api/version/shutdown                          0 B                0 B
+├ ƒ /api/version/update                            0 B                0 B
+├ ○ /callback                                      1.34 kB        89.5 kB
+├ ○ /dashboard                                     154 B           286 kB
+├ ○ /dashboard/api-key-usage                       2.47 kB         272 kB
+├ ○ /dashboard/arena                               8.8 kB          278 kB
+├ ○ /dashboard/basic-chat                          6.4 kB          276 kB
+├ ○ /dashboard/cli-tools                           1.38 kB         316 kB
+├ ƒ /dashboard/cli-tools/[toolId]                  1.91 kB         317 kB
+├ ○ /dashboard/combos                              24.9 kB         294 kB
+├ ƒ /dashboard/console-log                         154 B           274 kB
+├ ○ /dashboard/endpoint                            154 B           286 kB
+├ ƒ /dashboard/error-log                           154 B           274 kB
+├ ƒ /dashboard/experiments                         1.45 kB         271 kB
+├ ƒ /dashboard/logs                                154 B           274 kB
+├ ƒ /dashboard/media-providers/[kind]              2.7 kB          272 kB
+├ ƒ /dashboard/media-providers/[kind]/[id]         18.8 kB         288 kB
+├ ƒ /dashboard/media-providers/combo/[id]          4.1 kB          274 kB
+├ ○ /dashboard/media-providers/web                 2.36 kB         272 kB
+├ ○ /dashboard/mitm                                1.27 kB         316 kB
+├ ○ /dashboard/model-editor                        6.92 kB         276 kB
+├ ○ /dashboard/plugins                             2.43 kB         272 kB
+├ ○ /dashboard/profile                             13.1 kB         283 kB
+├ ○ /dashboard/prompts                             2.54 kB         272 kB
+├ ○ /dashboard/providers                           8.62 kB         278 kB
+├ ƒ /dashboard/providers/[id]                      30.2 kB         305 kB
+├ ○ /dashboard/providers/new                       1.9 kB          271 kB
+├ ○ /dashboard/proxy-pools                         9.96 kB         280 kB
+├ ○ /dashboard/pxpipe                              112 kB          381 kB
+├ ○ /dashboard/quota                               16 kB           286 kB
+├ ○ /dashboard/settings/pricing                    2.81 kB        95.7 kB
+├ ○ /dashboard/skills                              1.99 kB         272 kB
+├ ○ /dashboard/token-saver                         7.01 kB         277 kB
+├ ○ /dashboard/translator                          3.48 kB         273 kB
+├ ○ /dashboard/usage                               18.4 kB         288 kB
+├ ○ /landing                                       11.2 kB        99.4 kB
+├ ○ /login                                         2.67 kB         272 kB
+└ ○ /manifest.webmanifest                          0 B                0 B
++ First Load JS shared by all                      88.2 kB
+  ├ chunks/2117-444ce27c536335f3.js                31.9 kB
+  ├ chunks/fd9d1056-ba5fd14cf02c3f5b.js            53.6 kB
+  └ other shared chunks (total)                    2.64 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> 9router-app@0.5.318 postbuild
+> node scripts/copy-standalone-assets.mjs
+
+[standalone-assets] Copied static assets to /home/agentuser/9router-b/.next/standalone/.next/static
+[standalone-assets] Copied public assets to /home/agentuser/9router-b/.next/standalone/public
+[standalone-assets] Copied custom-server.js to /home/agentuser/9router-b/.next/standalone/custom-server.js
+[standalone-assets] Copied src/ to /home/agentuser/9router-b/.next/standalone/src
+[standalone-assets] Copied scripts/ to /home/agentuser/9router-b/.next/standalone/scripts
+[standalone-assets] Copied open-sse/ to /home/agentuser/9router-b/.next/standalone/open-sse
+[standalone-assets] Mirrored the next package to /home/agentuser/9router-b/.next/standalone/node_modules/next
+[2026-10-26T00:54:47+08:00] phase1: b pulled+built
+[2026-10-26T00:54:58+08:00] phase2: traffic switched to b
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26T00:55:05+08:00] note: GitHub pull skipped for a (no creds — using local repo state)
+
+up to date in 2s
+
+> 9router-app@0.5.318 build
+> next build
+
+ ⚠ Invalid next.config.mjs options detected: 
+ ⚠     Unrecognized key(s) in object: 'proxyClientMaxBodySize', 'serverComponentsHmrCache' at "experimental"
+ ⚠     Unrecognized key(s) in object: 'serverExternalPackages', 'turbopack'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+  ▲ Next.js 14.2.35
+  - Environments: .env
+  - Experiments (use with caution):
+    · outputFileTracingRoot
+
+   Creating an optimized production build ...
+[2026-10-26T01:07:08+08:00] === bgSwap start (notify=1) ===
+[2026-10-26T01:07:08+08:00] already running, skip
+[2026-10-26T01:18:21+08:00] === bgSwap start (notify=1) ===
+[2026-10-26T01:18:21+08:00] active=b standby=a
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26T01:18:23+08:00] note: GitHub pull skipped for a (no creds — using local repo state)
+
+up to date in 1s
+
+> 9router-app@0.5.318 build
+> next build
+
+ ⚠ Invalid next.config.mjs options detected: 
+ ⚠     Unrecognized key(s) in object: 'proxyClientMaxBodySize', 'serverComponentsHmrCache' at "experimental"
+ ⚠     Unrecognized key(s) in object: 'serverExternalPackages', 'turbopack'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+  ▲ Next.js 14.2.35
+  - Environments: .env
+  - Experiments (use with caution):
+    · outputFileTracingRoot
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+export 'getInstalledCloudflaredVersion' (reexported as 'getInstalledCloudflaredVersion') was not found in './cloudflared.js' (possible exports: ensureCloudflared, getDownloadStatus, isCloudflaredRunning, killCloudflared, setUnexpectedExitHandler, spawnCloudflared, spawnQuickTunnel)
+
+Import trace for requested module:
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+./src/lib/tunnel/index.js
+./src/app/api/tunnel/cloudflared-update/route.js
+
+   Linting and checking validity of types ...
+   Collecting page data ...
+[DATA_DIR] '/var/lib/9router' not writable → fallback ~/.9router
+[DATA_DIR] '/var/lib/9router' not writable → fallback ~/.9router
+(node:2667179) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[DB] Driver: better-sqlite3 | file: /home/agentuser/.9router/db/data.sqlite
+   Generating static pages (0/36) ...
+   Generating static pages (9/36) 
+   Generating static pages (18/36) 
+   Generating static pages (27/36) 
+ ✓ Generating static pages (36/36)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                        Size     First Load JS
+┌ ○ /                                              152 B          88.4 kB
+├ ○ /_not-found                                    152 B          88.4 kB
+├ ƒ /api/auth/login                                0 B                0 B
+├ ƒ /api/auth/logout                               0 B                0 B
+├ ƒ /api/auth/oidc/callback                        0 B                0 B
+├ ƒ /api/auth/oidc/start                           0 B                0 B
+├ ƒ /api/auth/oidc/test                            0 B                0 B
+├ ƒ /api/auth/reset-password                       0 B                0 B
+├ ƒ /api/auth/saml/acs                             0 B                0 B
+├ ƒ /api/auth/saml/metadata                        0 B                0 B
+├ ƒ /api/auth/saml/start                           0 B                0 B
+├ ƒ /api/auth/saml/test                            0 B                0 B
+├ ƒ /api/auth/status                               0 B                0 B
+├ ƒ /api/changelog                                 0 B                0 B
+├ ƒ /api/cli-tools/all-statuses                    0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm                0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm/alias          0 B                0 B
+├ ƒ /api/cli-tools/claude-settings                 0 B                0 B
+├ ƒ /api/cli-tools/cline-settings                  0 B                0 B
+├ ƒ /api/cli-tools/codewhale-settings              0 B                0 B
+├ ƒ /api/cli-tools/codex-profiles                  0 B                0 B
+├ ƒ /api/cli-tools/codex-settings                  0 B                0 B
+├ ƒ /api/cli-tools/copilot-settings                0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-registry             0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-tools                0 B                0 B
+├ ƒ /api/cli-tools/cowork-settings                 0 B                0 B
+├ ƒ /api/cli-tools/crush-settings                  0 B                0 B
+├ ƒ /api/cli-tools/deepseek-tui-settings           0 B                0 B
+├ ƒ /api/cli-tools/devin-settings                  0 B                0 B
+├ ƒ /api/cli-tools/droid-settings                  0 B                0 B
+├ ƒ /api/cli-tools/forge-settings                  0 B                0 B
+├ ƒ /api/cli-tools/grok-build-settings             0 B                0 B
+├ ƒ /api/cli-tools/hermes-profiles                 0 B                0 B
+├ ƒ /api/cli-tools/hermes-settings                 0 B                0 B
+├ ƒ /api/cli-tools/jcode-settings                  0 B                0 B
+├ ƒ /api/cli-tools/kilo-settings                   0 B                0 B
+├ ƒ /api/cli-tools/omp-settings                    0 B                0 B
+├ ƒ /api/cli-tools/openclaw-settings               0 B                0 B
+├ ƒ /api/cli-tools/opencode-settings               0 B                0 B
+├ ƒ /api/cli-tools/pi-settings                     0 B                0 B
+├ ƒ /api/cli-tools/smelt-settings                  0 B                0 B
+├ ƒ /api/combos                                    0 B                0 B
+├ ƒ /api/combos/[id]                               0 B                0 B
+├ ƒ /api/combos/presets                            0 B                0 B
+├ ƒ /api/dashboard-jobs                            0 B                0 B
+├ ƒ /api/error-logs                                0 B                0 B
+├ ƒ /api/headroom/extras                           0 B                0 B
+├ ƒ /api/headroom/proxy/[...path]                  0 B                0 B
+├ ƒ /api/headroom/restart                          0 B                0 B
+├ ƒ /api/headroom/start                            0 B                0 B
+├ ƒ /api/headroom/status                           0 B                0 B
+├ ƒ /api/headroom/stop                             0 B                0 B
+├ ƒ /api/health                                    0 B                0 B
+├ ƒ /api/init                                      0 B                0 B
+├ ƒ /api/keys                                      0 B                0 B
+├ ƒ /api/keys/[id]                                 0 B                0 B
+├ ƒ /api/keys/bulk                                 0 B                0 B
+├ ƒ /api/locale                                    0 B                0 B
+├ ƒ /api/mcp/[plugin]/message                      0 B                0 B
+├ ƒ /api/mcp/[plugin]/sse                          0 B                0 B
+├ ƒ /api/media-providers/tts/deepgram/voices       0 B                0 B
+├ ƒ /api/media-providers/tts/elevenlabs/voices     0 B                0 B
+├ ƒ /api/media-providers/tts/inworld/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/minimax/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/voices                0 B                0 B
+├ ƒ /api/model-editor                              0 B                0 B
+├ ƒ /api/models                                    0 B                0 B
+├ ƒ /api/models/alias                              0 B                0 B
+├ ƒ /api/models/availability                       0 B                0 B
+├ ƒ /api/models/catalog-sync                       0 B                0 B
+├ ƒ /api/models/custom                             0 B                0 B
+├ ƒ /api/models/disabled                           0 B                0 B
+├ ƒ /api/models/test                               0 B                0 B
+├ ƒ /api/notifications                             0 B                0 B
+├ ƒ /api/notifications/scan                        0 B                0 B
+├ ƒ /api/oauth/[provider]/[action]                 0 B                0 B
+├ ƒ /api/oauth/codex/bulk-import                   0 B                0 B
+├ ƒ /api/oauth/codex/import-token                  0 B                0 B
+├ ƒ /api/oauth/cursor/auto-import                  0 B                0 B
+├ ƒ /api/oauth/cursor/import                       0 B                0 B
+├ ƒ /api/oauth/gitlab/pat                          0 B                0 B
+├ ƒ /api/oauth/grok-cli/bulk-import                0 B                0 B
+├ ƒ /api/oauth/iflow/cookie                        0 B                0 B
+├ ƒ /api/oauth/kiro/api-key                        0 B                0 B
+├ ƒ /api/oauth/kiro/auto-import                    0 B                0 B
+├ ƒ /api/oauth/kiro/import                         0 B                0 B
+├ ƒ /api/oauth/kiro/import-cli-proxy               0 B                0 B
+├ ƒ /api/oauth/kiro/social-authorize               0 B                0 B
+├ ƒ /api/oauth/kiro/social-exchange                0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/api-key                 0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/auto-import             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/start             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/status            0 B                0 B
+├ ƒ /api/oauth/zed/auto-import                     0 B                0 B
+├ ƒ /api/oauth/zed/import                          0 B                0 B
+├ ƒ /api/plugins                                   0 B                0 B
+├ ƒ /api/pricing                                   0 B                0 B
+├ ƒ /api/provider-nodes                            0 B                0 B
+├ ƒ /api/provider-nodes/[id]                       0 B                0 B
+├ ƒ /api/provider-nodes/validate                   0 B                0 B
+├ ƒ /api/providers                                 0 B                0 B
+├ ƒ /api/providers/[id]                            0 B                0 B
+├ ƒ /api/providers/[id]/models                     0 B                0 B
+├ ƒ /api/providers/[id]/overrides                  0 B                0 B
+├ ƒ /api/providers/[id]/test                       0 B                0 B
+├ ƒ /api/providers/[id]/test-models                0 B                0 B
+├ ƒ /api/providers/client                          0 B                0 B
+├ ƒ /api/providers/kilo/free-models                0 B                0 B
+├ ƒ /api/providers/suggested-models                0 B                0 B
+├ ƒ /api/providers/test-batch                      0 B                0 B
+├ ƒ /api/providers/validate                        0 B                0 B
+├ ƒ /api/proxy-pools                               0 B                0 B
+├ ƒ /api/proxy-pools/[id]                          0 B                0 B
+├ ƒ /api/proxy-pools/[id]/test                     0 B                0 B
+├ ƒ /api/proxy-pools/bulk                          0 B                0 B
+├ ƒ /api/proxy-pools/cloudflare-deploy             0 B                0 B
+├ ƒ /api/proxy-pools/deno-deploy                   0 B                0 B
+├ ƒ /api/proxy-pools/import-jobs                   0 B                0 B
+├ ƒ /api/proxy-pools/netlify-deploy                0 B                0 B
+├ ƒ /api/proxy-pools/vercel-deploy                 0 B                0 B
+├ ƒ /api/pxpipe/health                             0 B                0 B
+├ ƒ /api/pxpipe/install                            0 B                0 B
+├ ƒ /api/pxpipe/logs                               0 B                0 B
+├ ƒ /api/pxpipe/restart                            0 B                0 B
+├ ƒ /api/pxpipe/start                              0 B                0 B
+├ ƒ /api/pxpipe/stats                              0 B                0 B
+├ ƒ /api/pxpipe/status                             0 B                0 B
+├ ƒ /api/pxpipe/stop                               0 B                0 B
+├ ƒ /api/settings                                  0 B                0 B
+├ ƒ /api/settings/auto-backup                      0 B                0 B
+├ ƒ /api/settings/database                         0 B                0 B
+├ ƒ /api/settings/database/jobs                    0 B                0 B
+├ ƒ /api/settings/database/jobs/[jobId]            0 B                0 B
+├ ƒ /api/settings/history                          0 B                0 B
+├ ƒ /api/settings/proxy-test                       0 B                0 B
+├ ƒ /api/settings/require-login                    0 B                0 B
+├ ƒ /api/settings/rollback                         0 B                0 B
+├ ƒ /api/shutdown                                  0 B                0 B
+├ ƒ /api/tags                                      0 B                0 B
+├ ƒ /api/theme                                     0 B                0 B
+├ ƒ /api/token-saver/cache-stats                   0 B                0 B
+├ ƒ /api/translator/console-logs                   0 B                0 B
+├ ƒ /api/translator/console-logs/stream            0 B                0 B
+├ ƒ /api/translator/load                           0 B                0 B
+├ ƒ /api/translator/save                           0 B                0 B
+├ ƒ /api/translator/send                           0 B                0 B
+├ ƒ /api/translator/translate                      0 B                0 B
+├ ƒ /api/tunnel/cloudflared-update                 0 B                0 B
+├ ƒ /api/tunnel/disable                            0 B                0 B
+├ ƒ /api/tunnel/enable                             0 B                0 B
+├ ƒ /api/tunnel/status                             0 B                0 B
+├ ƒ /api/tunnel/tailscale-check                    0 B                0 B
+├ ƒ /api/tunnel/tailscale-disable                  0 B                0 B
+├ ƒ /api/tunnel/tailscale-enable                   0 B                0 B
+├ ƒ /api/tunnel/tailscale-install                  0 B                0 B
+├ ƒ /api/usage/[connectionId]                      0 B                0 B
+├ ƒ /api/usage/[connectionId]/claude-reset         0 B                0 B
+├ ƒ /api/usage/[connectionId]/codex-reset-credits  0 B                0 B
+├ ƒ /api/usage/antigravity-tier                    0 B                0 B
+├ ƒ /api/usage/api-keys                            0 B                0 B
+├ ƒ /api/usage/available-models                    0 B                0 B
+├ ƒ /api/usage/chart                               0 B                0 B
+├ ƒ /api/usage/errors                              0 B                0 B
+├ ƒ /api/usage/history                             0 B                0 B
+├ ƒ /api/usage/ip-access-log                       0 B                0 B
+├ ƒ /api/usage/leaderboard                         0 B                0 B
+├ ƒ /api/usage/logs                                0 B                0 B
+├ ƒ /api/usage/providers                           0 B                0 B
+├ ƒ /api/usage/request-details                     0 B                0 B
+├ ƒ /api/usage/request-details/[id]                0 B                0 B
+├ ƒ /api/usage/request-logs                        0 B                0 B
+├ ƒ /api/usage/sparks                              0 B                0 B
+├ ƒ /api/usage/stats                               0 B                0 B
+├ ƒ /api/usage/stream                              0 B                0 B
+├ ƒ /api/usage/token-savings                       0 B                0 B
+├ ƒ /api/v1                                        0 B                0 B
+├ ƒ /api/v1/api/chat                               0 B                0 B
+├ ƒ /api/v1/audio/speech                           0 B                0 B
+├ ƒ /api/v1/audio/transcriptions                   0 B                0 B
+├ ƒ /api/v1/audio/voices                           0 B                0 B
+├ ƒ /api/v1/chat/completions                       0 B                0 B
+├ ƒ /api/v1/embeddings                             0 B                0 B
+├ ƒ /api/v1/images/generations                     0 B                0 B
+├ ƒ /api/v1/messages                               0 B                0 B
+├ ƒ /api/v1/messages/count_tokens                  0 B                0 B
+├ ƒ /api/v1/models                                 0 B                0 B
+├ ƒ /api/v1/models/[...model]                      0 B                0 B
+├ ƒ /api/v1/models/info                            0 B                0 B
+├ ƒ /api/v1/responses                              0 B                0 B
+├ ƒ /api/v1/responses/compact                      0 B                0 B
+├ ƒ /api/v1/search                                 0 B                0 B
+├ ƒ /api/v1/systemone                              0 B                0 B
+├ ƒ /api/v1/videos/[id]                            0 B                0 B
+├ ƒ /api/v1/videos/edits                           0 B                0 B
+├ ƒ /api/v1/videos/extensions                      0 B                0 B
+├ ƒ /api/v1/videos/generations                     0 B                0 B
+├ ƒ /api/v1/web/fetch                              0 B                0 B
+├ ƒ /api/v1beta/models                             0 B                0 B
+├ ƒ /api/v1beta/models/[...path]                   0 B                0 B
+├ ƒ /api/version                                   0 B                0 B
+├ ƒ /api/version/shutdown                          0 B                0 B
+├ ƒ /api/version/update                            0 B                0 B
+├ ○ /callback                                      1.34 kB        89.6 kB
+├ ○ /dashboard                                     154 B           286 kB
+├ ○ /dashboard/api-key-usage                       2.47 kB         272 kB
+├ ○ /dashboard/arena                               8.8 kB          278 kB
+├ ○ /dashboard/basic-chat                          6.4 kB          276 kB
+├ ○ /dashboard/cli-tools                           1.39 kB         316 kB
+├ ƒ /dashboard/cli-tools/[toolId]                  1.89 kB         317 kB
+├ ○ /dashboard/combos                              24.9 kB         294 kB
+├ ƒ /dashboard/console-log                         154 B           274 kB
+├ ○ /dashboard/endpoint                            154 B           286 kB
+├ ƒ /dashboard/error-log                           154 B           274 kB
+├ ƒ /dashboard/experiments                         1.45 kB         271 kB
+├ ƒ /dashboard/logs                                155 B           274 kB
+├ ƒ /dashboard/media-providers/[kind]              2.7 kB          272 kB
+├ ƒ /dashboard/media-providers/[kind]/[id]         18.8 kB         288 kB
+├ ƒ /dashboard/media-providers/combo/[id]          4.11 kB         274 kB
+├ ○ /dashboard/media-providers/web                 2.36 kB         272 kB
+├ ○ /dashboard/mitm                                1.27 kB         316 kB
+├ ○ /dashboard/model-editor                        6.92 kB         277 kB
+├ ○ /dashboard/plugins                             2.43 kB         272 kB
+├ ○ /dashboard/profile                             13.1 kB         283 kB
+├ ○ /dashboard/prompts                             2.54 kB         272 kB
+├ ○ /dashboard/providers                           8.62 kB         278 kB
+├ ƒ /dashboard/providers/[id]                      30.2 kB         305 kB
+├ ○ /dashboard/providers/new                       1.9 kB          271 kB
+├ ○ /dashboard/proxy-pools                         9.96 kB         280 kB
+├ ○ /dashboard/pxpipe                              112 kB          381 kB
+├ ○ /dashboard/quota                               16 kB           286 kB
+├ ○ /dashboard/settings/pricing                    2.81 kB        95.7 kB
+├ ○ /dashboard/skills                              1.99 kB         272 kB
+├ ○ /dashboard/token-saver                         7.01 kB         277 kB
+├ ○ /dashboard/translator                          3.49 kB         273 kB
+├ ○ /dashboard/usage                               18.4 kB         288 kB
+├ ○ /landing                                       11.2 kB        99.4 kB
+├ ○ /login                                         2.67 kB         272 kB
+└ ○ /manifest.webmanifest                          0 B                0 B
++ First Load JS shared by all                      88.2 kB
+  ├ chunks/2117-444ce27c536335f3.js                31.9 kB
+  ├ chunks/fd9d1056-ba5fd14cf02c3f5b.js            53.6 kB
+  └ other shared chunks (total)                    2.67 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> 9router-app@0.5.318 postbuild
+> node scripts/copy-standalone-assets.mjs
+
+[standalone-assets] Copied static assets to /home/agentuser/9router/.next/standalone/.next/static
+[standalone-assets] Copied public assets to /home/agentuser/9router/.next/standalone/public
+[standalone-assets] Copied custom-server.js to /home/agentuser/9router/.next/standalone/custom-server.js
+[standalone-assets] Copied src/ to /home/agentuser/9router/.next/standalone/src
+[standalone-assets] Copied scripts/ to /home/agentuser/9router/.next/standalone/scripts
+[standalone-assets] Copied open-sse/ to /home/agentuser/9router/.next/standalone/open-sse
+[standalone-assets] Mirrored the next package to /home/agentuser/9router/.next/standalone/node_modules/next
+[2026-10-26T01:21:05+08:00] phase1: a pulled+built
+[2026-10-26T01:21:15+08:00] phase2: traffic switched to a
+From /home/agentuser/9router
+ * branch              master     -> FETCH_HEAD
+HEAD is now at a42e79d2 fix(bg-health): require JS chunk 200 to catch stale build manifest after racing deploys
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+[2026-10-26T01:21:18+08:00] note: GitHub pull skipped for b (no creds — using local repo state)
+
+up to date in 2s
+
+> 9router-app@0.5.318 build
+> next build
+
+ ⚠ Invalid next.config.mjs options detected: 
+ ⚠     Unrecognized key(s) in object: 'proxyClientMaxBodySize', 'serverComponentsHmrCache' at "experimental"
+ ⚠     Unrecognized key(s) in object: 'serverExternalPackages', 'turbopack'
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+  ▲ Next.js 14.2.35
+  - Experiments (use with caution):
+    · outputFileTracingRoot
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+Attempted import error: 'ProgressCard' is not exported from '@/shared/components' (imported as 'ProgressCard').
+
+Import trace for requested module:
+./src/app/(dashboard)/dashboard/providers/[id]/ImportModelsButton.js
+./src/app/(dashboard)/dashboard/providers/[id]/page.js
+
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+export 'getInstalledCloudflaredVersion' (reexported as 'getInstalledCloudflaredVersion') was not found in './cloudflared.js' (possible exports: ensureCloudflared, getDownloadStatus, isCloudflaredRunning, killCloudflared, setUnexpectedExitHandler, spawnCloudflared, spawnQuickTunnel)
+
+Import trace for requested module:
+./src/lib/tunnel/cloudflare/cloudflaredUpdaterReexport.js
+./src/lib/tunnel/index.js
+./src/app/api/tunnel/cloudflared-update/route.js
+
+   Linting and checking validity of types ...
+   Collecting page data ...
+(node:2668551) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[DB] Driver: better-sqlite3 | file: /home/agentuser/.9router/db/data.sqlite
+   Generating static pages (0/36) ...
+   Generating static pages (9/36) 
+   Generating static pages (18/36) 
+   Generating static pages (27/36) 
+ ✓ Generating static pages (36/36)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                        Size     First Load JS
+┌ ○ /                                              152 B          88.3 kB
+├ ○ /_not-found                                    152 B          88.3 kB
+├ ƒ /api/auth/login                                0 B                0 B
+├ ƒ /api/auth/logout                               0 B                0 B
+├ ƒ /api/auth/oidc/callback                        0 B                0 B
+├ ƒ /api/auth/oidc/start                           0 B                0 B
+├ ƒ /api/auth/oidc/test                            0 B                0 B
+├ ƒ /api/auth/reset-password                       0 B                0 B
+├ ƒ /api/auth/saml/acs                             0 B                0 B
+├ ƒ /api/auth/saml/metadata                        0 B                0 B
+├ ƒ /api/auth/saml/start                           0 B                0 B
+├ ƒ /api/auth/saml/test                            0 B                0 B
+├ ƒ /api/auth/status                               0 B                0 B
+├ ƒ /api/changelog                                 0 B                0 B
+├ ƒ /api/cli-tools/all-statuses                    0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm                0 B                0 B
+├ ƒ /api/cli-tools/antigravity-mitm/alias          0 B                0 B
+├ ƒ /api/cli-tools/claude-settings                 0 B                0 B
+├ ƒ /api/cli-tools/cline-settings                  0 B                0 B
+├ ƒ /api/cli-tools/codewhale-settings              0 B                0 B
+├ ƒ /api/cli-tools/codex-profiles                  0 B                0 B
+├ ƒ /api/cli-tools/codex-settings                  0 B                0 B
+├ ƒ /api/cli-tools/copilot-settings                0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-registry             0 B                0 B
+├ ƒ /api/cli-tools/cowork-mcp-tools                0 B                0 B
+├ ƒ /api/cli-tools/cowork-settings                 0 B                0 B
+├ ƒ /api/cli-tools/crush-settings                  0 B                0 B
+├ ƒ /api/cli-tools/deepseek-tui-settings           0 B                0 B
+├ ƒ /api/cli-tools/devin-settings                  0 B                0 B
+├ ƒ /api/cli-tools/droid-settings                  0 B                0 B
+├ ƒ /api/cli-tools/forge-settings                  0 B                0 B
+├ ƒ /api/cli-tools/grok-build-settings             0 B                0 B
+├ ƒ /api/cli-tools/hermes-profiles                 0 B                0 B
+├ ƒ /api/cli-tools/hermes-settings                 0 B                0 B
+├ ƒ /api/cli-tools/jcode-settings                  0 B                0 B
+├ ƒ /api/cli-tools/kilo-settings                   0 B                0 B
+├ ƒ /api/cli-tools/omp-settings                    0 B                0 B
+├ ƒ /api/cli-tools/openclaw-settings               0 B                0 B
+├ ƒ /api/cli-tools/opencode-settings               0 B                0 B
+├ ƒ /api/cli-tools/pi-settings                     0 B                0 B
+├ ƒ /api/cli-tools/smelt-settings                  0 B                0 B
+├ ƒ /api/combos                                    0 B                0 B
+├ ƒ /api/combos/[id]                               0 B                0 B
+├ ƒ /api/combos/presets                            0 B                0 B
+├ ƒ /api/dashboard-jobs                            0 B                0 B
+├ ƒ /api/error-logs                                0 B                0 B
+├ ƒ /api/headroom/extras                           0 B                0 B
+├ ƒ /api/headroom/proxy/[...path]                  0 B                0 B
+├ ƒ /api/headroom/restart                          0 B                0 B
+├ ƒ /api/headroom/start                            0 B                0 B
+├ ƒ /api/headroom/status                           0 B                0 B
+├ ƒ /api/headroom/stop                             0 B                0 B
+├ ƒ /api/health                                    0 B                0 B
+├ ƒ /api/init                                      0 B                0 B
+├ ƒ /api/keys                                      0 B                0 B
+├ ƒ /api/keys/[id]                                 0 B                0 B
+├ ƒ /api/keys/bulk                                 0 B                0 B
+├ ƒ /api/locale                                    0 B                0 B
+├ ƒ /api/mcp/[plugin]/message                      0 B                0 B
+├ ƒ /api/mcp/[plugin]/sse                          0 B                0 B
+├ ƒ /api/media-providers/tts/deepgram/voices       0 B                0 B
+├ ƒ /api/media-providers/tts/elevenlabs/voices     0 B                0 B
+├ ƒ /api/media-providers/tts/inworld/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/minimax/voices        0 B                0 B
+├ ƒ /api/media-providers/tts/voices                0 B                0 B
+├ ƒ /api/model-editor                              0 B                0 B
+├ ƒ /api/models                                    0 B                0 B
+├ ƒ /api/models/alias                              0 B                0 B
+├ ƒ /api/models/availability                       0 B                0 B
+├ ƒ /api/models/catalog-sync                       0 B                0 B
+├ ƒ /api/models/custom                             0 B                0 B
+├ ƒ /api/models/disabled                           0 B                0 B
+├ ƒ /api/models/test                               0 B                0 B
+├ ƒ /api/notifications                             0 B                0 B
+├ ƒ /api/notifications/scan                        0 B                0 B
+├ ƒ /api/oauth/[provider]/[action]                 0 B                0 B
+├ ƒ /api/oauth/codex/bulk-import                   0 B                0 B
+├ ƒ /api/oauth/codex/import-token                  0 B                0 B
+├ ƒ /api/oauth/cursor/auto-import                  0 B                0 B
+├ ƒ /api/oauth/cursor/import                       0 B                0 B
+├ ƒ /api/oauth/gitlab/pat                          0 B                0 B
+├ ƒ /api/oauth/grok-cli/bulk-import                0 B                0 B
+├ ƒ /api/oauth/iflow/cookie                        0 B                0 B
+├ ƒ /api/oauth/kiro/api-key                        0 B                0 B
+├ ƒ /api/oauth/kiro/auto-import                    0 B                0 B
+├ ƒ /api/oauth/kiro/import                         0 B                0 B
+├ ƒ /api/oauth/kiro/import-cli-proxy               0 B                0 B
+├ ƒ /api/oauth/kiro/social-authorize               0 B                0 B
+├ ƒ /api/oauth/kiro/social-exchange                0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/api-key                 0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/auto-import             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/start             0 B                0 B
+├ ƒ /api/oauth/xiaomi-mimo/login/status            0 B                0 B
+├ ƒ /api/oauth/zed/auto-import                     0 B                0 B
+├ ƒ /api/oauth/zed/import                          0 B                0 B
+├ ƒ /api/plugins                                   0 B                0 B
+├ ƒ /api/pricing                                   0 B                0 B
+├ ƒ /api/provider-nodes                            0 B                0 B
+├ ƒ /api/provider-nodes/[id]                       0 B                0 B
+├ ƒ /api/provider-nodes/validate                   0 B                0 B
+├ ƒ /api/providers                                 0 B                0 B
+├ ƒ /api/providers/[id]                            0 B                0 B
+├ ƒ /api/providers/[id]/models                     0 B                0 B
+├ ƒ /api/providers/[id]/overrides                  0 B                0 B
+├ ƒ /api/providers/[id]/test                       0 B                0 B
+├ ƒ /api/providers/[id]/test-models                0 B                0 B
+├ ƒ /api/providers/client                          0 B                0 B
+├ ƒ /api/providers/kilo/free-models                0 B                0 B
+├ ƒ /api/providers/suggested-models                0 B                0 B
+├ ƒ /api/providers/test-batch                      0 B                0 B
+├ ƒ /api/providers/validate                        0 B                0 B
+├ ƒ /api/proxy-pools                               0 B                0 B
+├ ƒ /api/proxy-pools/[id]                          0 B                0 B
+├ ƒ /api/proxy-pools/[id]/test                     0 B                0 B
+├ ƒ /api/proxy-pools/bulk                          0 B                0 B
+├ ƒ /api/proxy-pools/cloudflare-deploy             0 B                0 B
+├ ƒ /api/proxy-pools/deno-deploy                   0 B                0 B
+├ ƒ /api/proxy-pools/import-jobs                   0 B                0 B
+├ ƒ /api/proxy-pools/netlify-deploy                0 B                0 B
+├ ƒ /api/proxy-pools/vercel-deploy                 0 B                0 B
+├ ƒ /api/pxpipe/health                             0 B                0 B
+├ ƒ /api/pxpipe/install                            0 B                0 B
+├ ƒ /api/pxpipe/logs                               0 B                0 B
+├ ƒ /api/pxpipe/restart                            0 B                0 B
+├ ƒ /api/pxpipe/start                              0 B                0 B
+├ ƒ /api/pxpipe/stats                              0 B                0 B
+├ ƒ /api/pxpipe/status                             0 B                0 B
+├ ƒ /api/pxpipe/stop                               0 B                0 B
+├ ƒ /api/settings                                  0 B                0 B
+├ ƒ /api/settings/auto-backup                      0 B                0 B
+├ ƒ /api/settings/database                         0 B                0 B
+├ ƒ /api/settings/database/jobs                    0 B                0 B
+├ ƒ /api/settings/database/jobs/[jobId]            0 B                0 B
+├ ƒ /api/settings/history                          0 B                0 B
+├ ƒ /api/settings/proxy-test                       0 B                0 B
+├ ƒ /api/settings/require-login                    0 B                0 B
+├ ƒ /api/settings/rollback                         0 B                0 B
+├ ƒ /api/shutdown                                  0 B                0 B
+├ ƒ /api/tags                                      0 B                0 B
+├ ƒ /api/theme                                     0 B                0 B
+├ ƒ /api/token-saver/cache-stats                   0 B                0 B
+├ ƒ /api/translator/console-logs                   0 B                0 B
+├ ƒ /api/translator/console-logs/stream            0 B                0 B
+├ ƒ /api/translator/load                           0 B                0 B
+├ ƒ /api/translator/save                           0 B                0 B
+├ ƒ /api/translator/send                           0 B                0 B
+├ ƒ /api/translator/translate                      0 B                0 B
+├ ƒ /api/tunnel/cloudflared-update                 0 B                0 B
+├ ƒ /api/tunnel/disable                            0 B                0 B
+├ ƒ /api/tunnel/enable                             0 B                0 B
+├ ƒ /api/tunnel/status                             0 B                0 B
+├ ƒ /api/tunnel/tailscale-check                    0 B                0 B
+├ ƒ /api/tunnel/tailscale-disable                  0 B                0 B
+├ ƒ /api/tunnel/tailscale-enable                   0 B                0 B
+├ ƒ /api/tunnel/tailscale-install                  0 B                0 B
+├ ƒ /api/usage/[connectionId]                      0 B                0 B
+├ ƒ /api/usage/[connectionId]/claude-reset         0 B                0 B
+├ ƒ /api/usage/[connectionId]/codex-reset-credits  0 B                0 B
+├ ƒ /api/usage/antigravity-tier                    0 B                0 B
+├ ƒ /api/usage/api-keys                            0 B                0 B
+├ ƒ /api/usage/available-models                    0 B                0 B
+├ ƒ /api/usage/chart                               0 B                0 B
+├ ƒ /api/usage/errors                              0 B                0 B
+├ ƒ /api/usage/history                             0 B                0 B
+├ ƒ /api/usage/ip-access-log                       0 B                0 B
+├ ƒ /api/usage/leaderboard                         0 B                0 B
+├ ƒ /api/usage/logs                                0 B                0 B
+├ ƒ /api/usage/providers                           0 B                0 B
+├ ƒ /api/usage/request-details                     0 B                0 B
+├ ƒ /api/usage/request-details/[id]                0 B                0 B
+├ ƒ /api/usage/request-logs                        0 B                0 B
+├ ƒ /api/usage/sparks                              0 B                0 B
+├ ƒ /api/usage/stats                               0 B                0 B
+├ ƒ /api/usage/stream                              0 B                0 B
+├ ƒ /api/usage/token-savings                       0 B                0 B
+├ ƒ /api/v1                                        0 B                0 B
+├ ƒ /api/v1/api/chat                               0 B                0 B
+├ ƒ /api/v1/audio/speech                           0 B                0 B
+├ ƒ /api/v1/audio/transcriptions                   0 B                0 B
+├ ƒ /api/v1/audio/voices                           0 B                0 B
+├ ƒ /api/v1/chat/completions                       0 B                0 B
+├ ƒ /api/v1/embeddings                             0 B                0 B
+├ ƒ /api/v1/images/generations                     0 B                0 B
+├ ƒ /api/v1/messages                               0 B                0 B
+├ ƒ /api/v1/messages/count_tokens                  0 B                0 B
+├ ƒ /api/v1/models                                 0 B                0 B
+├ ƒ /api/v1/models/[...model]                      0 B                0 B
+├ ƒ /api/v1/models/info                            0 B                0 B
+├ ƒ /api/v1/responses                              0 B                0 B
+├ ƒ /api/v1/responses/compact                      0 B                0 B
+├ ƒ /api/v1/search                                 0 B                0 B
+├ ƒ /api/v1/systemone                              0 B                0 B
+├ ƒ /api/v1/videos/[id]                            0 B                0 B
+├ ƒ /api/v1/videos/edits                           0 B                0 B
+├ ƒ /api/v1/videos/extensions                      0 B                0 B
+├ ƒ /api/v1/videos/generations                     0 B                0 B
+├ ƒ /api/v1/web/fetch                              0 B                0 B
+├ ƒ /api/v1beta/models                             0 B                0 B
+├ ƒ /api/v1beta/models/[...path]                   0 B                0 B
+├ ƒ /api/version                                   0 B                0 B
+├ ƒ /api/version/shutdown                          0 B                0 B
+├ ƒ /api/version/update                            0 B                0 B
+├ ○ /callback                                      1.34 kB        89.5 kB
+├ ○ /dashboard                                     154 B           286 kB
+├ ○ /dashboard/api-key-usage                       2.47 kB         272 kB
+├ ○ /dashboard/arena                               8.8 kB          278 kB
+├ ○ /dashboard/basic-chat                          6.4 kB          276 kB
+├ ○ /dashboard/cli-tools                           1.38 kB         316 kB
+├ ƒ /dashboard/cli-tools/[toolId]                  1.91 kB         317 kB
+├ ○ /dashboard/combos                              24.9 kB         294 kB
+├ ƒ /dashboard/console-log                         154 B           274 kB
+├ ○ /dashboard/endpoint                            154 B           286 kB
+├ ƒ /dashboard/error-log                           154 B           274 kB
+├ ƒ /dashboard/experiments                         1.45 kB         271 kB
+├ ƒ /dashboard/logs                                154 B           274 kB
+├ ƒ /dashboard/media-providers/[kind]              2.7 kB          272 kB
+├ ƒ /dashboard/media-providers/[kind]/[id]         18.8 kB         288 kB
+├ ƒ /dashboard/media-providers/combo/[id]          4.1 kB          274 kB
+├ ○ /dashboard/media-providers/web                 2.36 kB         272 kB
+├ ○ /dashboard/mitm                                1.27 kB         316 kB
+├ ○ /dashboard/model-editor                        6.92 kB         276 kB
+├ ○ /dashboard/plugins                             2.43 kB         272 kB
+├ ○ /dashboard/profile                             13.1 kB         283 kB
+├ ○ /dashboard/prompts                             2.54 kB         272 kB
+├ ○ /dashboard/providers                           8.62 kB         278 kB
+├ ƒ /dashboard/providers/[id]                      30.2 kB         305 kB
+├ ○ /dashboard/providers/new                       1.9 kB          271 kB
+├ ○ /dashboard/proxy-pools                         9.96 kB         280 kB
+├ ○ /dashboard/pxpipe                              112 kB          381 kB
+├ ○ /dashboard/quota                               16 kB           286 kB
+├ ○ /dashboard/settings/pricing                    2.81 kB        95.7 kB
+├ ○ /dashboard/skills                              1.99 kB         272 kB
+├ ○ /dashboard/token-saver                         7.01 kB         277 kB
+├ ○ /dashboard/translator                          3.48 kB         273 kB
+├ ○ /dashboard/usage                               18.4 kB         288 kB
+├ ○ /landing                                       11.2 kB        99.4 kB
+├ ○ /login                                         2.67 kB         272 kB
+└ ○ /manifest.webmanifest                          0 B                0 B
++ First Load JS shared by all                      88.2 kB
+  ├ chunks/2117-444ce27c536335f3.js                31.9 kB
+  ├ chunks/fd9d1056-ba5fd14cf02c3f5b.js            53.6 kB
+  └ other shared chunks (total)                    2.64 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+
+> 9router-app@0.5.318 postbuild
+> node scripts/copy-standalone-assets.mjs
+
+[standalone-assets] Copied static assets to /home/agentuser/9router-b/.next/standalone/.next/static
+[standalone-assets] Copied public assets to /home/agentuser/9router-b/.next/standalone/public
+[standalone-assets] Copied custom-server.js to /home/agentuser/9router-b/.next/standalone/custom-server.js
+[standalone-assets] Copied src/ to /home/agentuser/9router-b/.next/standalone/src
+[standalone-assets] Copied scripts/ to /home/agentuser/9router-b/.next/standalone/scripts
+[standalone-assets] Copied open-sse/ to /home/agentuser/9router-b/.next/standalone/open-sse
+[standalone-assets] Mirrored the next package to /home/agentuser/9router-b/.next/standalone/node_modules/next
+[2026-10-26T01:23:38+08:00] phase3: b pulled+built
+[2026-10-26T01:23:48+08:00] phase4: traffic back on b; a stopped. FINAL: active=b (single node)
+[2026-10-26T01:23:49+08:00] === bgSwap done ===
