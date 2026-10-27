@@ -52,50 +52,15 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       const strategy = override.rotateStrategy || "none";
       let pickedId = override.proxyPoolId || null;
 
-      // Handle OpenCode V2 builtin residential proxy option
-      if (providerId === "opencode-v2") {
-        const { resolveV2ChannelRoute, OPENCODE_V2_CHANNEL_REF, OPENCODE_V2_CHANNEL_ID } = await import("open-sse/utils/opencodeV2Channel.js");
-        const builtinRoute = resolveV2ChannelRoute();
-
-        // If explicitly set to builtin (or default when not configured and builtinRoute exists)
-        if (pickedId === "builtin" || (!pickedId && strategy === "none" && builtinRoute)) {
-          const sidMatch = (builtinRoute || "").match(/-sid-(\d+)/i);
-          const connectionId = sidMatch ? `channel:${OPENCODE_V2_CHANNEL_ID}:${sidMatch[1]}` : `channel:${OPENCODE_V2_CHANNEL_ID}`;
-          if (!excludeSet.has(connectionId)) {
-            return {
-              id: connectionId,
-              connectionId,
-              connectionName: "proxy by: t.me/abcseren",
-              isActive: true,
-              accessToken: "public",
-              providerSpecificData: {
-                connectionProxyEnabled: true,
-                connectionProxyUrl: builtinRoute,
-                connectionNoProxy: "",
-                connectionProxyPoolId: OPENCODE_V2_CHANNEL_ID,
-                displayProxyUrl: OPENCODE_V2_CHANNEL_REF,
-                isLockedProxy: true,
-              },
-            };
-          }
-        }
-      }
-
-      const allPools = (strategy !== "none" || (pickedId && pickedId !== "builtin")) ? await getProxyPools({ isActive: true }) : [];
-      const selectedPool = (pickedId && pickedId !== "builtin") ? allPools.find(p => p.id === pickedId) : null;
-      // A stale pool id (the pool was deleted) must not silently demote OpenCode V2
-      // to unproxied direct mode — fail over to the built-in residential channel.
-      if (providerId === "opencode-v2" && pickedId && pickedId !== "builtin" && !selectedPool) {
-        log.warn("AUTH", `${providerId} | configured proxy pool ${pickedId.slice(0, 8)} no longer exists; falling back to built-in channel`);
-        pickedId = "builtin";
-      }
+      const allPools = strategy !== "none" ? await getProxyPools({ isActive: true }) : [];
+      const selectedPool = pickedId ? allPools.find((p) => p.id === pickedId) : null;
       const hasDynamicSid = /-sid-\d+/i.test(selectedPool?.proxyUrl || "");
 
       if (strategy !== "none") {
         const poolIds = allPools
-          .filter(p => p.proxyUrl)
-          .map(p => p.id)
-          .filter(id => !excludeSet.has(`proxy:${id}`) && !excludeSet.has(id));
+          .filter((p) => p.proxyUrl)
+          .map((p) => p.id)
+          .filter((id) => !excludeSet.has(`proxy:${id}`) && !excludeSet.has(id));
         if (poolIds.length === 0) {
           log.warn("AUTH", `${provider} | all proxy pools exhausted (${excludeSet.size} excluded)`);
           return null;
@@ -109,16 +74,6 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
         return null;
       }
       const resolvedProxy = await resolveConnectionProxyConfig({ proxyPoolId: pickedId || "" });
-      if (providerId === "opencode-v2") {
-        if (!resolvedProxy?.connectionProxyUrl && pickedId === "builtin") {
-          const { resolveV2ChannelRoute } = await import("open-sse/utils/opencodeV2Channel.js");
-          const defaultRoute = resolveV2ChannelRoute();
-          if (defaultRoute) {
-            resolvedProxy.connectionProxyEnabled = true;
-            resolvedProxy.connectionProxyUrl = defaultRoute;
-          }
-        }
-      }
       const sidMatch = (resolvedProxy.connectionProxyUrl || "").match(/-sid-(\d+)/i);
       const connectionId = pickedId ? (sidMatch ? `proxy:${pickedId}:${sidMatch[1]}` : `proxy:${pickedId}`) : "noauth";
       if (excludeSet.has(connectionId)) {

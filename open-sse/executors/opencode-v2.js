@@ -15,7 +15,6 @@ import {
   formatOpencodeCliPrompt,
   executeOpencodeCli,
 } from "../utils/opencodeCliRunner.js";
-import { resolveV2ChannelRoute } from "../utils/opencodeV2Channel.js";
 import {
   normalizeResponsesInput,
   clampResponsesCallId,

@@ -531,7 +531,7 @@ async function fetchWithConnectionProxy(url, options = {}, effectiveProxy = null
   });
 }
 
-async function testApiKeyConnection(connection, effectiveProxy = null) {
+export async function testApiKeyConnection(connection, effectiveProxy = null) {
   if (isOpenAICompatibleProvider(connection.provider)) {
     const modelsBase = connection.providerSpecificData?.baseUrl;
     if (!modelsBase) return { valid: false, error: "Missing base URL" };
@@ -850,16 +850,10 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
         }
         return { valid: true, error: null };
       }
-      case "opencode":
-      case "opencode-v2": {
-        // Connectivity-only probe: GET /models never exercises the Responses
-        // tool path, so a green dashboard test does NOT rule out 403
-        // FreeTierError on POST /zen/v1/responses with tools (requires
-        // bash+read decoys + tool_choice auto — see OpenCodeExecutor).
-        const res = await fetchWithConnectionProxy("https://opencode.ai/zen/v1/models", {
-          headers: { Authorization: "Bearer public", "User-Agent": "opencode/1.19.4 ai-sdk/provider-utils/4.0.23 runtime/bun/1.4.4" },
-        }, effectiveProxy);
-        return { valid: res.ok, error: res.ok ? null : "OpenCode free tier unavailable" };
+      case "opencode": {
+        // OpenCode Free uses public credentials; avoid quota-consuming upstream
+        // probes during dashboard connection tests.
+        return { valid: true, error: null };
       }
       case "opencode-go": {
         const res = await fetchWithConnectionProxy("https://opencode.ai/zen/go/v1/chat/completions", {

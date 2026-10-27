@@ -80,24 +80,10 @@ export default {
     { id: "gpt-image-2.5-sunburst", name: "GPT Image 2.5 Sunburst", capabilities: ["text2img","edit","multiImage"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
     { id: "gpt-image-2", name: "GPT Image 2", capabilities: ["text2img","edit","multiImage"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
     { id: "gpt-image-1.5", name: "GPT Image 1.5", capabilities: ["text2img","edit","multiImage"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.6-sol-image", name: "GPT 5.6 Sol Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.6-terra-image", name: "GPT 5.6 Terra Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.6-luna-image", name: "GPT 5.6 Luna Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.5-image", name: "GPT 5.5 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.4-image", name: "GPT 5.4 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-    { id: "gpt-5.3-image", name: "GPT 5.3 Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
-  
-    { id: "gpt-5.3-codex", name: "GPT 5.3 Codex" },
-    { id: "gpt-5.3-codex-review", name: "GPT 5.3 Codex Review", upstreamModelId: "gpt-5.3-codex", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-xhigh", name: "GPT 5.3 Codex (xHigh)" },
-    { id: "gpt-5.3-codex-xhigh-review", name: "GPT 5.3 Codex (xHigh) Review", upstreamModelId: "gpt-5.3-codex-xhigh", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-high", name: "GPT 5.3 Codex (High)" },
-    { id: "gpt-5.3-codex-high-review", name: "GPT 5.3 Codex (High) Review", upstreamModelId: "gpt-5.3-codex-high", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-low", name: "GPT 5.3 Codex (Low)" },
-    { id: "gpt-5.3-codex-low-review", name: "GPT 5.3 Codex (Low) Review", upstreamModelId: "gpt-5.3-codex-low", quotaFamily: "review" },
-    { id: "gpt-5.3-codex-none", name: "GPT 5.3 Codex (None)" },
-    { id: "gpt-5.3-codex-none-review", name: "GPT 5.3 Codex (None) Review", upstreamModelId: "gpt-5.3-codex-none", quotaFamily: "review" },
-
+    { id: "gpt-6-sol-image", name: "GPT 6.0 Sol Image", capabilities: ["text2img","edit"], params: ["size","quality","background","image_detail","output_format"], kind: "image" },
+    { id: "transcribe", name: "Codex Transcription", kind: "stt", params: ["response_format"], responseFormats: ["json", "text"] },
+    // gpt-5.5-image / gpt-5.4-image / gpt-5.3-image removed alongside base models.
+    // gpt-5.6-{sol,terra,luna}-image removed: superseded by gpt-6-sol-image.
   ],
   serviceKinds: ["llm","image"],
   oauth: {
