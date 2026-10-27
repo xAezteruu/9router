@@ -1,4 +1,15 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { GlmExecutor } from "./glm.js";
+
+// ZCode identity strings — verbatim mirror of the desktop client's
+// ContextBuilder (ZCode 3.11.2), sourced from zcode-agent-kit's
+// zcode_system.json. The zcode-plan gateway content-inspects these blocks
+// (missing/wrong text → 3012 "method not allowed").
+const ZCODE_PLAN_SHAPE = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "zcode-plan-shape.json"), "utf8")
+);
 
 // Statuses that mean "this endpoint leg rejects the credential/request shape"
 // rather than "the provider is down". ZcodeExecutor advances to the next leg
@@ -6,6 +17,70 @@ import { GlmExecutor } from "./glm.js";
 // gateway-first override. 400 stays terminal (malformed request), 429/5xx keep
 // base behavior.
 const ZCODE_ENDPOINT_FALLBACK_STATUSES = [401, 403, 404];
+
+const EPHEMERAL = { type: "ephemeral" };
+
+function zcodeBlocks(model) {
+  const data = ZCODE_PLAN_SHAPE;
+  const env = data.environment;
+  const envLines = [
+    env.heading,
+    env.invokedLine,
+    `- ${env.cwdLabel}: /root`,
+    `- ${env.gitLabel}: ${env.gitNo}`,
+    `- ${env.platformLabel}: linux`,
+    `- ${env.shellLabel}: /bin/bash`,
+    `- ${env.osVersionLabel}: linux`,
+    `- ${env.poweredByLine.replace("{model}", model || "glm-5.3")}`,
+  ].join("\n");
+  const stable = data.stableSections.join("\n\n");
+  const dynamic = [
+    data.dynamicSections.beforeEnvironment,
+    envLines,
+    data.dynamicSections.afterEnvironment,
+  ].join("\n\n");
+  return [
+    { type: "text", text: data.cliPrefix, cache_control: EPHEMERAL },
+    { type: "text", text: stable, cache_control: EPHEMERAL },
+    { type: "text", text: `\n\n${dynamic}`, cache_control: EPHEMERAL },
+  ];
+}
+
+/**
+ * Rewire the claude-format body into the start-plan wire shape:
+ * 1. system: prepend the 3 official ZCode blocks (client blocks preserved
+ *    after, cache_control stripped to stay under the 4-breakpoint cap)
+ * 2. messages: leading user turn carrying the currentDate context prefix
+ *    wrapped in <system-reminder>, then the user's real messages
+ * 3. metadata.user_id: account-scoped id (device/session blob in the real
+ *    client; any stable string passes)
+ */
+function injectZcodePlanShape(body, model, credentials) {
+  const jwt = credentials?.providerSpecificData?.zcodeJwtToken
+    || credentials?.accessToken
+    || credentials?.apiKey
+    || "zc";
+  const userSystem = Array.isArray(body.system)
+    ? body.system.map(b => ({ ...b, cache_control: undefined }))
+    : (typeof body.system === "string" && body.system.trim()
+      ? [{ type: "text", text: body.system }]
+      : []);
+  const messages = Array.isArray(body.messages) ? body.messages : [];
+  const date = new Date().toISOString().slice(0, 10);
+  const cp = ZCODE_PLAN_SHAPE.contextPrefix;
+  const sr = ZCODE_PLAN_SHAPE.systemReminder;
+  const currentDateSection = `${cp.currentDateHeading}\n${cp.currentDateLine.replace("{date}", date)}`;
+  const prefixText = [cp.intro, currentDateSection, "", cp.outro].join("\n");
+  return {
+    ...body,
+    system: [...zcodeBlocks(model), ...userSystem],
+    metadata: { ...(body.metadata || {}), user_id: `user_${jwt.slice(0, 8)}` },
+    messages: [
+      { role: "user", content: [{ type: "text", text: `${sr.open}\n${prefixText}\n${sr.close}` }] },
+      ...messages,
+    ],
+  };
+}
 
 /**
  * ZCode executor — GLM effort tiers (inherited) + endpoint-leg fallback.
@@ -20,6 +95,7 @@ const ZCODE_ENDPOINT_FALLBACK_STATUSES = [401, 403, 404];
 export class ZcodeExecutor extends GlmExecutor {
   constructor(provider = "zcode") {
     super(provider);
+    this._urlIndex = 0;
   }
 
   /**
@@ -40,13 +116,25 @@ export class ZcodeExecutor extends GlmExecutor {
    * carrying only x-api-key is rejected 401.
    */
   buildHeaders(credentials, stream = true, model = null, opencodeIdentity = null, urlIndex = 0) {
+    // Track the leg even when the retry loop calls buildUrl() first (it sets
+    // this._urlIndex); urlIndex param wins when the caller passes it.
+    const leg = typeof urlIndex === "number" && urlIndex > 0 ? urlIndex : this._urlIndex;
     const codingApiKey = credentials?.providerSpecificData?.codingApiKey;
-    const effective = urlIndex >= 1 && codingApiKey
+    const effective = leg >= 1 && codingApiKey
       ? { ...credentials, apiKey: codingApiKey }
       : credentials;
     const headers = super.buildHeaders(effective, stream, model, opencodeIdentity);
     const token = headers["x-api-key"];
-    if (token && !headers["Authorization"]) {
+    if (leg === 0) {
+      // Start-plan leg validates ONLY the OAuth session JWT — the derived
+      // coding key gets 401 here. Prefer the JWT from providerSpecificData
+      // (oauth flow stores it there), fall back to the connection token.
+      const jwt = credentials?.providerSpecificData?.zcodeJwtToken
+        || credentials?.accessToken
+        || token;
+      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
+      delete headers["x-api-key"];
+    } else if (token && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;
@@ -59,10 +147,24 @@ export class ZcodeExecutor extends GlmExecutor {
    * retry loop would re-request leg 0 on every urlIndex.
    */
   buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    this._urlIndex = urlIndex;
     const baseUrls = this.getBaseUrls();
     const leg = baseUrls[urlIndex] || baseUrls[0];
     if (leg) return leg;
     return super.buildUrl(model, stream, urlIndex, credentials);
+  }
+
+  /**
+   * Start-plan body shape. The zcode-plan gateway content-inspects the request:
+   * without the ZCode identity system blocks it answers 3012 "method not
+   * allowed", without metadata.user_id / context-prefix it 3001s. Inject the
+   * desktop client's exact shape on leg 0 only (verified against the desktop
+   * bundle mirror in zcode-agent-kit 0.2.42). Other legs: untouched.
+   */
+  transformRequest(model, body, stream, credentials) {
+    const transformed = super.transformRequest(model, body, stream, credentials);
+    if (this._urlIndex !== 0 || !transformed || typeof transformed !== "object") return transformed;
+    return injectZcodePlanShape(transformed, model, credentials);
   }
 
   async execute(args) {
