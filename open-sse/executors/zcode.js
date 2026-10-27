@@ -1,15 +1,5 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { GlmExecutor } from "./glm.js";
-
-// ZCode identity strings — verbatim mirror of the desktop client's
-// ContextBuilder (ZCode 3.11.2), sourced from zcode-agent-kit's
-// zcode_system.json. The zcode-plan gateway content-inspects these blocks
-// (missing/wrong text → 3012 "method not allowed").
-const ZCODE_PLAN_SHAPE = JSON.parse(
-  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "zcode-plan-shape.json"), "utf8")
-);
+import ZCODE_PLAN_SHAPE from "./zcode-plan-shape.json" with { type: "json" };
 
 // Statuses that mean "this endpoint leg rejects the credential/request shape"
 // rather than "the provider is down". ZcodeExecutor advances to the next leg
