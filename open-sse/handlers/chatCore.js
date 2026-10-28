@@ -597,9 +597,6 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     // zcode 1113: upstream rejects when requested max_tokens exceeds the
     // remaining pool even though the balance is not empty. Retry once with a
     // clamped budget so small outputs still go through.
-    if (provider === "zcode") {
-      log?.info?.("CLAMPCHK", `provider=${provider} msg1113=${firstFailure.message.includes("1113")} mt=${translatedBody?.max_tokens} bodyKeys=${Object.keys(translatedBody || {}).join(",")}`);
-    }
     if (
       provider === "zcode"
       && firstFailure.message.includes("1113")
