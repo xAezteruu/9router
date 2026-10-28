@@ -544,6 +544,70 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       continue;
     }
 
+    // zcode 1113: upstream rejects a request whose max_tokens exceeds the
+    // remaining pool even though the balance is not empty. Retry once with a
+    // clamped budget so smaller outputs still go through before we lock the
+    // account and surface the 429 to the caller.
+    if (provider === "zcode" && result.status === 429
+        && /\b1113\b/.test(result.error || "")
+        && Number(body?.max_tokens) > 1024) {
+      const clampedResult = await handleChatCore({
+        body: { ...body, max_tokens: 1024, model: `${provider}/${effectiveModel}` },
+        modelInfo: { provider, model: effectiveModel },
+        requestedModel,
+        modelMultipliers,
+        isAntiProbe,
+        hideError: Boolean(chatSettings.hideError),
+        credentials: refreshedCredentials,
+        log,
+        clientRawRequest,
+        connectionId: credentials.connectionId,
+        userAgent,
+        apiKey,
+        clientIp,
+        ccFilterNaming: !!chatSettings.ccFilterNaming,
+        rtkEnabled: !!chatSettings.rtkEnabled,
+        contextPruningEnabled: !!chatSettings.contextPruningEnabled,
+        maxMessagesLimit: chatSettings.maxMessagesLimit || 20,
+        contextPruningLevel: chatSettings.contextPruningLevel || "full",
+        semanticCacheEnabled: !!chatSettings.semanticCacheEnabled,
+        semanticCacheTtlHours: chatSettings.semanticCacheTtlHours ?? 3,
+        semanticCacheMaxEntries: chatSettings.semanticCacheMaxEntries ?? 1000,
+        headroomEnabled: !!chatSettings.headroomEnabled,
+        headroomUrl: chatSettings.headroomUrl || DEFAULT_HEADROOM_URL,
+        headroomCompressUserMessages: !!chatSettings.headroomCompressUserMessages,
+        headroomTimeoutMs: chatSettings.headroomTimeoutMs,
+        cavemanEnabled: !!chatSettings.cavemanEnabled,
+        cavemanLevel: chatSettings.cavemanLevel || "full",
+        ponytailEnabled: !!chatSettings.ponytailEnabled,
+        ponytailLevel: chatSettings.ponytailLevel || "full",
+        pxpipeEnabled: !!chatSettings.pxpipeEnabled,
+        pxpipeMinChars: chatSettings.pxpipeMinChars,
+        pxpipeTimeoutMs: chatSettings.pxpipeTimeoutMs,
+        pxpipeTransform: chatSettings.pxpipeEnabled ? await getPxpipeTransform() : null,
+        onPxpipeEvent: appendPxpipeEvent,
+        providerThinking,
+        toolCallFallbackEnabled: chatSettings.toolCallFallback !== false,
+        providerOverrides: (chatSettings.providerOverrides || {})[provider] || null,
+        sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
+        onCredentialsRefreshed: async (newCreds) => {
+          await updateProviderCredentials(credentials.connectionId, {
+            ...newCreds,
+            existingProviderSpecificData: credentials.providerSpecificData,
+            testStatus: "active"
+          });
+        },
+        onRequestSuccess: async () => {
+          await clearAccountError(credentials.connectionId, credentials, model);
+        },
+      });
+      if (clampedResult.success) {
+        log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} 1113 CLAMP RETRY OK (max_tokens 1024)`);
+        return clampedResult.response;
+      }
+      log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} 1113 clamp retry failed (${clampedResult.status}) — falling through to lock`);
+    }
+
     // Exhausted Antigravity model is blocked only in RAM cache until upstream resetAt.
     // Do not persist a modelLock_* for this path.
     const shouldFallback = provider === "antigravity" && quotaResetMs
