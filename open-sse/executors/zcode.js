@@ -50,20 +50,24 @@ function injectZcodePlanShape(body, model, credentials) {
     || credentials?.accessToken
     || credentials?.apiKey
     || "zc";
-  const userSystem = Array.isArray(body.system)
-    ? body.system.map(b => ({ ...b, cache_control: undefined }))
-    : (typeof body.system === "string" && body.system.trim()
-      ? [{ type: "text", text: body.system }]
-      : []);
+  // The start-plan gateway rejects any request whose system array is not
+  // EXACTLY the 3 ZCode identity blocks (4th block → 3012 "unusual activity",
+  // verified by bisect 2026-10-28). The desktop client folds extra system
+  // directives into the prefix <system-reminder> user turn instead.
+  const userSystemText = Array.isArray(body.system)
+    ? body.system.map(b => (typeof b?.text === "string" ? b.text : "")).filter(Boolean).join("\n\n")
+    : (typeof body.system === "string" && body.system.trim() ? body.system : "");
   const messages = Array.isArray(body.messages) ? body.messages : [];
   const date = new Date().toISOString().slice(0, 10);
   const cp = ZCODE_PLAN_SHAPE.contextPrefix;
   const sr = ZCODE_PLAN_SHAPE.systemReminder;
   const currentDateSection = `${cp.currentDateHeading}\n${cp.currentDateLine.replace("{date}", date)}`;
-  const prefixText = [cp.intro, currentDateSection, "", cp.outro].join("\n");
+  const prefixParts = [cp.intro, currentDateSection, "", cp.outro];
+  if (userSystemText) prefixParts.push("", userSystemText);
+  const prefixText = prefixParts.join("\n");
   return {
     ...body,
-    system: [...zcodeBlocks(model), ...userSystem],
+    system: zcodeBlocks(model),
     metadata: { ...(body.metadata || {}), user_id: credentials?.providerSpecificData?.userId || `user_${jwt.slice(0, 8)}` },
     messages: [
       { role: "user", content: [{ type: "text", text: `${sr.open}\n${prefixText}\n${sr.close}` }] },
