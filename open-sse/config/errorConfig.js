@@ -79,6 +79,11 @@ export const ERROR_RULES = [
   { text: "no credentials",           cooldownMs: COOLDOWN.long },
   { text: "request not allowed",      cooldownMs: COOLDOWN.short },
   { text: "improperly formed request", cooldownMs: COOLDOWN.long },
+  // zcode 1113 comes wrapped as type "rate_limit_error" but the real cause is a
+  // balance/pool hiccup that recovers in seconds; a 5s lock beats exponential
+  // backoff (status 429 rule) that grew to minutes and replayed stale errors.
+  { provider: "zcode", text: "insufficient balance", cooldownMs: COOLDOWN.short },
+  { provider: "zcode", text: "1113",                  cooldownMs: COOLDOWN.short },
   { text: "rate limit",               backoff: true },
   { text: "too many requests",        backoff: true },
   { text: "quota exceeded",           backoff: true },

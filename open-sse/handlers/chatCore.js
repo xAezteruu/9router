@@ -594,6 +594,36 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     const firstFailure = await parseUpstreamError(providerResponse, executor);
     let toolFallbackRecovered = false;
 
+    // zcode 1113: upstream rejects when requested max_tokens exceeds the
+    // remaining pool even though the balance is not empty. Retry once with a
+    // clamped budget so small outputs still go through.
+    if (
+      provider === "zcode"
+      && firstFailure.message.includes("1113")
+      && Number(translatedBody?.max_tokens) > 1024
+    ) {
+      try {
+        const clampResult = await executor["execute"]({
+          model,
+          body: { ...translatedBody, max_tokens: 1024 },
+          stream,
+          credentials,
+          providerSessionId: sessionSeed,
+          clientTool,
+          signal: streamController.signal,
+          log,
+          proxyOptions,
+          providerOverrides,
+        });
+        if (clampResult.response.ok) {
+          log?.line?.(reqTag, "⚖", `1113 CLAMP RETRY · max_tokens 1024 · ${provider}/${model}`);
+          providerResponse = clampResult.response;
+          providerUrl = clampResult.url;
+          providerResponseFormat = clampResult.responseFormat || targetFormat;
+        }
+      } catch { /* fall through to the original error path */ }
+    }
+
     // Tool fallback: a provider that refuses the tool payload outright would
     // otherwise hand the caller a tool error, and inside a combo it would spend
     // the whole chain on the same malformed shape. Re-dispatch with the tool
