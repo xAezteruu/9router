@@ -620,6 +620,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
           providerResponse = clampResult.response;
           providerUrl = clampResult.url;
           providerResponseFormat = clampResult.responseFormat || targetFormat;
+          toolFallbackRecovered = true;
         }
       } catch { /* fall through to the original error path */ }
     }
