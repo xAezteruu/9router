@@ -33,7 +33,6 @@ import { applyAntiSlop } from "open-sse/rtk/antislop.js";
 
 // Default plugin state for fresh installs / missing settings
 const DEFAULT_PLUGINS = {
-  adaptiveThinking: { enabled: false, models: [], level: "full" },
   imageVision: { enabled: false, models: [] },
   thinkDeeper: { enabled: false, models: [] },
   unrestrictedMode: { enabled: false, models: [] },
@@ -41,6 +40,7 @@ const DEFAULT_PLUGINS = {
   jsonGuard: { enabled: false, models: [] },
   openaiToolBridge: { enabled: false, models: [] },
   antiSlop: { enabled: false, models: [] },
+  adaptiveThinking: { enabled: false, models: [], level: "full" },
 };
 
 // Cached plugin settings to avoid DB hits on every stream chunk
@@ -554,204 +554,6 @@ export function applyContextSqueezer(body, provider, model) {
 }
 
 /* ------------------------------------------------------------------ *
- * OpenAI Tool Bridge - request side
- * ------------------------------------------------------------------ */
-
-/**
- * OpenAI Tool Bridge, request side.
- *
- * The response side is where the repair happens (a model with `tools: false`
- * answers in prose and the bridge turns that prose back into tool_calls), but
- * the repair needs the tool catalogue the client offered, and `tools` is
- * translated away before dispatch. Snapshotting it here is what lets the
- * response layer answer "was that tool even offered?" instead of trusting any
- * tool name that appeared in prose.
- */
-export function applyOpenAIToolBridgeRequest(body, provider, model) {
-  if (!body) return false;
-  if (!Array.isArray(body.tools) || !body.tools.length) {
-    if (!Array.isArray(body.functions) || !body.functions.length) return false;
-  }
-  body._openaiToolBridge = {
-    provider,
-    model,
-    tools: Array.isArray(body.tools) ? body.tools : [],
-    functions: Array.isArray(body.functions) ? body.functions : [],
-  };
-
-  // Drop the tool list for a backend that cannot take it. Web-cookie providers
-  // are text-only (capabilities.js: `tools: false`) and their executors reject
-  // any request carrying tools with a hard 400 - "Gemini Web does not support
-  // OpenAI function tools" - so the model never gets a chance to answer. The
-  // catalogue is already snapshotted above; the response side turns the model's
-  // answer back into tool_calls from that snapshot.
-  //
-  // Only an explicit `tools: false` triggers this. A provider with no entry in
-  // the capability table keeps its tools, because guessing "unsupported" from
-  // silence would silently strip tools from providers that do support them.
-  let caps = null;
-  try {
-    caps = getCapabilitiesForModel(provider, model);
-  } catch {
-    caps = null;
-  }
-  if (caps && caps.tools === false) {
-    delete body.tools;
-    delete body.tool_choice;
-    if (Array.isArray(body.functions)) body.functions = [];
-    return true;
-  }
-  return true;
-}
-
-/* ------------------------------------------------------------------ *
- * Dispatch
- * ------------------------------------------------------------------ */
-
-/**
- * Run every plugin that applies to the target model.
- *
- * Returns the capability flags chatCore needs before it strips modalities, plus
- * the two response-path flags so the response layer knows whether to repair the
- * answer without asking the settings table a second time.
- */
-/* ------------------------------------------------------------------ *
- * Dispatch
- * ------------------------------------------------------------------ */
-
-export async function applyCustomPlugins(body, provider, model, sourceFormat, requestedModel) {
-  const config = await getPluginConfig();
-  const keysToTest = modelKeysToTest(requestedModel, provider, model);
-  const checkMatch = (modelList) => keysToTest.some((key) => matchesModel(modelList, key));
-
-  let caps = null;
-  try {
-    caps = getCapabilitiesForModel(provider, model);
-  } catch {
-    caps = null;
-  }
-
-  const result = {
-    isAdaptiveThinkingActive: false,
-    isVisionActive: false,
-    isThinkDeeperActive: false,
-  };
-
-  if (config.imageVision?.enabled && checkMatch(config.imageVision.models)) {
-    result.isVisionActive = true;
-    await applyImageVision(body, caps);
-  }
-
-  if (config.adaptiveThinking?.enabled && checkMatch(config.adaptiveThinking.models)) {
-    result.isAdaptiveThinkingActive = true;
-    result.isThinkDeeperActive = true; // backward compat with existing loggers/badges
-    applyAdaptiveThinking(body, sourceFormat);
-  }
-
-  if (config.thinkDeeper?.enabled && checkMatch(config.thinkDeeper.models)) {
-    result.isThinkDeeperActive = true;
-    applyThinkDeeper(body, sourceFormat);
-  }
-
-  if (config.unrestrictedMode?.enabled && checkMatch(config.unrestrictedMode.models)) {
-    result.isUnrestrictedActive = true;
-    processUnrestrictedMode(body, sourceFormat);
-  }
-
-  // Anti-loop discipline for Qwen3-Coder variants (kr/*): these models tend to
-  // re-read files, repeat tool calls, and wander instead of converging. Inject
-  // a compact execution-contract system prompt right before the task.
-  if (/qwen3-coder/i.test(`${provider}/${model}`)) {
-    processCoderFocus(body, sourceFormat);
-  }
-
-  if (config.speedMode?.enabled && checkMatch(config.speedMode.models)) {
-    result.isSpeedModeActive = true;
-    applySpeedMode(body, sourceFormat);
-  }
-
-
-  // Custom System Prompts: 1 prompt per model (models may repeat across prompts
-  // only by user error — the UI enforces exclusivity; runtime picks the first
-  // match and ignores later duplicates).
-  if (config.systemPrompts?.enabled && Array.isArray(config.systemPrompts.prompts)) {
-    for (const sp of config.systemPrompts.prompts) {
-      if (!sp?.enabled) continue;
-      const text = typeof sp.text === "string" ? sp.text.trim() : "";
-      if (!text || !Array.isArray(sp.models) || sp.models.length === 0) continue;
-      if (checkMatch(sp.models)) {
-        applyCustomSystemPrompt(body, text);
-        break; // 1 model → 1 prompt
-      }
-    }
-  }
-
-  // The two repairs below run on the answer, not the request. Resolving the flag
-  // here keeps selection in one place and hands the response layer a plain
-  // boolean instead of making it re-derive which models are configured.
-  if (config.jsonGuard?.enabled && checkMatch(config.jsonGuard.models)) {
-    result.isJsonGuardActive = true;
-    applyJsonGuardRequest(body, sourceFormat);
-  }
-
-  if (config.thinkDeeper?.enabled && checkMatch(config.thinkDeeper.models)) {
-    result.isThinkDeeperActive = true;
-    applyThinkDeeper(body, sourceFormat);
-  }
-
-  if (config.unrestrictedMode?.enabled && checkMatch(config.unrestrictedMode.models)) {
-    result.isUnrestrictedActive = true;
-    processUnrestrictedMode(body, sourceFormat);
-  }
-
-  // Anti-loop discipline for Qwen3-Coder variants (kr/*): these models tend to
-  // re-read files, repeat tool calls, and wander instead of converging. Inject
-  // a compact execution-contract system prompt right before the task.
-  if (/qwen3-coder/i.test(`${provider}/${model}`)) {
-    processCoderFocus(body, sourceFormat);
-  }
-
-  if (config.speedMode?.enabled && checkMatch(config.speedMode.models)) {
-    result.isSpeedModeActive = true;
-    applySpeedMode(body, sourceFormat);
-  }
-
-  if (config.systemPrompts?.enabled && Array.isArray(config.systemPrompts.prompts)) {
-    for (const sp of config.systemPrompts.prompts) {
-      if (!sp?.enabled) continue;
-      const text = typeof sp.text === "string" ? sp.text.trim() : "";
-      if (!text || !Array.isArray(sp.models) || sp.models.length === 0) continue;
-      if (checkMatch(sp.models)) {
-        applyCustomSystemPrompt(body, text);
-        break;
-      }
-    }
-  }
-
-  if (config.jsonGuard?.enabled && checkMatch(config.jsonGuard.models)) {
-    result.isJsonGuardActive = true;
-    applyJsonGuardRequest(body, sourceFormat);
-  }
-
-  if (config.antiSlop?.enabled && checkMatch(config.antiSlop.models)) {
-    result.isAntiSlopActive = true;
-    applyAntiSlop(body, sourceFormat, config.antiSlop.level);
-  }
-
-  if (config.openaiToolBridge?.enabled && checkMatch(config.openaiToolBridge.models)) {
-    result.isToolBridgeActive = applyOpenAIToolBridgeRequest(body, provider, model);
-  }
-
-  if (config.antiSlop?.enabled && checkMatch(config.antiSlop.models)) {
-    result.isAntiSlopActive = true;
-    applyAntiSlop(body, sourceFormat, config.antiSlop.level);
-  }
-
-  return result;
-}
-
-export { getPluginConfig };
-/* ------------------------------------------------------------------ *
  * Tool Calling Bridge (OpenAI Tool Bridge)
  *
  * A web-session/chat-only upstream has no function calling at all: it takes a
@@ -904,6 +706,21 @@ export function applyToolCallingBridge(body, sourceFormat) {
  * Dispatch
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Dispatch
+ * ------------------------------------------------------------------ */
+
+/**
+ * Run every plugin that applies to the target model.
+ *
+ * Returns the capability flags chatCore needs before it strips modalities, plus
+ * the two response-path flags so the response layer knows whether to repair the
+ * answer without asking the settings table a second time.
+ */
+/* ------------------------------------------------------------------ *
+ * Dispatch
+ * ------------------------------------------------------------------ */
+
 export async function applyCustomPlugins(body, provider, model, sourceFormat, requestedModel) {
   const config = await getPluginConfig();
   const keysToTest = modelKeysToTest(requestedModel, provider, model);
@@ -935,16 +752,62 @@ export async function applyCustomPlugins(body, provider, model, sourceFormat, re
     applyAdaptiveThinking(body, sourceFormat);
   }
 
+  if (config.thinkDeeper?.enabled && checkMatch(config.thinkDeeper.models)) {
+    result.isThinkDeeperActive = true;
+    applyThinkDeeper(body, sourceFormat);
+  }
+
+  if (config.unrestrictedMode?.enabled && checkMatch(config.unrestrictedMode.models)) {
+    result.isUnrestrictedActive = true;
+    processUnrestrictedMode(body, sourceFormat);
+  }
+
+  // Anti-loop discipline for Qwen3-Coder variants (kr/*): these models tend to
+  // re-read files, repeat tool calls, and wander instead of converging. Inject
+  // a compact execution-contract system prompt right before the task.
+  if (/qwen3-coder/i.test(`${provider}/${model}`)) {
+    processCoderFocus(body, sourceFormat);
+  }
+
+  if (config.speedMode?.enabled && checkMatch(config.speedMode.models)) {
+    result.isSpeedModeActive = true;
+    applySpeedMode(body, sourceFormat);
+  }
+
+
+  // Custom System Prompts: 1 prompt per model (models may repeat across prompts
+  // only by user error — the UI enforces exclusivity; runtime picks the first
+  // match and ignores later duplicates).
+  if (config.systemPrompts?.enabled && Array.isArray(config.systemPrompts.prompts)) {
+    for (const sp of config.systemPrompts.prompts) {
+      if (!sp?.enabled) continue;
+      const text = typeof sp.text === "string" ? sp.text.trim() : "";
+      if (!text || !Array.isArray(sp.models) || sp.models.length === 0) continue;
+      if (checkMatch(sp.models)) {
+        applyCustomSystemPrompt(body, text);
+        break; // 1 model → 1 prompt
+      }
+    }
+  }
+
+  // The two repairs below run on the answer, not the request. Resolving the flag
+  // here keeps selection in one place and hands the response layer a plain
+  // boolean instead of making it re-derive which models are configured.
+  if (config.jsonGuard?.enabled && checkMatch(config.jsonGuard.models)) {
+    result.isJsonGuardActive = true;
+    applyJsonGuardRequest(body, sourceFormat);
+  }
+
   if (config.openaiToolBridge?.enabled && checkMatch(config.openaiToolBridge.models)) {
     result.isToolBridgeActive = true;
-    // A native tool lane is left alone: rewriting a request that already works
-    // would trade a real schema for prompt text. Only an upstream with no tools
-    // lane at all (a browser session, or a model whose capabilities say so) gets
-    // the prompt rewrite, and those requests are fetched whole so the reply can
-    // be parsed back into calls.
     if (caps?.tools === false || (await isWebSessionProvider(provider))) {
       result.isToolBridgeRewritten = applyToolCallingBridge(body, sourceFormat);
     }
+  }
+
+  if (config.antiSlop?.enabled && checkMatch(config.antiSlop.models)) {
+    result.isAntiSlopActive = true;
+    applyAntiSlop(body, sourceFormat, config.antiSlop.level);
   }
 
   return result;
