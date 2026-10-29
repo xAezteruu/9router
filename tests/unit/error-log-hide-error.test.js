@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { recordErrorLog, getErrorLogs, clearErrorLogs } from "../../src/lib/db/repos/errorLogRepo.js";
-import { buildErrorBody, errorResponse } from "../../open-sse/utils/error.js";
+import { buildErrorBody, errorResponse, unavailableResponse } from "../../open-sse/utils/error.js";
+import { buildStreamErrorBytes } from "../../open-sse/utils/streamHelpers.js";
 
 describe("Error Log & Hide Error System", () => {
   beforeEach(async () => {
@@ -56,5 +57,31 @@ describe("Error Log & Hide Error System", () => {
     const resp = errorResponse(502, "Detailed secret upstream breakdown", null, true);
     const json = await resp.json();
     expect(json.error.message).toBe("There is an error but this error is hidden, try checking your error log.");
+  });
+
+  it("unavailableResponse with hideError masks message but keeps retry-after header", async () => {
+    const retryAfter = new Date(Date.now() + 120000).toISOString();
+    const retryAfterHuman = "reset after 2m";
+
+    // Default (visible): message has suffix, retry-after header present
+    const visible = unavailableResponse(503, "Secret upstream detail", retryAfter, retryAfterHuman);
+    const vJson = await visible.json();
+    expect(vJson.error.message).toBe("Secret upstream detail (reset after 2m)");
+    expect(visible.headers.get("retry-after")).toBe("120");
+
+    // Hidden: message is generic, retry-after header still present
+    const hidden = unavailableResponse(503, "Secret upstream detail", retryAfter, retryAfterHuman, null, true);
+    const hJson = await hidden.json();
+    expect(hJson.error.message).toBe("There is an error but this error is hidden, try checking your error log.");
+    expect(hidden.headers.get("retry-after")).toBe("120");
+  });
+
+  it("buildStreamErrorBytes with hideError masks message for SSE error frame", async () => {
+    const bytes = buildStreamErrorBytes(504, "Internal upstream detail", "openai", true);
+    const text = new TextDecoder().decode(bytes);
+    // SSE data line should contain the hidden message
+    expect(text).toContain("There is an error but this error is hidden");
+    // Should NOT contain the original detail
+    expect(text).not.toContain("Internal upstream detail");
   });
 });

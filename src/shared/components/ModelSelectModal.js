@@ -426,36 +426,20 @@ export default function ModelSelectModal({
             isCustom: true,
           }));
 
-        // For typed kinds, only include hardcoded typed models (aliases are typically LLM-only and lack type info)
+        // For typed kinds, only include user-added typed models (aliases are typically LLM-only and lack type info)
         let combined = aliasModels;
         if (kindFilter && TYPED_KINDS.has(kindFilter)) {
           const registeredTyped = customRegisteredModels.filter((m) => getModelKind(m) === kindFilter);
-          combined = [
-            ...registeredTyped,
-            ...getModelsByProviderId(providerId)
-            .filter((m) => getModelKind(m) === kindFilter)
-            .map((m) => ({ id: m.id, name: m.name, value: `${alias}/${m.id}`, kind: getModelKind(m) }))
-            .filter((m) => !registeredTyped.some((registered) => registered.value === m.value)),
-          ];
-          // Fallback: provider-as-model when no hardcoded models match (tts/image/webFetch only)
+          combined = [...registeredTyped];
+          // Fallback: provider-as-model when no user-added models match (tts/image/webFetch only)
           if (combined.length === 0 && ALLOW_PROVIDER_FALLBACK_KINDS.has(kindFilter)) {
             const supports = (providerInfo.serviceKinds || ["llm"]).includes(kindFilter);
             if (supports) combined = [{ id: providerId, name: providerInfo.name, value: alias }];
           }
         } else {
-          // LLM/null kind: merge hardcoded models (e.g. mimo-free → mimo-auto) with user-added models
+          // LLM/null kind: only show user-added models (registered + aliases)
           const registeredLlms = customRegisteredModels.filter((m) => !getModelKind(m) || getModelKind(m) === "llm");
-          const seen = new Set([...aliasModels, ...registeredLlms].map((m) => m.value));
-          const hardcoded = getModelsByProviderId(providerId)
-            .filter((m) => !getModelKind(m) || getModelKind(m) === "llm")
-            .map((m) => ({ id: m.id, name: m.name, value: `${alias}/${m.id}`, kind: getModelKind(m) }))
-            .filter((m) => !seen.has(m.value));
-          const liveFreeRows = (freeCatalogModels[providerId] || [])
-            .filter((m) => m?.id && !getModelKind(m))
-            .map((m) => ({ id: m.id, name: m.name || m.id, value: `${alias}/${m.id}` }))
-            .filter((m) => !seen.has(m.value) && !hardcoded.some((h) => h.value === m.value));
-          hardcoded.push(...liveFreeRows);
-          combined = [...registeredLlms, ...aliasModels.filter((m) => !registeredLlms.some((registered) => registered.value === m.value)), ...hardcoded];
+          combined = [...registeredLlms, ...aliasModels.filter((m) => !registeredLlms.some((registered) => registered.value === m.value))];
         }
 
         if (combined.length > 0) {
@@ -521,14 +505,8 @@ export default function ModelSelectModal({
         };
       } else {
         const liveModels = providerId === "cursor" ? cursorModels : providerId === "cline" ? clineModels : providerId === "clinepass" ? clinepassModels : [];
-        const baseModels = liveModels.length > 0 ? liveModels : getModelsByProviderId(providerId);
-        const liveFreeIds = new Set(baseModels.map((m) => m.id));
-        const hardcodedModels = [
-          ...baseModels,
-          ...(freeCatalogModels[providerId] || [])
-            .filter((m) => m?.id && !liveFreeIds.has(m.id))
-            .map((m) => ({ id: m.id, name: m.name || m.id })),
-        ];
+        // Only show user-added models; cursor/cline/clinepass show account models from their live APIs
+        const hardcodedModels = liveModels.length > 0 ? liveModels.map((m) => ({ id: m.id, name: m.name || m.id })) : [];
         const hardcodedIds = new Set(hardcodedModels.map((m) => m.id));
 
         // Custom models: if no hardcoded models (e.g. openrouter), show all aliases for this provider
@@ -552,7 +530,6 @@ export default function ModelSelectModal({
           .map((m) => ({ id: m.id, name: m.name || m.id, value: `${alias}/${m.id}`, isCustom: true, isFree: m.isFree }));
 
         const merged = [
-          ...hardcodedModels.map((m) => ({ id: m.id, name: m.name, value: `${alias}/${m.id}`, kind: getModelKind(m), isFree: m.isFree })),
           ...customAliasModels,
           ...customRegisteredModels,
         ];

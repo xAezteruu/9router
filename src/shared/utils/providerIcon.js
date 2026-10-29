@@ -3,6 +3,7 @@
 
 const ICON_ALIASES = {
   mimocode: "xiaomi-mimo",
+  "gemini-web": "gemini",
   "opencode-zen": "opencode",
   "perplexity-agent": "perplexity",
   "gitlab-duo": "gitlab",

@@ -20,6 +20,11 @@
 // profile badge) - do not add it here.
 
 export const COOKIE_CAPTURE = {
+  "gemini-web": {
+    label: "Capture from Gemini",
+    domains: ["gemini.google.com"],
+    cookies: ["__Secure-1PSID", "__Secure-1PSIDTS"],
+  },
   "claude-web": {
     label: "Capture from Claude",
     domains: ["claude.ai"],

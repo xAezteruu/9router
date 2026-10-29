@@ -1,6 +1,6 @@
-// The custom plugins in 9Router:
-// 1. adaptiveThinking: Multi-Framework Cognitive Architecture (Depth Protocol, Superpowers, Adversaria, First Principles)
-// 2. imageVision: Intelligent OCR Auto Image-to-Text Extractor
+// Custom plugin keys used in dashboard settings and open-sse runtime.
+// Single source of truth for plugin names to prevent typos and drift.
+
 export const CUSTOM_PLUGIN_KEYS = [
   "adaptiveThinking",
   "imageVision",

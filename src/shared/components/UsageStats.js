@@ -58,14 +58,14 @@ function RecentRequests({ requests = [] }) {
   return (
     <Card className="flex min-w-0 flex-col overflow-hidden bg-surface border border-border-subtle" padding="none" style={{ height: 420 }}>
       {/* Header */}
-      <div className="px-3.5 sm:px-4 py-2.5 border-b border-border-subtle shrink-0 flex items-center justify-between bg-surface-2/40">
+      <div className="px-3 sm:px-4 py-2.5 border-b border-border-subtle shrink-0 flex items-center justify-between bg-surface-2/40">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[15px] text-text-muted">stream</span>
+          <span className="material-symbols-outlined text-base text-text-muted">stream</span>
           <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Live Requests Stream</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-block size-1.5 rounded-full bg-success animate-pulse" />
-          <span className="text-[11px] text-text-muted font-mono">{requests.length} logged</span>
+          <span className="text-xs text-text-muted font-mono">{requests.length} logged</span>
         </div>
       </div>
 
@@ -81,47 +81,53 @@ function RecentRequests({ requests = [] }) {
           <table className="w-full border-collapse text-xs">
             <thead className="sticky top-0 bg-surface/95 backdrop-blur-xs border-b border-border-subtle z-10">
               <tr>
-                <th className="py-2 pl-3 pr-1 text-center font-semibold text-text-muted w-6" title="Status">
-                  <span className="material-symbols-outlined text-[11px] leading-none select-none text-text-muted/60">radio_button_checked</span>
+                <th className="py-2.5 pl-3 pr-1 text-center font-semibold text-text-muted w-8" title="Status">
+                  <span className="material-symbols-outlined text-xs leading-none select-none text-text-muted/60">radio_button_checked</span>
                 </th>
-                <th className="py-2 px-2 text-left font-semibold text-text-muted">Model & Channel</th>
-                <th className="py-2 px-2 text-right font-semibold text-text-muted whitespace-nowrap">Tokens (In / Out)</th>
-                <th className="py-2 pl-2 pr-3 text-right font-semibold text-text-muted w-16 sm:w-20">Time</th>
+                <th className="py-2.5 px-2 text-left font-semibold text-text-muted">Model & Channel</th>
+                <th className="py-2.5 px-2 text-right font-semibold text-text-muted whitespace-nowrap">Tokens (In / Out)</th>
+                <th className="py-2.5 pl-2 pr-3 text-right font-semibold text-text-muted w-20">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle/50">
               {requests.map((r, i) => {
                 const ok = !r.status || r.status === "ok" || r.status === "success";
                 const cleanModel = (r.model || "unknown").replace(/^\/+/, "");
+                const showResolved = r.resolvedModel && r.resolvedModel !== r.model;
                 return (
                   <tr key={i} className="hover:bg-bg-hover transition-colors group">
-                    <td className="py-2 pl-3 pr-1 text-center align-middle">
-                      <span className={`inline-block size-2 rounded-full ${ok ? "bg-success" : "bg-danger"}`} />
+                    <td className="py-2.5 pl-3 pr-1 text-center align-middle">
+                      <span className={`inline-block size-2.5 rounded-full ${ok ? "bg-success" : "bg-danger"}`} />
                     </td>
-                    <td className="py-2 px-2 font-mono text-xs text-text-main align-middle min-w-0" title={cleanModel}>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
-                        <span className="truncate max-w-[120px] sm:max-w-[200px] md:max-w-[240px] font-medium text-text-main group-hover:text-primary transition-colors">
+                    <td className="py-2.5 px-2 font-mono text-xs text-text-main align-middle min-w-0">
+                      <div className="flex flex-col gap-1">
+                        <span className="truncate max-w-full font-medium text-text-main group-hover:text-primary transition-colors" title={cleanModel}>
                           {cleanModel}
                         </span>
-                        {r.provider && (
-                          <span className="text-[9px] uppercase font-mono px-1 py-0.2 rounded bg-surface-2 text-text-muted/90 self-start sm:self-auto border border-border-subtle">
+                        {showResolved && (
+                          <span className="truncate max-w-full text-[10px] text-text-muted" title={`${r.provider}/${r.resolvedModel}`}>
+                            → {r.provider}/{r.resolvedModel}
+                          </span>
+                        )}
+                        {!showResolved && r.provider && (
+                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-2 text-text-muted/90 border border-border-subtle w-fit">
                             {r.provider}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-right whitespace-nowrap align-middle">
-                      <div className="inline-flex items-center gap-1 sm:gap-1.5 font-mono text-xs">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap align-middle">
+                      <div className="inline-flex items-center gap-2 font-mono text-xs">
                         <span className="text-text-main font-medium">{fmt(r.promptTokens)}↑</span>
                         <span className="text-success font-medium">{fmt(r.completionTokens)}↓</span>
                         {r.cachedTokens > 0 && (
-                          <span className="text-[10px] text-info bg-info/10 px-1 py-0.5 rounded leading-none border border-info/20" title={`${fmt(r.cachedTokens)} cached tokens`}>
+                          <span className="text-[10px] text-info bg-info/10 px-1.5 py-0.5 rounded leading-none border border-info/20" title={`${fmt(r.cachedTokens)} cached tokens`}>
                             ⚡{fmt(r.cachedTokens)}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-2 pl-2 pr-3 text-right text-text-muted whitespace-nowrap align-middle text-[11px] font-mono">
+                    <td className="py-2.5 pl-2 pr-3 text-right text-text-muted whitespace-nowrap align-middle text-xs font-mono">
                       <TimeAgo timestamp={r.timestamp} />
                     </td>
                   </tr>

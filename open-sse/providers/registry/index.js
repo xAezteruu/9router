@@ -323,6 +323,7 @@ import p322 from "./zed.js";
 import p323 from "./zenmux-free.js";
 import p324 from "./zerolimitai.js";
 import p325 from "./zylo-api.js";
+import p326 from "./gemini-web.js";
 
 const PROVIDERS = [
   p1,
@@ -650,6 +651,7 @@ const PROVIDERS = [
   p323,
   p324,
   p325,
+  p326,
 ];
 
 export default PROVIDERS;

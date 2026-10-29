@@ -5,7 +5,7 @@ import {
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleTtsCore } from "open-sse/handlers/ttsCore.js";
-import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
+import { errorResponse, unavailableResponse, maskHiddenError } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { handleComboChat } from "open-sse/services/combo.js";
@@ -18,7 +18,7 @@ const CREDENTIALED_PROVIDERS = new Set(
     .map(([id]) => id)
 );
 
-export async function handleTts(request) {
+async function _handleTts(request) {
   let body;
   try {
     body = await request.json();
@@ -101,11 +101,11 @@ async function handleSingleModelTts(body, modelStr, responseFormat, language, st
         if (provider === "ollama-local") {
           const result = await handleTtsCore({ provider, model, input: body.input, credentials: null, responseFormat, language, style });
           if (result.success) return result.response;
-          return errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "TTS failed");
+          return errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "TTS failed", null, settings.hideError);
         }
         return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${provider}`);
       }
-      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
+      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable", null, settings.hideError);
     }
 
     log.info("AUTH", `\x1b[32mUsing ${provider} account: ${credentials.connectionName}\x1b[0m`);
@@ -123,4 +123,15 @@ async function handleSingleModelTts(body, modelStr, responseFormat, language, st
     }
     return result.response || errorResponse(result.status, result.error);
   }
+}
+
+/**
+ * Public entry: every error body leaving this handler passes through the
+ * Hide Raw Errors mask, so no branch can leak an upstream message.
+ */
+export async function handleTts(request) {
+  const response = await _handleTts(request);
+  if (!response || response.status < 400) return response;
+  const settings = await getSettings();
+  return maskHiddenError(response, Boolean(settings?.hideError));
 }
