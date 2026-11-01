@@ -1,3 +1,151 @@
+# v0.5.345 (2026-10-29) · 1 commit
+
+## Features
+- **One OpenCode Free card with a lane switch.** The direct lane and the CLI lane were two provider cards; they are now one. `opencode-v2` is hidden from the picker and both ids route through `OpenCodeLaneExecutor`, which reads `opencodeCliMode` and delegates to the direct TLS client (default) or the local CLI lane. A hammer button on the card and in the provider header flips the setting and shows which lane is live (`Direct` / `CLI`). Model ids stay `oc/...` and `oc2/...`, so existing client configs keep working.
+
+# v0.5.344 (2026-10-29) · 1 commit
+
+## UI
+- **The lane marker is a muted suffix, not a chip.** "USING CLI" read like a status flag and the green box competed with the connection badges, so it is now "With CLI" in plain muted text after the name (`OpenCode Free · With CLI`). No border, no fill; it reads as part of the title instead of a second status.
+
+# v0.5.343 (2026-10-29) · 1 commit
+
+## UI
+- **"USING CLI" is a chip, not part of the name.** The label moved out of `display.name` into `display.tag`, so the card and the provider header render it as a green bordered chip next to "OpenCode Free" instead of a parenthetical in the title. Search still matches the plain name.
+
+## Fixes
+- **The Gemini Web cookie field could not be typed into.** `AddApiKeyModal` calls `splitGeminiCookie()` and `composeGeminiCookie()` on every keystroke but never imported them, so the first character threw a `ReferenceError`, React aborted the handler, and the controlled input snapped back to empty — the field looked dead. The edit modal already imported them, which is why an existing session could be edited while a new one could not be added. Import added.
+
+# v0.5.342 (2026-10-29) · 1 commit
+
+## UI
+- **Renamed OpenCode Free providers for clarity.** The original CLI-based lane is now "OpenCode Free (USING CLI)" and the new direct-TLS lane (previously "OpenCode Free V2") is now just "OpenCode Free". IDs and aliases unchanged (`oc` / `oc2`).
+
+# v0.5.341 (2026-10-29) · 1 commit
+
+## Fixes
+- **OpenCode Free V2 shares the V1 brand mark and icon.** `opencode-v2` now aliases to `opencode` in `providerIcon.js`, so it uses the exact same `/providers/opencode.png` logo and styling as OpenCode Free V1 without needing a duplicate asset.
+
+# v0.5.340 (2026-10-29) · 1 commit
+
+## Features
+- **OpenCode Free V2 (`oc2`) — the lane that works with no proxy.** The V1 lane reaches `opencode.ai` three different ways before it sends a wire request: it spawns the host `opencode` CLI, then a Bun transport sidecar, then an egress probe that re-tests the direct IP. On a host without the CLI and without `bun` each of those fails slowly, and the request that finally goes out rides Node's OpenSSL ClientHello — which the free tier refuses or black-holes, so the call sits until the 60s connect timeout. That is the "timeout terus, tapi di decolua jalan" symptom: decolua's lane sends the wire request straight through `opencodeTlsFetch`, whose cipher list matches Bun's, and nothing else runs first.
+
+## Fixes
+- **The TLS client existed but was never wired into the request.** `BaseExecutor` only uses `directFetch` when a subclass passes it, and the V1 executor never did, so `opencodeTlsFetch` was dead code on every path. The V2 executor passes it exactly as decolua does (`directFetch: (url, options) => opencodeTlsFetch(...)`) and keeps proxy handling untouched: with a proxy configured the proxy wins, without one the impersonated client is used.
+- **`wreq-js` was missing from the install.** It is the optional dependency behind the impersonating client; without it the TLS path throws `OpencodeTlsUnavailableError` and the caller silently falls back to native fetch — back to the gate. Added to `optionalDependencies` (the lazy loader can still fetch it into `<DATA_DIR>/runtime`).
+
+## Internal
+- V2 is a separate registry entry (`opencode-v2`, alias `oc2`, "OpenCode Free V2") and a separate executor, so the V1 lane keeps its CLI/sidecar/egress behaviour untouched. Verified direct, no proxy: `big-pickle` answered `200` in 1.3s with `OK`.
+
+# v0.5.339 (2026-10-29) · 1 commit
+
+## Fixes
+- **No screen prints a provider id any more.** `humanizeCompatId` used to append the uuid (`OpenAI Compatible (330688af)`); that suffix is still a database key, just a shorter one, so the label is now the family alone (`OpenAI Compatible`). Two unnamed compatible nodes that would collide are numbered by `dedupeLabels` (`OpenAI Compatible`, `OpenAI Compatible 2`) instead of being split by id.
+- **The Logs tab printed the raw provider id in caps.** `getRecentLogs` uppercased `r.provider`, so the row read `OPENAI-COMPATIBLE-CHAT-330688AF`. It resolves through `labelForProvider` and no longer uppercases the label.
+- **The request log rows are objects, not pipe-joined strings.** An account or model containing ` | ` shifted every later column and the row disappeared from the table; the API returns fields and the client renders them, still accepting a pipe string so an in-flight cached response cannot blank the table.
+- **Provider tooltips repeated the id the label had already replaced.** `Recent Requests` and the provider filter in the quota tab carried `title={provider}` with the raw id; the tooltip now shows the same label as the text.
+- **The model picker could still head a group with an id.** A provider missing from the static registry fell back to `{ name: providerId }`, so a compatible node still opened a `openai-compatible-chat-…` heading; the fallback runs through `resolveProviderName` and the quota card's title does too.
+- **Every successful log row pulsed as if it were pending.** The status column compared against uppercase (`OK`/`FAILED`) while the stored values are lowercase, so `ok` matched nothing and fell into the pending branch; the comparison folds case and the cell prints the status uppercased.
+
+# # v0.5.338 (2026-10-29) · 1 commit
+
+## Fixes
+- **The activity heatmap fit a desktop card, not a phone.** 24 buckets of `14px + 3px gap` plus a 28px day gutter measure 441px, so on a 390px viewport 42 cells sat past the card edge with no scroll container to reach them. The block is one CSS grid now (`repeat(24, minmax(0, 14px))`), so cells shrink on a narrow screen instead of overflowing, and the hour ruler prints at 10px like the rest of the shell.
+- **The Savings tab showed numbers for a report that has no rows.** With zero savings the card still printed `Avg 0 / active day` next to a "nothing saved in this period" chart, and a model filter box sat above an empty table. The summary chips and the filter are hidden until there is data behind them.
+
+## Internal
+- Dropped the leftover `await import()` of `humanizeCompatId` inside `getProviderLookups`; the symbol is already a static import, so the dynamic one only re-resolved the same module.
+
+# v0.5.337 (2026-10-29) · 1 commit
+
+## Fixes
+- **The savings axis printed bare day numbers.** Every tick except the peak was stripped to its day-of-month (`30 4 8 12 16 20 24`), which reads like an hour axis rather than a date axis — the strip was there to stop a tick being clipped when labels sat inline in a ~25px slot, but they have been absolutely centred with room to spare since the tick-spacing fix, so `Oct 4` fits. Ticks print the full short date again.
+
+# v0.5.336 (2026-10-29) · 1 commit
+
+## Fixes
+- **The notification count was the one piece of text under 10px in the sidebar.** The unread badge rendered at 9px in a 15px circle, so a two-digit count was unreadable at a glance; it is 10px in a 16px circle now, which is the smallest size the rest of the shell uses.
+
+# v0.5.335 (2026-10-29) · 1 commit
+
+## Fixes
+- **The Savings tab names the model, not a node id.** `byModel` was keyed by the raw provider id, so a compatible node printed `openai-compatible-chat-330688af` as if it were a model name. The bucket is now split into provider and model, the API resolves the provider through `getProviderDisplayName`, and the row reads `gpt-5.1` with `OpenAI Compatible (330688af)` beneath it. The same lookup now labels `recentRequests`, `activeRequests`, the by-provider breakdown (`stats.providerLabels`) and the provider bar chart, which used to fall back to the raw id whenever `providerNodes` was empty.
+- **The Daily Savings chart has a floor and a scale.** Every bar was drawn at full strength, so a day with 950 tokens looked identical to the 128K peak and the whole strip read as "green box". Empty days are now a muted track, active days are emerald proportional to the peak, and the peak alone is drawn at full strength; tick labels are absolutely centred so a 25px slot cannot clip `Oct 23`, and neighbouring ticks step aside when the peak takes its own label.
+- **Cached tokens show up again in Recent Requests.** Five inline `||` chains only knew `cache_read_input_tokens` and `cached_tokens`, so a request that reported `prompt_tokens_details.cached_tokens`, `cachedContentTokenCount` or `prompt_cache_hit_tokens` rendered no badge at all. One `cacheReadTokens` helper now walks every spelling plus the nested details object, and the row prints the badge (verified against one seeded row per spelling: 640 / 960 / 512).
+- **A rewritten model on another provider is no longer printed twice.** `gweb/gemini-4-argon → gemini-web/gemini-4-argon` said the same thing twice; the arrow now appears only when the model name itself changed, and the resolved line drops the redundant provider prefix.
+- **The provider bar chart survives long labels.** Bars are horizontal, the axis takes the base name (`OpenAI Compatible`, not the 26-character node label), and a custom tick renderer keeps each label on one line — Recharts used to wrap it onto three lines that overlapped the neighbouring rows.
+
+## Performance
+- **Usage aggregation is memoized.** Each stats call ran three dynamic imports and then scanned every connection, node and API key to build the display names. `getProviderLookups` builds the three maps once and serves them for 15s, and the redundant `getConnectionMapCached` cache (same data, second copy, never invalidated) is gone.
+- **One shared stats snapshot per burst for the stream.** Every open tab subscribed to `/api/usage/stream` and each emitter tick asked the database to re-aggregate the whole period per connection, so three tabs meant three identical aggregations. A 750ms shared memo keeps updates live while a burst costs one aggregation.
+- **One ticker for every relative timestamp.** `TimeAgo` mounted a `setInterval` per row; twenty rows meant twenty timers waking a second apart and re-rendering twenty components. A single 1s ticker now drives all of them and stops when the last subscriber unmounts, and the stream client drops an SSE payload identical to the one already rendered instead of re-setting state.
+
+## Tests
+- `tests/unit/token-saver-savings.test.js` asserts the split model shape (`model`, `provider`, `key`), the gap-filled 30-day series and the empty-report case.
+- Two stale assertions that failed before this change were rewritten to the current behaviour: the empty state string in `UsageStats.js` and the `jev-1.13-free` decision (it belongs in the registry, the suggestion filter is what drops it).
+
+# v0.5.334 (2026-10-29) · 1 commit
+
+## Fixes
+- **PSID and PSIDTS are separate fields.** The `gemini-web` Add and Edit forms asked for one opaque `Cookie Value`, so a user who only has `__Secure-1PSID` had to leave a field looking half-filled and never found out that the timestamp part is optional. The form now asks for `__Secure-1PSID` (required) and `__Secure-1PSIDTS (optional)` separately and composes the cookie header itself; Save stays disabled until a PSID exists, because a timestamp alone cannot authenticate.
+- **Editing the timestamp no longer wipes the session.** `PUT /api/providers/:id` only ever wrote `apiKey` for `authType: "apikey"`, so a `gemini-web` connection could not be re-keyed at all. It now accepts a cookie edit and decides what to persist: a paste that carries its own `__Secure-1PSID` replaces the cookie, while a timestamp-only entry merges into the stored one instead of being written verbatim — the previous behaviour would have saved a cookie without the part that authenticates.
+- **Other Google cookies survive an edit.** `SAPISID`, `__Secure-3PSID`, `__Secure-1PSIDCC` and anything else in a pasted header are carried through the split/compose round trip. The executor signs `Authorization` from `SAPISID`, so dropping the extras while editing would have downgraded a working credential.
+- Unit tests: 16 cases for split, compose, merge and the persist decision (`tests/unit/gemini-cookie-fields.test.js`).
+
+# v0.5.333 (2026-10-29) · 1 commit
+
+## Fixes
+- **Gemini Web now honours the connection proxy.** `fetchSessionParams` and the `StreamGenerate` POST called the bare global `fetch`, so a proxy configured on the `gemini-web` connection was silently ignored — the request always left from the host's own IP. Both calls now go through `proxyAwareFetch` with the connection's proxy options, which is the only way to run a browser-session cookie from a host Google treats differently from the login IP.
+- **`fetch failed` now names the cause.** A 502 read `Gemini session fetch failed: fetch failed`, which is the same text for blocked egress, dead DNS, a reset connection and a broken TLS chain. The error now appends undici's `err.cause` code, e.g. `fetch failed (ENOTFOUND)` or `fetch failed (ECONNRESET)`, so the operator can tell a network fault from a rejected cookie in one glance.
+- **One IPv4 retry for hosts with a broken IPv6 route.** Containers that resolve AAAA records but cannot reach them (Railway among them) failed the connect phase while the same request worked from a laptop. A connect-phase failure (`ENETUNREACH`, `EHOSTUNREACH`, `EAI_AGAIN`, `ENOTFOUND`, `ECONNREFUSED`, `ETIMEDOUT`, `UND_ERR_CONNECT_TIMEOUT`) now retries once over an IPv4-pinned dispatcher before the error is reported. Proxied requests are exempt: the proxy resolves DNS on its side.
+- Verified on a live cookie: `gemini-3.5-flash-lite` returned `200` with `"OK"` in 20s through the new path.
+
+# v0.5.332 (2026-10-29) · 1 commit
+
+## Fixes
+- **A live Gemini Web cookie no longer reports "invalid".** The connection Test button ran a chat completion, but the cookie is a browser session, not a bearer token: `gemini-web` had no case in the test path and fell through to `"Provider test not supported"`, which the modal rendered as a red *Failed* badge and the card stored as `testStatus: error`. Testing now runs the same session probe the Check button uses — fetch `gemini.google.com/app` and require the `SNlM0e` bootstrap — so a valid cookie passes in about a second instead of waiting on the chat queue.
+- **Cookie pastes are normalized before they are judged.** A raw `__Secure-1PSID` value, a `Cookie: a=b; c=d` header, quoted values, and both JSON export shapes (flat map and `{ cookies: [...] }`) now reach the request identically; previously a quoted or prefixed paste was rejected as an invalid session.
+- **The rejection reason is shown, not just "Invalid".** Both the Add and Edit modals print the validator's message under the badge (signed-out page, HTTP status, missing session cookie, network timeout), and a failed *Test* shows the upstream error instead of a bare *Failed*.
+- **A missing `__Secure-1PSIDTS` is surfaced as a warning, not a failure.** The cookie still validates, but the connection is flagged because the session cannot rotate and dies once Google re-issues the timestamp.
+- Tests: `tests/unit/gemini-web-cookie.test.js` covers normalization of all five paste shapes plus accept, signed-out, non-200, network-failure and missing-session branches.
+
+# v0.5.331 (2026-10-29) · 1 commit
+
+## Fixes
+- **The model picker no longer opens a group for a provider that is not connected.** Custom-model rows outlive the connection they were created against: when a provider is removed (or a model is registered against an alias that was never set up here), the fallback that groups leftover custom models still rendered them under a heading for that absent provider — so the picker listed a provider the dashboard does not have, holding rows that cannot route anywhere. The alias is now traced back to its built-in provider, and the group is dropped when that provider has no active connection (compatible nodes stay exempt: they legitimately run without a stored key).
+- **Custom-model groups use the provider's display name.** A group built from leftover custom rows fell back to the storage alias, so a connected provider appeared as `gemini-web` instead of `Gemini Web` — a name nobody recognises from the dashboard. The registry entry now supplies the label and accent color, with the alias kept only as an internal key.
+
+# v0.5.330 (2026-10-29) · 1 commit
+
+## Fixes
+- **`tool_choice` is enforced on browser-session providers.** A client that pinned a function (`tool_choice: {"type":"function","function":{"name":"..."}}`) or demanded any tool (`"required"`) still got prose back, because the bridge wrote the rule once at the top of the prompt and the model drifted by the end of a long agent system prompt. The highest-priority reminder now closes with an explicit `FORCED` line naming the tool, placed after the example where it cannot be buried.
+- **Parallel tool calls are no longer suppressed.** The reminder said "do not output more than one tool_call", which turned "get Jakarta and Bandung weather" into a single call. It now allows several blocks when the request lists independent things, while still forcing one-at-a-time steps when calls depend on each other's results (the agent loop stays sequential).
+- `selectableTools` is exported so both prompt builders (executor and plugin bridge) derive the `tool_choice` mode from one place.
+- Tests: the bridge suite asserts the `FORCED` line lands on the final turn and that two fences in one reply become two `tool_calls`.
+
+# v0.5.329 (2026-10-29) · 1 commit
+
+## Fixes
+- **Gemini Web replies were cut off after the first frame.** `readGeminiStream` stopped as soon as the accumulated buffer parsed, but every mid-stream frame already carries the answer so far, so text stopped mid-sentence (`"1, 2, 3, 4, 5,"` for a count to 40) and tool-call JSON arrived half-written — which is why tool calling silently came back as plain text instead of `tool_calls`. The reader now keeps consuming until Google sends its terminal `["e",...]` frame (30s idle / 150s hard ceiling still apply), so replies and `finish_reason: "tool_calls"` come through whole.
+- Tests: `tests/unit/gemini-web-stream-full.test.js` feeds a fake stream with a partial frame followed by the full one and asserts the complete answer and an intact ```` ```tool_call ```` fence come out; the old reader fails both cases.
+
+# v0.5.328 (2026-10-29) · 1 commit
+
+## Fixes
+- **No built-in emoji left in the UI.** Emoji were rendered by the OS font, so the same screen looked different on Windows, macOS, Linux and Android, ignored the design tokens, and fell back to blank boxes when the system emoji font was missing. Every one is gone:
+  - Usage stats: the cached-token `⚡` in Recent requests is now the `bolt` glyph from the icon subset inside the same info chip, so it takes the chip's colour and size.
+  - Quota bars, quota table, provider cooldowns, connection cards, combo latency: `🟢/🟡/🔴/💰/⏱` replaced by token-coloured dots (`bg-success` / `bg-warning` / `bg-danger`), `schedule` and `bolt` glyphs.
+  - Language switcher, header language button and the Xiaomi region picker no longer use flag emoji (which render as bare letters on Windows). New `LocaleBadge` component draws the locale/region code as a chip: `border-border-subtle`, `bg-surface-2`, uppercase, tracked, 9-11px. Variants that shared a code stay distinct: `zh-CN`/`zh-TW` show 简/繁, `pt-BR`/`pt-PT` show BR/PT.
+  - Modals, update panel, marketplace, `GetStarted`, SAML guide, media example cards, MITM/Cowork cards: `✅ 🌐 🔑 🔐 ✓ ✕ ⚠️ 📝 🔷 🟢 🛡️ ☁️` replaced with `check` / `check_circle` / `language` / `key` / `lock` / `close` / `warning` / `edit_note` / `cloud` / `security` / `verified_user` / `shield_lock`.
+  - OAuth result popups and the MiMo login page draw their success/failure marks as inline SVG instead of `✓`.
+  - Translation catalogs (`public/i18n/literals/*.json`, all 34 locales) carried emoji in both keys and values (`⚠️ Risk Notice…`, `✓ Confirm Add`, `📝 Configure providers…`). Every key was rewritten emoji-free so the cleaned UI strings still hit their translations instead of falling back to English.
+  - Logs and console-log viewers strip emoji from upstream log lines at render time (`stripEmoji`), so provider messages and older log files can't reintroduce them; copy still returns the raw line.
+  - `getStatusEmoji()` deleted (dead export), `RISK_NOTICE` no longer starts with a warning emoji.
+- Tests: `tests/unit/no-emoji-ui.test.js` fails the build if any emoji reappears under `src/app` or `src/shared`, asserts `locales.js` ships codes instead of flags, and covers `stripEmoji`.
+
+---
+
 # v0.5.327 (2026-10-29)
 
 ## Fixes

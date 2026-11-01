@@ -8,6 +8,7 @@ import { resolveOllamaLocalHost, resolveXiaomiTokenplanBaseUrl, PROVIDERS } from
 import { openaiToCommandCodeRequest } from "open-sse/translator/request/openai-to-commandcode.js";
 import { resolveQoderCredentials, resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { probeBedrockCredentials } from "open-sse/executors/bedrock.js";
+import { probeGeminiWebCookie } from "open-sse/services/geminiWebCookie.js";
 import {
   createNousApiKeyProbe,
   getNousApiKeyValidationError,
@@ -107,6 +108,7 @@ export async function POST(request) {
 
     let isValid = false;
     let error = null;
+    let warning = null;
 
     // Validate with each provider
     try {
@@ -526,49 +528,10 @@ export async function POST(request) {
           // The credential is a browser session, not a bearer token, so the
           // generic probe below cannot validate it: a live session is the one
           // whose /app HTML still carries the BardChatUi bootstrap + XSRF token.
-          let cookie = apiKey.trim();
-          if (cookie.startsWith("{")) {
-            try {
-              const parsed = JSON.parse(cookie);
-              const cookies =
-                parsed.cookies && typeof parsed.cookies === "object" && !Array.isArray(parsed.cookies)
-                  ? parsed.cookies
-                  : parsed;
-              const pairs = Object.entries(cookies)
-                .filter(([, v]) => typeof v === "string" && v.trim().length > 0)
-                .map(([k, v]) => `${k}=${String(v).trim()}`);
-              if (pairs.length > 0) cookie = pairs.join("; ");
-            } catch {}
-          }
-          if (!cookie) {
-            isValid = false;
-            error = "Invalid cookie format";
-            break;
-          }
-          if (!cookie.includes("=")) cookie = `__Secure-1PSID=${cookie}`;
-
-          const res = await fetch("https://gemini.google.com/app", {
-            method: "GET",
-            headers: {
-              Cookie: cookie,
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
-              Accept: "text/html",
-            },
-            signal: AbortSignal.timeout(10000),
-          }).catch(() => null);
-
-          if (!res || !res.ok) {
-            isValid = false;
-            error = "Invalid cookie - copy __Secure-1PSID from gemini.google.com DevTools -> Application -> Cookies";
-          } else {
-            const html = await res.text().catch(() => "");
-            if (html.includes("SNlM0e") || html.includes("BardChatUi")) {
-              isValid = true;
-            } else {
-              isValid = false;
-              error = "Invalid cookie - rejected by gemini.google.com, re-copy __Secure-1PSID";
-            }
-          }
+          const probe = await probeGeminiWebCookie(apiKey);
+          isValid = probe.valid;
+          if (!isValid) error = probe.error;
+          else if (probe.warning) warning = probe.warning;
           break;
         }
 
@@ -633,6 +596,7 @@ export async function POST(request) {
     return NextResponse.json({
       valid: isValid,
       error: isValid ? null : (error || "Invalid API key"),
+      warning: isValid ? warning : null,
     });
   } catch (error) {
     console.log("Error validating API key:", error);

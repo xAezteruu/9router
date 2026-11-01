@@ -14,6 +14,8 @@ import { VertexExecutor } from "./vertex.js";
 import { OpenCodeExecutor } from "./opencode.js";
 import { OpenCodeGoExecutor } from "./opencode-go.js";
 import { OpenCodeZenExecutor } from "./opencode-zen.js";
+import { OpenCodeV2Executor } from "./opencodeV2.js";
+import { OpenCodeLaneExecutor } from "./opencodeLane.js";
 import { GrokCliExecutor } from "./grok-cli.js";
 import { OllamaLocalExecutor } from "./ollama-local.js";
 import { CommandCodeExecutor } from "./commandcode.js";
@@ -51,10 +53,12 @@ const executors = {
   cu: new CursorExecutor(), // Alias for cursor
   vertex: new VertexExecutor("vertex"),
   "vertex-partner": new VertexExecutor("vertex-partner"),
-  opencode: new OpenCodeExecutor(),
-  oc: new OpenCodeExecutor(),
+  opencode: new OpenCodeLaneExecutor("opencode"),
+  oc: new OpenCodeLaneExecutor("opencode"),
   "opencode-go": new OpenCodeGoExecutor(),
   "opencode-zen": new OpenCodeZenExecutor(),
+  "opencode-v2": new OpenCodeLaneExecutor("opencode-v2"),
+  oc2: new OpenCodeLaneExecutor("opencode-v2"),
   "grok-cli": new GrokCliExecutor(),
   gcli: new GrokCliExecutor(), // Alias
   gb: new GrokCliExecutor(), // Alias (Grok Build)
@@ -120,6 +124,8 @@ export { DefaultExecutor } from "./default.js";
 export { OpenCodeExecutor } from "./opencode.js";
 export { OpenCodeGoExecutor } from "./opencode-go.js";
 export { OpenCodeZenExecutor } from "./opencode-zen.js";
+export { OpenCodeV2Executor } from "./opencodeV2.js";
+export { OpenCodeLaneExecutor } from "./opencodeLane.js";
 export { GrokCliExecutor } from "./grok-cli.js";
 export { OllamaLocalExecutor } from "./ollama-local.js";
 export { CommandCodeExecutor } from "./commandcode.js";

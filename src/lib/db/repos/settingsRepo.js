@@ -85,6 +85,9 @@ const DEFAULT_SETTINGS = {
   pxpipeMinChars: 25000,
   pxpipeTimeoutMs: 15000,
   hideError: false,
+  // OpenCode Free ships one card with two lanes; this flag picks the lane the
+  // `opencode` executor uses (false = direct TLS request, true = local CLI).
+  opencodeCliMode: false,
   // Per-provider user header overrides applied at dispatch: { [providerId]: { headers: {..} } }
   providerOverrides: {},
 };

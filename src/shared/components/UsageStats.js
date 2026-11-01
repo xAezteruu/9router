@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useReducer } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FREE_PROVIDERS, AI_PROVIDERS } from "@/shared/constants/providers";
 
@@ -32,15 +32,31 @@ function timeAgo(timestamp) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// Auto-update time display every second without re-rendering parent
+// One second-ticker for every relative timestamp on the page. Each row used to
+// own its own setInterval, so a twenty-row stream kept twenty timers waking
+// React while live stats were already re-rendering the same subtree.
+const tickSubscribers = new Set();
+let tickInterval = null;
+
+function subscribeTick(notify) {
+  tickSubscribers.add(notify);
+  if (!tickInterval) {
+    tickInterval = setInterval(() => {
+      for (const subscriber of tickSubscribers) subscriber();
+    }, 1000);
+  }
+  return () => {
+    tickSubscribers.delete(notify);
+    if (tickSubscribers.size === 0 && tickInterval) {
+      clearInterval(tickInterval);
+      tickInterval = null;
+    }
+  };
+}
+
 function TimeAgo({ timestamp }) {
-  const [, setTick] = useState(0);
-  
-  useEffect(() => {
-    const timer = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
-  
+  const [, tick] = useReducer((n) => n + 1, 0);
+  useEffect(() => subscribeTick(tick), []);
   return <>{timeAgo(timestamp)}</>;
 }
 
@@ -93,7 +109,12 @@ function RecentRequests({ requests = [] }) {
               {requests.map((r, i) => {
                 const ok = !r.status || r.status === "ok" || r.status === "success";
                 const cleanModel = (r.model || "unknown").replace(/^\/+/, "");
-                const showResolved = r.resolvedModel && r.resolvedModel !== r.model;
+                const bareModel = (m) => String(m || "").replace(/^[^/]+\//, "");
+                // A request can be rewritten to the same model on another
+                // provider (gweb/gemini-4-argon -> gemini-web/gemini-4-argon).
+                // Only a different model name is worth an arrow; the provider
+                // chip already says which account served it.
+                const showResolved = Boolean(bareModel(r.resolvedModel)) && bareModel(r.resolvedModel) !== bareModel(r.model);
                 return (
                   <tr key={i} className="hover:bg-bg-hover transition-colors group">
                     <td className="py-2.5 pl-3 pr-1 text-center align-middle">
@@ -105,13 +126,15 @@ function RecentRequests({ requests = [] }) {
                           {cleanModel}
                         </span>
                         {showResolved && (
-                          <span className="truncate max-w-full text-[10px] text-text-muted" title={`${r.provider}/${r.resolvedModel}`}>
-                            → {r.provider}/{r.resolvedModel}
+                          <span className="truncate max-w-full text-[10px] text-text-muted" title={`${r.providerName || r.provider}/${bareModel(r.resolvedModel)}`}>
+                            → {r.providerName || r.provider}/{bareModel(r.resolvedModel)}
                           </span>
                         )}
                         {!showResolved && r.provider && (
-                          <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-surface-2 text-text-muted/90 border border-border-subtle w-fit">
-                            {r.provider}
+                          <span
+                            className="w-fit rounded border border-border-subtle bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-text-muted/90"
+                          >
+                            {r.providerName || r.provider}
                           </span>
                         )}
                       </div>
@@ -121,8 +144,9 @@ function RecentRequests({ requests = [] }) {
                         <span className="text-text-main font-medium">{fmt(r.promptTokens)}↑</span>
                         <span className="text-success font-medium">{fmt(r.completionTokens)}↓</span>
                         {r.cachedTokens > 0 && (
-                          <span className="text-[10px] text-info bg-info/10 px-1.5 py-0.5 rounded leading-none border border-info/20" title={`${fmt(r.cachedTokens)} cached tokens`}>
-                            ⚡{fmt(r.cachedTokens)}
+                          <span className="inline-flex items-center gap-1 text-[10px] text-info bg-info/10 px-1.5 py-0.5 rounded leading-none border border-info/20" title={`${fmt(r.cachedTokens)} cached tokens`}>
+                            <span className="material-symbols-outlined text-[11px] leading-none">bolt</span>
+                            {fmt(r.cachedTokens)}
                           </span>
                         )}
                       </div>
@@ -415,7 +439,31 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
     const es = new EventSource(`/api/usage/stream?period=${period}`);
     esRef.current = es;
 
+    // The stream repeats itself: the server rebuilds the same totals between
+    // requests and a reconnecting tab replays the current snapshot. Applying an
+    // identical payload re-renders every chart on the page for nothing, so the
+    // raw frame is compared first.
+    let lastFrame = "";
+    let chartKeyAt = 0;
+    let chartTimer = null;
+    const CHART_MIN_GAP_MS = 10000;
+
+    // Chart data is a separate fetch per bump. Traffic bursts used to bump it on
+    // every completion; one refetch per ten seconds keeps the chart live without
+    // re-querying the database dozens of times a minute.
+    const bumpChart = () => {
+      if (chartTimer) return;
+      const wait = Math.max(0, CHART_MIN_GAP_MS - (Date.now() - chartKeyAt));
+      chartTimer = setTimeout(() => {
+        chartTimer = null;
+        chartKeyAt = Date.now();
+        setChartUpdateKey((k) => k + 1);
+      }, wait);
+    };
+
     es.onmessage = (e) => {
+      if (e.data === lastFrame) return;
+      lastFrame = e.data;
       try {
         const data = JSON.parse(e.data);
         setStats((prev) => {
@@ -431,9 +479,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
             pending: data.pending,
           };
         });
-        if (data._type === "full") {
-          setChartUpdateKey((k) => k + 1);
-        }
+        if (data._type === "full") bumpChart();
         if (hasLoadedStats.current) setLoading(false);
       } catch (err) {
         console.error("[SSE CLIENT] parse error:", err);
@@ -442,7 +488,10 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
 
     es.onerror = () => setLoading(false);
 
-    return () => es.close();
+    return () => {
+      if (chartTimer) clearTimeout(chartTimer);
+      es.close();
+    };
   }, [period]);
 
   const toggleSort = useCallback((tableType, field) => {
@@ -676,7 +725,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
               above stay: those are this key's own requests over time. */}
           {!isApiKeyUser && (stats.byProvider || stats.byModel) && (
             <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-2">
-              <ProviderBarChart byProvider={stats.byProvider} />
+              <ProviderBarChart byProvider={stats.byProvider} labels={stats.providerLabels} />
               <TopModelsChart byModel={stats.byModel} />
             </div>
           )}

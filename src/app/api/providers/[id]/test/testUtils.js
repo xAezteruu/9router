@@ -4,6 +4,7 @@ import { testProxyUrl } from "@/lib/network/proxyTest";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getDefaultModel } from "open-sse/config/providerModels.js";
 import { probeBedrockCredentials } from "open-sse/executors/bedrock.js";
+import { probeGeminiWebCookie } from "open-sse/services/geminiWebCookie.js";
 import { resolveOllamaLocalHost, PROVIDERS } from "open-sse/config/providers.js";
 import { CODEX_CLI_VERSION } from "open-sse/config/appConstants.js";
 import {
@@ -887,6 +888,14 @@ case "llm7": {
           },
         }, effectiveProxy);
         return { valid: res.ok, error: res.ok ? null : "Invalid API key", refreshed: false };
+      }
+      case "gemini-web": {
+        // The credential is a browser session, so a chat completion is the wrong
+        // probe twice over: no API route accepts a raw cookie, and the web queue
+        // routinely runs past the 15s test budget, which surfaced as "cookie
+        // invalid" while the session was perfectly alive.
+        const probe = await probeGeminiWebCookie(connection.apiKey);
+        return { valid: probe.valid, error: probe.valid ? null : probe.error, warning: probe.warning || null, refreshed: false };
       }
       default:
         return { valid: false, error: "Provider test not supported" };

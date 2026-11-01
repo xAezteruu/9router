@@ -113,6 +113,9 @@ export default function ProvidersPage() {
   const [testResults, setTestResults] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [opencodeInstalled, setOpencodeInstalled] = useState(true);
+  // OpenCode Free is one card with two lanes; the hammer on that card flips this.
+  const [opencodeCliMode, setOpencodeCliMode] = useState(false);
+  const [togglingCliMode, setTogglingCliMode] = useState(false);
   const notify = useNotificationStore();
   const searchQuery = useHeaderSearchStore((s) => s.query);
   const registerSearch = useHeaderSearchStore((s) => s.register);
@@ -158,12 +161,17 @@ export default function ProvidersPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [connectionsRes, nodesRes] = await Promise.all([
+        const [connectionsRes, nodesRes, settingsRes] = await Promise.all([
           fetch("/api/providers"),
           fetch("/api/provider-nodes"),
+          fetch("/api/settings"),
         ]);
         const connectionsData = await connectionsRes.json();
         const nodesData = await nodesRes.json();
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setOpencodeCliMode(settingsData?.opencodeCliMode === true);
+        }
         if (connectionsRes.ok) {
           setConnections(connectionsData.connections || []);
           if (connectionsData.opencodeInstalled !== undefined) {
@@ -179,6 +187,27 @@ export default function ProvidersPage() {
     };
     fetchData();
   }, []);
+
+  const toggleOpencodeCliMode = async () => {
+    if (togglingCliMode) return;
+    const next = !opencodeCliMode;
+    setTogglingCliMode(true);
+    setOpencodeCliMode(next);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opencodeCliMode: next }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      notify.success(next ? "OpenCode Free: local CLI lane" : "OpenCode Free: direct lane");
+    } catch (error) {
+      setOpencodeCliMode(!next);
+      notify.error(`Could not switch lane: ${error.message}`);
+    } finally {
+      setTogglingCliMode(false);
+    }
+  };
 
   const getProviderStats = (providerId, authType) => {
     const authTypes = Array.isArray(authType) ? authType : [authType];
@@ -596,6 +625,8 @@ export default function ProvidersPage() {
                 stats={getProviderStats(key, freeAuthTypes)}
                 authType="free"
                 opencodeInstalled={opencodeInstalled}
+                cliMode={opencodeCliMode}
+                onToggleCliMode={key === "opencode" ? toggleOpencodeCliMode : null}
                 onToggle={(active) =>
                   handleToggleProvider(key, freeAuthTypes, active)
                 }
@@ -754,7 +785,7 @@ export default function ProvidersPage() {
   );
 }
 
-function ProviderCard({ providerId, provider, stats, authType, onToggle, opencodeInstalled = true }) {
+function ProviderCard({ providerId, provider, stats, authType, onToggle, opencodeInstalled = true, cliMode = false, onToggleCliMode = null }) {
   const { connected, error, errorCode, errorTime, allDisabled } = stats;
   const isNoAuth = !!provider.noAuth;
 
@@ -797,7 +828,32 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle, opencod
               />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate font-semibold">{provider.name}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="truncate font-semibold">{provider.name}</h3>
+                {providerId === "opencode" && onToggleCliMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleCliMode();
+                    }}
+                    title={
+                      cliMode
+                        ? "CLI lane active — click to use the direct request"
+                        : "Direct lane active — click to use the local CLI"
+                    }
+                    className={`inline-flex items-center gap-1 rounded-[var(--r-chip)] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                      cliMode
+                        ? "border-brand-500/40 bg-brand-500/10 text-brand-600 dark:text-brand-300"
+                        : "border-border/60 text-text-muted hover:text-text-main"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[12px]">handyman</span>
+                    {cliMode ? "CLI" : "Direct"}
+                  </button>
+                )}
+              </div>
               <div className="flex min-w-0 items-center gap-1.5 text-xs flex-wrap">
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
@@ -868,6 +924,8 @@ ProviderCard.propTypes = {
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
+  cliMode: PropTypes.bool,
+  onToggleCliMode: PropTypes.func,
 };
 
 function ApiKeyProviderCard({
@@ -935,7 +993,32 @@ function ApiKeyProviderCard({
               />
             </div>
             <div className="min-w-0">
-              <h3 className="truncate font-semibold">{provider.name}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="truncate font-semibold">{provider.name}</h3>
+                {providerId === "opencode" && onToggleCliMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onToggleCliMode();
+                    }}
+                    title={
+                      cliMode
+                        ? "CLI lane active — click to use the direct request"
+                        : "Direct lane active — click to use the local CLI"
+                    }
+                    className={`inline-flex items-center gap-1 rounded-[var(--r-chip)] border px-1.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                      cliMode
+                        ? "border-brand-500/40 bg-brand-500/10 text-brand-600 dark:text-brand-300"
+                        : "border-border/60 text-text-muted hover:text-text-main"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[12px]">handyman</span>
+                    {cliMode ? "CLI" : "Direct"}
+                  </button>
+                )}
+              </div>
               <div className="flex min-w-0 items-center gap-1.5 text-xs flex-wrap">
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
@@ -1011,6 +1094,8 @@ ApiKeyProviderCard.propTypes = {
   }).isRequired,
   authType: PropTypes.string,
   onToggle: PropTypes.func,
+  cliMode: PropTypes.bool,
+  onToggleCliMode: PropTypes.func,
 };
 
 function ProviderTestResultsView({ results }) {

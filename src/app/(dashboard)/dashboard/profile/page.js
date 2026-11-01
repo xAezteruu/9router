@@ -3,14 +3,12 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, Button, Toggle, Input, Select, DownloadBackupModal } from "@/shared/components";
 import Modal, { ConfirmModal } from "@/shared/components/Modal";
-import LanguageSwitcher from "@/shared/components/LanguageSwitcher";
 import SettingsHistory from "@/shared/components/SettingsHistory";
 import { cn } from "@/shared/utils/cn";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTaskStore } from "@/store/taskStore";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
-import { LOCALE_FLAGS } from "@/shared/constants/locales";
 
 function getLocaleFromCookie() {
   if (typeof document === "undefined") return "en";
@@ -1380,7 +1378,7 @@ export default function ProfilePage() {
                     {showSamlGuide && (
                       <div className="p-4 border-t border-border bg-surface/30 text-xs text-text-main flex flex-col gap-3">
                         <div className="p-2.5 rounded border border-primary/20 bg-primary/5 text-primary text-xs">
-                          <p className="font-semibold mb-1">🔑 Required Service Provider (SP) Values for your IdP Setup:</p>
+                          <p className="mb-1 flex items-center gap-1.5 font-semibold"><span className="material-symbols-outlined text-[14px] leading-none">key</span>Required Service Provider (SP) Values for your IdP Setup:</p>
                           <ul className="list-disc pl-4 space-y-1 font-mono text-[11px]">
                             <li>
                               <b>Assertion Consumer Service (ACS) URL:</b>{" "}
@@ -1400,7 +1398,7 @@ export default function ProfilePage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
                             <p className="font-semibold text-text-main flex items-center gap-1.5">
-                              <span>☁️</span> AWS IAM Identity Center
+                              <span className="material-symbols-outlined text-[15px] leading-none text-text-muted">cloud</span> AWS IAM Identity Center
                             </p>
                             <ol className="list-decimal pl-4 text-text-muted space-y-1">
                               <li>Applications → <b>Add application</b> → Select <b>Add custom SAML 2.0 application</b>.</li>
@@ -1413,7 +1411,7 @@ export default function ProfilePage() {
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
                             <p className="font-semibold text-text-main flex items-center gap-1.5">
-                              <span>🔷</span> Microsoft Entra ID (Azure AD)
+                              <span className="material-symbols-outlined text-[15px] leading-none text-text-muted">security</span> Microsoft Entra ID (Azure AD)
                             </p>
                             <ol className="list-decimal pl-4 text-text-muted space-y-1">
                               <li>Enterprise Applications → <b>New application</b> → <b>Create your own application</b>.</li>
@@ -1426,7 +1424,7 @@ export default function ProfilePage() {
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
                             <p className="font-semibold text-text-main flex items-center gap-1.5">
-                              <span>🟢</span> Okta / Auth0
+                              <span className="material-symbols-outlined text-[15px] leading-none text-text-muted">verified_user</span> Okta / Auth0
                             </p>
                             <ol className="list-decimal pl-4 text-text-muted space-y-1">
                               <li>Applications → <b>Create App Integration</b> → Select <b>SAML 2.0</b>.</li>
@@ -1439,7 +1437,7 @@ export default function ProfilePage() {
 
                           <div className="p-3 rounded border border-border bg-bg/50 flex flex-col gap-1.5">
                             <p className="font-semibold text-text-main flex items-center gap-1.5">
-                              <span>🛡️</span> Keycloak / Authentik
+                              <span className="material-symbols-outlined text-[15px] leading-none text-text-muted">shield_lock</span> Keycloak / Authentik
                             </p>
                             <ol className="list-decimal pl-4 text-text-muted space-y-1">
                               <li>Clients → <b>Create client</b> → Select <b>SAML</b>.</li>

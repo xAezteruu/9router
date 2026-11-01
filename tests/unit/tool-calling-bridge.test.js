@@ -160,6 +160,33 @@ describe("tool calling bridge — dispatch", () => {
     expect(await isWebSessionProvider("gweb")).toBe(true);
     expect(await isWebSessionProvider("openai")).toBe(false);
   });
+  it("tells the model when the client forces one tool", () => {
+    const body = chatBody({ tools: TOOLS, tool_choice: { type: "function", function: { name: "read_file" } } });
+
+    applyToolCallingBridge(body, FORMATS.OPENAI);
+
+    const last = body.messages[body.messages.length - 1];
+    expect(last.content).toContain("FORCED");
+    expect(last.content).toContain('"read_file"');
+  });
+
+  it("recovers several calls emitted in one reply", () => {
+    const body = { _openaiToolBridge: { tools: TOOLS } };
+    const response = {
+      choices: [
+        {
+          message: {
+            role: "assistant",
+            content:
+              '```tool_call\n{"name": "read_file", "arguments": {"path": "a.js"}}\n```\n```tool_call\n{"name": "read_file", "arguments": {"path": "b.js"}}\n```',
+          },
+        },
+      ],
+    };
+
+    expect(bridgeOpenAIChatResponse(response, body)).toBe(2);
+    expect(response.choices[0].message.tool_calls.map((c) => JSON.parse(c.function.arguments).path)).toEqual(["a.js", "b.js"]);
+  });
 });
 
 describe("tool calling bridge — response side", () => {
