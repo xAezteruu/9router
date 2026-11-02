@@ -209,11 +209,35 @@ export default function CompatibleModelsSection({ providerStorageAlias, provider
   const handleImportSelected = async () => {
     if (adding || pickerSelectedIds.length === 0) return;
     setAdding(true);
+    // Upstream added task-bell progress reporting to the import loop; the fork
+    // keeps the picker flow. Combined: report per-model progress, close the
+    // picker, then mark the task done. taskId/importedCount are local here —
+    // upstream's version referenced handleImport's scope.
+    const activeConnection = connections.find((conn) => conn.isActive !== false);
+    const taskId = `models-import-selected-${activeConnection?.id || "manual"}`;
+    useTaskStore.getState().start({
+      id: taskId,
+      title: "Importing models",
+      message: "Importing selected models",
+      progress: 0,
+      href: typeof window !== "undefined" ? window.location.pathname : null,
+    });
+    let importedCount = 0;
     try {
-      for (const modelId of pickerSelectedIds) {
+      for (const [index, modelId] of pickerSelectedIds.entries()) {
         await onAddCustomModel(modelId);
+        importedCount += 1;
+        useTaskStore.getState().update(taskId, {
+          message: `${index + 1}/${pickerSelectedIds.length} models`,
+          progress: Math.round(((index + 1) / pickerSelectedIds.length) * 100),
+        });
       }
       setPickerOpen(false);
+      useTaskStore.getState().update(taskId, {
+        message: importedCount > 0 ? `Imported ${importedCount} models` : "No new models added",
+        progress: 100,
+        state: "done",
+      });
     } catch (error) {
       console.log("Error importing models:", error);
       alert("Error importing models: " + error.message);
