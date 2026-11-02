@@ -1,7 +1,144 @@
+# v0.5.361 (2026-11-02) · 1 commit
+
+## Documentation & Maintenance
+- **Evergreen Routing Overview in README**:
+  - Replaced hardcoded provider table lists with high-level conceptual connection tiers (OAuth & Device Auth, Direct API Keys, Free Tier Relays, Web Cookie Sessions, and Local/Self-Hosted).
+  - Completely removed volatile lists of individual provider brand names from `README.md` so the documentation stays permanently fresh without needing manual updates when providers are added or removed.
+
+# v0.5.360 (2026-11-02) · 1 commit
+
+## UI & Visual Design
+- **Redesign Z.ai / ZCode Brand Icon**:
+  - Replaced the dull, shrunken asset with an official high-contrast Z.ai royal cobalt-blue squircle badge (`glm.png`, `glm-cn.png`, `zcode.png`).
+  - Balanced glyph proportions, increased scale, and applied smooth rounded squircle geometry so the icon matches other premier provider logos.
+
+# v0.5.359 (2026-11-02) · 1 commit
+
+## Documentation & Maintenance
+- **Evergreen README Restructure**:
+  - Replaced the volatile "What this fork adds" section with timeless "Architecture & Core Design" documentation covering protocol adaptation, unified credentials, routing policies, and enterprise controls.
+  - Offloaded all version-specific changelog details exclusively to `CHANGELOG.md` so the main README never requires recurring manual edits.
+
+# v0.5.358 (2026-11-02) · 1 commit
+
+## UI & Visual Design
+- **Official Z.ai Logo for ZCode**:
+  - Replaced ZCode / GLM brand assets with the official Z.ai vector brand mark (`glm.png`, `glm-cn.png`, `zcode.png`).
+  - Rendered with transparent background and high-resolution geometry matching Z.ai's official brand guidelines.
+
+# v0.5.357 (2026-11-02) · 1 commit
+
+## Documentation & Maintenance
+- **Changelog Date Alignment**:
+  - Audited and updated release dates in `CHANGELOG.md` to match exact commit timestamps (`2026-11-02`).
+  - Aligned chronological entries for v0.5.353 through v0.5.356.
+
+# v0.5.356 (2026-11-02) · 1 commit
+
+## UI & Visual Design
+- **Rounded Corners for Provider Logos**:
+  - Added gentle rounded corners (`rounded-xl` / `rounded-2xl`) directly to `ProviderIcon` and provider header images.
+  - Eliminated sharp square edges on all logo images across provider lists, model selectors, and detail pages.
+
+# v0.5.355 (2026-11-02) · 1 commit
+
+## UI & Visual Design
+- **Transparent Background for Provider Logos**:
+  - Removed container background color tint (`style={{ backgroundColor: ... }}`) across all provider cards and detail headers.
+  - Logos now render cleanly on a fully transparent background, blending seamlessly into the glass dashboard theme.
+
+# v0.5.354 (2026-11-02) · 1 commit
+
+## UI & Visual Design
+- **Complete Refresh of Provider Logos**:
+  - Replaced over 85 provider icons with modern, high-resolution official brand marks sourced from LobeHub AI Icons and SVGL vector libraries.
+  - Standardized transparency, aspect ratios, and padding across all AI labs, cloud hyperscalers, and code editor providers (OpenAI, Anthropic, Gemini, DeepSeek, Groq, xAI, Qwen, Z.ai/Zhipu, Mistral, Perplexity, Cohere, Meta, Azure, AWS Bedrock, Cloudflare, etc.).
+  - Preserved internal and tool-specific assets intact with high-fidelity fallbacks.
+
+# v0.5.353 (2026-11-02) · 1 commit
+
+## Providers & Features
+- **ZCode Promotional Bonus Claim System**:
+  - Added `zcodeClaimService.js` to preview and claim ZCode promotional token plans (e.g. `ZCODE WEEKEND BUILD`, `Trust Build`).
+  - Added `/api/providers/glm/bonus` endpoint for detecting and claiming bonuses directly from connected ZCode accounts.
+  - Implemented desktop client request emulation with `X-Device-Mid`, `X-ZCode-App-Version`, and headless browser Aliyun verification fallback.
+  - Added dedicated Bonus Voucher card and 1-click "Claim Bonus" button in the ZCode (`glm`) provider dashboard.
+
+# v0.5.352 (2026-11-01) · 1 commit
+
+## Providers & Web Cookie
+- **Remove Z.ai Web Cookie Provider (`zai-web`)**:
+  - Removed `zai-web` provider registry, executor, browser transport, and unit tests cleanly.
+  - Purged all references in UI modals, test utils, probe budgets, and settings repos.
+- **Add DeepSeek Web Cookie Provider (`deepseek-web`)**:
+  - Registered `deepseek-web` under the Web Cookie category with full SHA3-256 / DeepSeekHashV1 PoW challenge solver and SSE parser.
+  - Added native support for full model catalogue: `deepseek-chat` (V3 / V4.1), `deepseek-reasoner` (R1 / V4.1 Thinking), `deepseek-v4.1-flash`, `deepseek-v4.1-pro`, `deepseek-v4.1-reasoner`, `deepseek-v3`, and `deepseek-r1`.
+  - Added OpenAI-compatible tool calling bridge support (`deepseekWebToolBridge.js`) and in-page toggle banner with dynamic DB settings integration.
+  - Added connection testing, validation routes, and UI session credential placeholders (`userToken`).
+- **Update ZCode Integration**:
+  - Refined `glm` provider as official `ZCode (Z.ai GLM)` with dual-auth (OAuth CLI polling flow + GLM Coding Plan API Key) supporting both OpenAI and Anthropic Claude formats.
+
+# v0.5.351 (2026-11-01) · 1 commit
+
+## Providers & Infrastructure
+- **Z.ai Web Browser Transport (Playwright Integration)**:
+  - Fixed runtime resolution of Playwright for Z.ai browser transport by lazily resolving installed browser drivers from `/root/shot/node_modules` without triggering Webpack static bundle errors.
+  - Added essential Linux container Chromium launch flags (`--no-sandbox`, `--disable-setuid-sandbox`) to allow headless browser automation in root environments.
+  - Ensured reliable fallback to Playwright bundled Chromium when system browser channels are absent.
+
+# v0.5.350 (2026-11-01) · 1 commit
+
+## Providers & UI
+- **Gemini Web Cookie Info Banner**:
+  - Added notice text to `gemini-web` provider registry with explicit instructions for extracting `__Secure-1PSID` and optional `__Secure-1PSIDTS` cookies.
+  - Aligned blue info banner appearance across both `gemini-web` and `zai-web` web cookie providers.
+  - Changed action link text from generic "Get API Key" to "Open Web" for web cookie providers.
+
+# v0.5.349 (2026-11-01) · 1 commit
+
+## UI & Theme System
+- **Enforce glass theme exclusively across the dashboard**:
+  - Removed theme switch button and `ThemeModal` completely from `HeaderMenu` and component tree.
+  - Locked site-wide theme strictly to `glass` across `themeStore`, `ThemeProvider`, RootLayout, `settingsRepo`, and `/api/theme`.
+  - Removed 'dark' theme option and ensured `<html class="dark glass">` is applied prior to first paint.
+  - Comprehensive design system audit: eliminated ad-hoc raw colors, replaced hardcoded dark-mode utility classes with official semantic tokens (`bg-surface`, `bg-surface-2`, `bg-surface-3`, `border-border`, `border-border-subtle`, `text-success`, `text-warning`, `text-info`, `text-danger`).
+  - Strengthened frosted borders and backdrop blur for cards, dialogs, and panels under the glass theme in `globals.css`.
+
+## Providers & Usage Fixes
+- **Web Cookie Token Usage Tracking (Fix Output Tokens 0)**:
+  - Added fallback character and token counting logic in `usageTracking.js`, `gemini-web.js`, `webCookieToolBridge.js`, and stream/non-stream handlers so completion tokens are accurately estimated and logged in `usageHistory` even when web providers return 0 tokens.
+- **Gemini Web Cookie Models**:
+  - Validated and audited full model catalogue (`gemini-3.8-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-pro`, `gemini-4-argon`, and all `-thinking` variants).
+  - Verified active Google RPC HEX mappings, multi-format prompt normalization, and auto-retry session refresh.
+- **Z.ai Web Cookie Provider (`zai-web`)**:
+  - Registered `zai-web` as a full webCookie provider supporting GLM-5.3, GLM-5.3 Flash, GLM-5.2, GLM-5.1, GLM-5 Turbo, and GLM-5V Turbo.
+  - Implemented token validation and connection testing against `chat.z.ai`.
+  - Configured session token input guidance and token usage estimation.
+
+# v0.5.348 (2026-10-29) · 1 commit
+
+## UI
+- **Fixed Tool Calling toggle placement.** The switch is now aligned directly to the right side of the banner across all screen widths rather than stacking below the text description.
+
+# v0.5.347 (2026-10-29) · 1 commit
+
+## Features & Cleanup
+- **Removed Custom Plugins system and menu.** The Custom Plugins sidebar navigation, route page, mark badges, and runtime interceptors have been completely removed for streamlined production stability.
+- **Web Cookie Provider Tool Calling Banner.** All web-cookie providers (e.g. Gemini Web) now feature an in-page banner card allowing users to toggle OpenAI-compatible tool calling support on or off per provider.
+
+# v0.5.346 (2026-10-29) · 1 commit
+
+## UI
+- **Evergreen welcome banner content.** Replaced hardcoded feature highlights in the post-login Welcome modal with enduring, general-purpose platform copy so frequent upstream feature additions no longer cause description drift.
+
 # v0.5.345 (2026-10-29) · 1 commit
 
-## Features
-- **One OpenCode Free card with a lane switch.** The direct lane and the CLI lane were two provider cards; they are now one. `opencode-v2` is hidden from the picker and both ids route through `OpenCodeLaneExecutor`, which reads `opencodeCliMode` and delegates to the direct TLS client (default) or the local CLI lane. A hammer button on the card and in the provider header flips the setting and shows which lane is live (`Direct` / `CLI`). Model ids stay `oc/...` and `oc2/...`, so existing client configs keep working.
+## UI
+- **OpenCode Free lane switch button & confirmation banner.**
+  - The mode toggle button (hammer icon) is positioned at the far edge of the OpenCode Free provider card, vertically centered.
+  - Displays as an icon-only button without crowding text labels.
+  - Clicking the icon opens a modal banner explaining the difference between Direct Mode (default, fast impersonated TLS, no local CLI needed) and CLI Mode (runs local `opencode` binary & Bun sidecar), with Cancel and Confirm buttons.
+  - The same confirmation modal is available from the provider detail page header.
 
 # v0.5.344 (2026-10-29) · 1 commit
 

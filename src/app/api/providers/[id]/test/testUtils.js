@@ -897,6 +897,22 @@ case "llm7": {
         const probe = await probeGeminiWebCookie(connection.apiKey);
         return { valid: probe.valid, error: probe.valid ? null : probe.error, warning: probe.warning || null, refreshed: false };
       }
+      case "deepseek-web": {
+        const raw = String(connection?.apiKey || "").trim();
+        let token = raw;
+        if (raw.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(raw);
+            token = parsed.value || parsed.userToken || parsed.token || raw;
+          } catch {
+            token = raw;
+          }
+        }
+        if (token.toLowerCase().startsWith("bearer ")) token = token.slice(7).trim();
+        token = token.replace(/^["']|["']$/g, "").trim();
+        if (!token) return { valid: false, error: "UserToken is required", refreshed: false };
+        return { valid: true, error: null, refreshed: false };
+      }
       default:
         return { valid: false, error: "Provider test not supported" };
     }

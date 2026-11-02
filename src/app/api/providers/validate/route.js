@@ -535,6 +535,30 @@ export async function POST(request) {
           break;
         }
 
+        case "deepseek-web": {
+          const raw = String(apiKey || "").trim();
+          let token = raw;
+          if (raw.startsWith("{")) {
+            try {
+              const parsed = JSON.parse(raw);
+              token = parsed.value || parsed.userToken || parsed.token || raw;
+            } catch {
+              token = raw;
+            }
+          }
+          if (token.toLowerCase().startsWith("bearer ")) {
+            token = token.slice(7).trim();
+          }
+          token = token.replace(/^["']|["']$/g, "").trim();
+          if (!token) {
+            isValid = false;
+            error = "Token is required. Copy the 'userToken' value from chat.deepseek.com Local Storage.";
+            break;
+          }
+          isValid = true;
+          break;
+        }
+
         case "qoder":
         case "qoder-cn": {
           // PAT (pt-...) needs the job-token exchange before it can sign
