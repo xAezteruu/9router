@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import ProviderLogoField from "@/shared/components/ProviderLogoField";
 import { Badge, Button, Input, Modal, Select } from "@/shared/components";
+import { planBulkAdd } from "@/shared/utils/bulkAdd";
+import { useTaskStore } from "@/store/taskStore";
 
 
 const VARIANT_CONFIG = {
@@ -59,10 +61,17 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
 
   const [formData, setFormData] = useState(initialFormData);
   const [submitting, setSubmitting] = useState(false);
-  const [checkKey, setCheckKey] = useState("");
+  const [formError, setFormError] = useState("");
+  // Keys saved with the node. One per line: "name|key" names the connection,
+  // a bare key is auto-named. Single key = one line; multi = many lines.
+  const [keysText, setKeysText] = useState("");
+  const [keysResult, setKeysResult] = useState(null); // { added, failed }
   const [checkModelId, setCheckModelId] = useState("");
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
+
+  const keyLines = keysText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const firstKey = keyLines[0] || "";
 
   // openai: reset baseUrl when apiType changes; anthropic: reset checks when opened
   useEffect(() => {
@@ -70,7 +79,8 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
       setFormData((prev) => ({ ...prev, baseUrl: config.defaultBaseUrl }));
     } else if (isOpen) {
       setValidationResult(null);
-      setCheckKey("");
+      setKeysText("");
+      setKeysResult(null);
       setCheckModelId("");
     }
   }, [config.hasApiType ? formData.apiType : isOpen]);
@@ -78,6 +88,8 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
   const handleSubmit = async () => {
     if (!formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim()) return;
     setSubmitting(true);
+    setFormError("");
+    setKeysResult(null);
     try {
       const res = await fetch("/api/provider-nodes", {
         method: "POST",
@@ -93,14 +105,78 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
         }),
       });
       const data = await res.json();
-      if (res.ok) {
-        onCreated(data.node);
-        setFormData(initialFormData());
-        setCheckKey("");
-        setValidationResult(null);
+      if (!res.ok) {
+        setFormError(data?.error || `Failed to create ${config.errorLabel} node`);
+        return;
       }
+      const node = data.node;
+
+      // Save pasted keys as connections on the new node so the node is
+      // usable immediately - no separate trip to the node page needed.
+      // Progress/results go to the task bell (AddCompatibleModal closes on
+      // onCreated below, so inline results would never be seen).
+      if (keyLines.length) {
+        const taskId = `add-node-keys-${node.id}`;
+        // Fresh node has no existing connection names; planBulkAdd keeps
+        // explicit names from "name|key" lines and auto-names bare keys.
+        const plan = planBulkAdd(keyLines, [], {});
+        useTaskStore.getState().start({
+          id: taskId,
+          title: `Adding keys to ${node.name || formData.prefix}`,
+          message: `0/${plan.length} keys`,
+          progress: 0,
+          href: typeof window !== "undefined" ? window.location.pathname : null,
+        });
+        let added = 0;
+        let failed = 0;
+        let processed = 0;
+        for (const entry of plan) {
+          try {
+            // Validate before saving so new connections get a real status
+            // instead of "unknown" that never flips until a manual test.
+            let testStatus = "unknown";
+            try {
+              const vres = await fetch("/api/providers/validate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ provider: node.id, apiKey: entry.apiKey }),
+              });
+              const vdata = await vres.json().catch(() => ({}));
+              if (vdata.valid) testStatus = "active";
+            } catch { /* keep unknown */ }
+            const cres = await fetch("/api/providers", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                provider: node.id,
+                apiKey: entry.apiKey,
+                name: entry.name,
+                priority: 1,
+                testStatus,
+              }),
+            });
+            if (cres.ok) added++;
+            else failed++;
+          } catch {
+            failed++;
+          }
+          processed += 1;
+          useTaskStore.getState().update(taskId, {
+            message: `${processed}/${plan.length} keys`,
+            progress: Math.round((processed / plan.length) * 100),
+          });
+        }
+        useTaskStore.getState().finish(taskId);
+        setKeysResult({ added, failed });
+      }
+
+      onCreated(node);
+      setFormData(initialFormData());
+      setKeysText("");
+      setValidationResult(null);
     } catch (error) {
       console.log(`Error creating ${config.errorLabel} node:`, error);
+      setFormError("Network error");
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +190,7 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           baseUrl: formData.baseUrl,
-          apiKey: checkKey,
+          apiKey: firstKey,
           type: config.type,
           modelId: checkModelId.trim() || undefined,
         }),
@@ -185,12 +261,26 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
           placeholder={config.defaultBaseUrl}
           hint={config.baseUrlHint}
         />
-        <Input
-          label="API Key (for Check)"
-          type="password"
-          value={checkKey}
-          onChange={(e) => setCheckKey(e.target.value)}
-        />
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-text-main">API Keys (optional)</label>
+          <textarea
+            className="w-full rounded border border-accent/30 bg-sidebar p-2 text-sm font-mono resize-y min-h-[90px] focus:outline-none focus:ring-1 focus:ring-primary"
+            placeholder={"sk-key1\nname2|sk-key2"}
+            value={keysText}
+            onChange={(e) => setKeysText(e.target.value)}
+            spellCheck={false}
+          />
+          <p className="text-xs text-text-muted">
+            Saved with this node. One key per line, or <code>name|key</code> to name it. Leave
+            empty to add keys later on the node page.
+          </p>
+          {keysResult && (
+            <p className={`text-sm font-medium ${keysResult.failed > 0 ? "text-yellow-400" : "text-green-400"}`}>
+              {keysResult.added} key{keysResult.added === 1 ? "" : "s"} added
+              {keysResult.failed > 0 ? `, ${keysResult.failed} failed` : ""}
+            </p>
+          )}
+        </div>
         <Input
           label="Model ID (optional)"
           value={checkModelId}
@@ -201,14 +291,17 @@ function AddCompatibleModal({ variant, isOpen, onClose, onCreated }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Button
             onClick={handleValidate}
-            disabled={!checkKey || validating || !formData.baseUrl.trim()}
+            disabled={!firstKey || validating || !formData.baseUrl.trim()}
             variant="secondary"
             className="w-full sm:w-auto"
           >
-            {validating ? "Checking..." : "Check"}
+            {validating ? "Checking..." : "Check first key"}
           </Button>
           {renderValidationResult()}
         </div>
+        {formError && (
+          <p className="text-sm text-red-500">{formError}</p>
+        )}
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button
             onClick={handleSubmit}
