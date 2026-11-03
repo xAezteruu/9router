@@ -24,9 +24,19 @@ export default {
     // Time-to-headers budget. Body prefill on large contexts (500+ messages,
     // ~600KB+ JSON) routinely takes 15-60s on the Google side before response
     // headers arrive; the 15s FETCH_CONNECT_TIMEOUT_MS default aborted those
-    // mid-flight (surface: "[ProxyFetch] ... (strictProxy=true): aborted",
-    // 4 attempts × 15s + 3 × 3s retry delay = 69.0s per account).
-    timeoutMs: 180000,
+    // mid-flight (surface: "[ProxyFetch] ... (strictProxy=true): aborted").
+    // 90s = 2x the observed TTFT p95 (49s) — everything past that is a hang,
+    // and keeping worst-case TTFB under Cloudflare's 100s 524 threshold matters
+    // more than retrying a hung connection (fallback budget handles failover).
+    timeoutMs: 90000,
+    // No in-account retry on network errors: each retry re-pays the full TTFT
+    // budget before headers arrive. Fail over to the next account instead
+    // (client-side retry covers transient errors).
+    retry: {
+      "502": { attempts: 0 },
+      "429": { attempts: 6 },
+      "503": { attempts: 3 },
+    },
     headers: {
       "User-Agent": ANTIGRAVITY_IDE_USER_AGENT,
     },
