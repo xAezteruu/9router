@@ -99,6 +99,13 @@ export const ERROR_RULES = [
   { text: "returned non-sse", lock: false },
   { text: "failed to convert streaming response", lock: false },
 
+  // Antigravity VALIDATION_REQUIRED (Google "Verify your account to continue"):
+  // the account needs a manual browser verification at validation_url — a cooldown
+  // can never heal it, and the 2-minute 403 rule would re-hit the endpoint forever
+  // (42 wasted requests in the 2026-11-02 wave). Lock for hours so the hammering
+  // stops; the lock expires long after the user had the chance to verify.
+  { provider: "antigravity", text: "validation_required", cooldownMs: 60 * 60 * 1000 },
+
   // --- Status-based rules (fallback when text doesn't match) ---
   { status: 401, cooldownMs: COOLDOWN.long },
   { status: 402, cooldownMs: COOLDOWN.long },

@@ -305,12 +305,20 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
   const reason = typeof errorText === "string" ? errorText.slice(0, 200) : "Provider error";
+  // Antigravity VALIDATION_REQUIRED embeds the browser-verification link deep in
+  // the JSON (validation_url). Surface it in lastError so the dashboard shows the
+  // exact action instead of a truncated "Verify your account to continue." blob.
+  let enrichedReason = reason;
+  const validationUrlMatch = typeof errorText === "string" ? errorText.match(/"validation_url"\s*:\s*"([^"]+)"/) : null;
+  if (validationUrlMatch) {
+    enrichedReason = `Account needs browser verification: ${validationUrlMatch[1]}`.slice(0, 2000);
+  }
   const lockUpdate = buildModelLockUpdate(githubResetAtMs ? null : model, cooldownMs);
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,
     testStatus: "unavailable",
-    lastError: reason,
+    lastError: enrichedReason,
     errorCode: status,
     lastErrorAt: new Date().toISOString(),
     backoffLevel: newBackoffLevel ?? backoffLevel
