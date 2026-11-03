@@ -286,9 +286,9 @@ function requestOverSocket(parsedUrl, init, socket) {
 
     const signal = init.signal;
     if (signal) {
-      const abort = () => request.destroy(new Error("aborted"));
+      const abort = () => request.destroy(new Error(signal.reason?.message || "aborted"));
       if (signal.aborted) {
-        request.destroy(new Error("aborted"));
+        request.destroy(new Error(signal.reason?.message || "aborted"));
         return;
       }
       signal.addEventListener("abort", abort, { once: true });

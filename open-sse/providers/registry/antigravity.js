@@ -21,6 +21,12 @@ export default {
   transport: {
     baseUrls: [ANTIGRAVITY_IDE_BASE_URL],
     format: "antigravity",
+    // Time-to-headers budget. Body prefill on large contexts (500+ messages,
+    // ~600KB+ JSON) routinely takes 15-60s on the Google side before response
+    // headers arrive; the 15s FETCH_CONNECT_TIMEOUT_MS default aborted those
+    // mid-flight (surface: "[ProxyFetch] ... (strictProxy=true): aborted",
+    // 4 attempts × 15s + 3 × 3s retry delay = 69.0s per account).
+    timeoutMs: 180000,
     headers: {
       "User-Agent": ANTIGRAVITY_IDE_USER_AGENT,
     },
