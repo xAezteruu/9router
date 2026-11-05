@@ -19,7 +19,7 @@ function loadSqlite() {
   // Copy to temp via sqlite3 .backup to avoid touching the live WAL.
   // NEVER write to the live DB path.
   const tmp = `/tmp/mig-sqlite-${Date.now()}.sqlite`;
-  execSync(`sqlite3 "file:${SQLITE}?mode=ro" ".backup '${tmp}'"`);
+  execSync(`sqlite3 "file:${SQLITE}?immutable=1" ".backup '${tmp}'"`);
   return new Database(tmp, { readonly: true, fileMustExist: true });
 }
 // better-sqlite3 API shim: .all/.get/.run names used below map to .prepare(...).all() etc.
@@ -80,10 +80,13 @@ async function main() {
     const colSql = cols.map(c => `\`${c}\``).join(",");
     const ph = cols.map(() => "?").join(",");
     let insSql = `INSERT INTO \`${name}\` (${colSql}) VALUES (${ph})`;
-    if (!dry && name !== "usageHistory" && name !== "ipAccessLog" && name !== "securityEvents" && name !== "accessEvents") {
+    const APPEND_ONLY = name === "usageHistory" || name === "ipAccessLog" || name === "securityEvents" || name === "accessEvents" || name === "errorLogs" || name === "requestDetails" || name === "notifications";
+    if (!dry && !APPEND_ONLY) {
       // id-keyed tables: replace on dup (idempotent re-run)
       const upd = cols.filter(c => c !== "id").map(c => `\`${c}\` = VALUES(\`${c}\`)`).join(",");
       if (upd) insSql += ` ON DUPLICATE KEY UPDATE ${upd}`;
+    } else if (!dry && APPEND_ONLY) {
+      insSql = `INSERT IGNORE INTO \`${name}\` (${colSql}) VALUES (${ph})`;
     }
     if (dry) { grand += rows.length; console.log(`[mig] ${name}: ${rows.length} rows (dry)`); continue; }
     const BATCH = 200;
@@ -95,7 +98,9 @@ async function main() {
       }));
       // multi-row insert for speed
       const upd = cols.filter(c => c !== "id").map(c => `\`${c}\` = VALUES(\`${c}\`)`).join(",");
-      const multi = `INSERT INTO \`${name}\` (${colSql}) VALUES ${batch.map(() => `(${ph})`).join(",")}`
+      const multi = (insSql.startsWith("INSERT IGNORE")
+        ? `INSERT IGNORE INTO \`${name}\` (${colSql}) VALUES ${batch.map(() => `(${ph})`).join(",")}`
+        : `INSERT INTO \`${name}\` (${colSql}) VALUES ${batch.map(() => `(${ph})`).join(",")}`)
         + (insSql.includes("ON DUPLICATE KEY UPDATE") ? ` ON DUPLICATE KEY UPDATE ${upd}` : "");
       await conn.query(multi, batch.flat());
       n += batch.length;
