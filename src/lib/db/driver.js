@@ -1,5 +1,6 @@
 import { ensureDirs, DATA_FILE } from "./paths.js";
 import { createD1Adapter } from "./adapters/d1Adapter.js";
+import { createMysqlAdapterIfNeeded } from "./adapters/mysqlAdapter.js";
 
 // Use global to survive Next.js dev hot-reload (module state resets on reload)
 if (!global._dbAdapter) global._dbAdapter = { instance: null, initPromise: null, logged: false };
@@ -76,6 +77,18 @@ async function trySqlJs() {
 
 async function initAdapter() {
   ensureDirs();
+  // MySQL mode: if DB_DIR/mysql.json exists, use MySQL (worker-thread sync bridge)
+  // instead of any SQLite driver. Rollback = remove mysql.json + restart.
+  const mysqlAdapter = await createMysqlAdapterIfNeeded();
+  if (mysqlAdapter) {
+    if (!state.logged) {
+      console.log(`[DB] Driver: mysql | ${mysqlAdapter.driver} | host from mysql.json`);
+      state.logged = true;
+    }
+    const { runMigrationOnce } = await import("./migrate.js");
+    await runMigrationOnce(mysqlAdapter);
+    return mysqlAdapter;
+  }
   // Order per runtime:
   //   Workers: D1 → sql.js (fallback via D1 or external fetch)
   //   Bun:     bun:sqlite → sql.js
