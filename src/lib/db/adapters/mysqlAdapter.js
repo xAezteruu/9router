@@ -95,11 +95,29 @@ function translate(sql) {
     Atomics.notify(sync, 1);
   };
 
-  const conn = await mysql.createConnection({
+  let conn = await mysql.createConnection({
     host: cfg.host, port: cfg.port || 3306, user: cfg.user, password: cfg.password,
     database: cfg.database, connectTimeout: 10000,
-    namedPlaceholders: false, multipleStatements: false,
+    namedPlaceholders: false, multipleStatements: false, enableKeepAlive: true, keepAliveInitialDelay: 10000,
   });
+  // Long-lived sync bridge: single connection must survive idle periods and
+  // server restarts. mysql2 surfaces a dead connection as "Can't add new
+  // command when connection is in closed state" — recreate and retry once.
+  const queryOnce = async (sql, params) => {
+    try {
+      return await conn.query(sql, params);
+    } catch (e) {
+      if (!/closed state|ECONNRESET|PROTOCOL_CONNECTION_LOST|ETIMEDOUT|EPIPE/i.test(String(e.message) + " " + String(e.code))) throw e;
+      const fresh = await mysql.createConnection({
+        host: cfg.host, port: cfg.port || 3306, user: cfg.user, password: cfg.password,
+        database: cfg.database, connectTimeout: 10000,
+        namedPlaceholders: false, multipleStatements: false, enableKeepAlive: true, keepAliveInitialDelay: 10000,
+      });
+      try { conn.end().catch(() => {}); } catch {}
+      conn = fresh;
+      return await conn.query(sql, params);
+    }
+  };
   parentPort.postMessage({ type: "ready" });
   parentPort.on("message", async (msg) => {
     const { id, op, sql, params } = msg;
@@ -109,12 +127,12 @@ function translate(sql) {
         const stmts = t.split(/;\\s*\\n|;/).map(s => s.trim()).filter(Boolean);
         for (const s of stmts) {
           if (/^\\s*PRAGMA\\b/i.test(s)) continue;
-          await conn.query(s);
+          await queryOnce(s);
         }
         reply(id, true, "{}");
         return;
       }
-      const [result] = await conn.query(t, params || []);
+      const [result] = await queryOnce(t, params || []);
       if (op === "run") {
         reply(id, true, JSON.stringify({ changes: result.affectedRows ?? 0, insertId: Number(result.insertId ?? 0) }));
       } else {
