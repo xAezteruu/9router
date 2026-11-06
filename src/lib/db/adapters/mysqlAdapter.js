@@ -60,6 +60,16 @@ function translate(sql) {
   // (kv table: scope TEXT NOT NULL, key TEXT NOT NULL + PRIMARY KEY (scope, key)).
   s = s.replace(/(scope|key|dateKey|day|month)\\s+TEXT\\s+NOT\\s+NULL/gi, "$1 VARCHAR(191) NOT NULL");
   s = s.replace(/\\u0060(scope|key|dateKey|day|month)\\u0060\\s+TEXT\\s+NOT\\s+NULL/gi, "\\u0060$1\\u0060 VARCHAR(191) NOT NULL");
+  // MariaDB rejects LIMIT inside IN/NOT IN subqueries ("LIMIT & IN/ALL/ANY/SOME
+  // subquery"). Wrap the subquery as a derived table: IN (SELECT ...) ->
+  // IN (SELECT * FROM (SELECT ...) AS sub).
+  s = s.replace(/(IN\\s*\\()(\\s*SELECT\\s[\\s\\S]*?\\bLIMIT\\s[\\s\\S]*?\\))/gi,
+    (m, head, sub) => (sub.includes("FROM (") ? m
+      : head + "SELECT * FROM (" + sub.trim().replace(/\\s+/g, " ").replace(/\\s*\\)/g, ")") + " AS __limsub__)"));
+  // SQLite partial indexes (CREATE INDEX ... WHERE <pred>) have no MySQL form.
+  // A unique index on a nullable column already permits duplicate NULLs, so the
+  // WHERE predicate (dedupeKey IS NOT NULL) is safe to drop entirely.
+  s = s.replace(/(CREATE\\s+(?:UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?[\\u0060A-Za-z_][\\u0060A-Za-z0-9_]*\\s+ON\\s+[\\u0060A-Za-z_][\\u0060A-Za-z0-9_]*\\s*\\([^)]*\\))\\s+WHERE\\s+.+$/gis, "$1");
   // Indexes over TEXT columns need prefix lengths in MySQL: CREATE INDEX ... ON t(col)
   // -> t(col(191)). Applies to single/composite index column lists on TEXT-typed cols.
   s = s.replace(/ON\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(([^)]+)\\)/gi, (m, tbl, cols) => {
