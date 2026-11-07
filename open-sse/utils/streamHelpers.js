@@ -66,6 +66,32 @@ export function hasValuableContent(chunk, format) {
 }
 
 // Fix invalid id (generic or too short)
+const IPV4_ECHO_RE = /^(?:::ffff:)?\d{1,3}(?:\.\d{1,3}){3}$/i;
+/**
+ * Some OpenAI-compatible upstreams echo the client address in the response
+ * "model" field. Clients then reuse that garbage name, polluting usage rows.
+ * Rewrite it back to the model that was actually called.
+ */
+export function sanitizeUpstreamModel(parsed, model) {
+  if (!parsed || typeof parsed !== "object") return false;
+  const keys = ["model", "modelVersion"];
+  let changed = false;
+  const fix = (obj) => {
+    if (!obj || typeof obj !== "object") return;
+    for (const k of keys) {
+      if (typeof obj[k] === "string" && IPV4_ECHO_RE.test(obj[k]) && model && obj[k] !== model) {
+        obj[k] = model;
+        changed = true;
+      }
+    }
+    for (const k of ["message", "response"]) {
+      if (obj[k] && typeof obj[k] === "object") fix(obj[k]);
+    }
+  };
+  fix(parsed);
+  return changed;
+}
+
 export function fixInvalidId(parsed) {
   if (parsed.id && (parsed.id === "chat" || parsed.id === "completion" || parsed.id.length < 8)) {
     const fallbackId = parsed.extend_fields?.requestId || 

@@ -3,7 +3,7 @@ import { indexDeclaredTools, rescueStreamedNames } from "../translator/concerns/
 import { FORMATS } from "../translator/formats.js";
 import { trackPendingRequest, appendRequestLog } from "@/lib/usageDb.js";
 import { extractUsage, mergeUsage, hasValidUsage, estimateUsage, estimateOutputTokens, logUsage, addBufferToUsage, filterUsageForFormat, COLORS } from "./usageTracking.js";
-import { parseSSELine, hasValuableContent, fixInvalidId, formatSSE, buildStreamErrorBytes } from "./streamHelpers.js";
+import { parseSSELine, hasValuableContent, fixInvalidId, sanitizeUpstreamModel, formatSSE, buildStreamErrorBytes } from "./streamHelpers.js";
 import { maskErrorPayload } from "./error.js";
 import { getOpenAIResponsesEventName, isOpenAIResponsesTerminalEvent, formatIncompleteOpenAIResponsesStreamFailure } from "./responsesStreamHelpers.js";
 import { dbg, isDebugEnabled } from "./debugLog.js";
@@ -225,6 +225,7 @@ export function createSSEStream(options = {}) {
               const idFixed = fixInvalidId(parsed);
               // A caller that spoke an alias must not be told the model that served it.
               const aliased = applyModelAlias(parsed, aliasModel);
+            sanitizeUpstreamModel(parsed, model);
               fixStreamedToolNames(parsed);
 
               // Ensure OpenAI-required fields are present on streaming chunks (Letta compat)
@@ -486,6 +487,7 @@ export function createSSEStream(options = {}) {
         // Responses same-format passthrough: re-emit with original event framing
         if (keepsOpenAIResponsesFormat && openAIResponsesEventName) {
           applyModelAlias(parsed, aliasModel);
+            sanitizeUpstreamModel(parsed, model);
           fixStreamedToolNames(parsed);
           const output = formatSSE({ event: openAIResponsesEventName, data: parsed }, sourceFormat);
           reqLogger?.appendConvertedChunk?.(output);
@@ -575,6 +577,7 @@ export function createSSEStream(options = {}) {
             }
 
             applyModelAlias(item, aliasModel);
+            sanitizeUpstreamModel(item, model);
             fixStreamedToolNames(item);
             const output = formatSSE(item, sourceFormat);
             reqLogger?.appendConvertedChunk?.(output);
@@ -653,6 +656,7 @@ export function createSSEStream(options = {}) {
               for (const item of translated) {
                 if (item === null || item === undefined) continue;
                 applyModelAlias(item, aliasModel);
+            sanitizeUpstreamModel(item, model);
                 fixStreamedToolNames(item);
                 const output = formatSSE(item, sourceFormat);
                 reqLogger?.appendConvertedChunk?.(output);
@@ -675,6 +679,7 @@ export function createSSEStream(options = {}) {
           for (const item of flushed) {
             if (item === null || item === undefined) continue;
             applyModelAlias(item, aliasModel);
+            sanitizeUpstreamModel(item, model);
             fixStreamedToolNames(item);
             const output = formatSSE(item, sourceFormat);
             reqLogger?.appendConvertedChunk?.(output);
