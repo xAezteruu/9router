@@ -467,6 +467,7 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
       }
 
       applyModelAlias(finalResp, alias);
+      sanitizeUpstreamModel(finalResp, model);
       if (sourceFormat === FORMATS.CLAUDE) {
         finalResp = openAICompletionToClaudeMessage(finalResp);
       }
@@ -587,6 +588,7 @@ export async function handleForcedSSEToJson({ providerResponse, sourceFormat, ta
     // already imports parseSSEToOpenAIResponse from this module.
     // Everything above is logging; the document leaving here must name the called model.
     applyModelAlias(parsed, alias);
+    sanitizeUpstreamModel(parsed, model);
     const finalBody = sourceFormat === FORMATS.OPENAI_RESPONSES
       ? chatCompletionToResponses(parsed, customToolNames)
       : sourceFormat === FORMATS.CLAUDE
