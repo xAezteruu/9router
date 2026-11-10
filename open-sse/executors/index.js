@@ -28,7 +28,6 @@ import { CodeBuddyIntlExecutor } from "./codebuddy-intl.js";
 import TraeExecutor from "./trae.js";
 import ZedExecutor from "./zed.js";
 import WindsurfExecutor from "./windsurf.js";
-import { ZcodeExecutor } from "./zcode.js";
 import { DefaultExecutor } from "./default.js";
 import { MinimaxCodeExecutor } from "./minimax-code.js";
 import { DevinCliExecutor } from "./devin-cli.js";
@@ -93,7 +92,6 @@ const executors = {
   // vertex / vertex-partner already uses.
   "bedrock-xai": new BedrockExecutor("bedrock-xai"),
   brx: new BedrockExecutor("bedrock-xai"), // Alias for bedrock-xai
-  zcode: new ZcodeExecutor(),
   "deepseek-web": new DeepSeekWebExecutor(),
   dsw: new DeepSeekWebExecutor(),
   "deepseek-cookie": new DeepSeekWebExecutor(),
