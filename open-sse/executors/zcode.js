@@ -1,234 +1,684 @@
-import { GlmExecutor } from "./glm.js";
-import ZCODE_PLAN_SHAPE from "./zcode-plan-shape.json" with { type: "json" };
+import { randomUUID, randomBytes, createHash } from "node:crypto";
+import { release } from "node:os";
+import { DefaultExecutor } from "./default.js";
+import { refreshZcodeJwt, resolveZcodeAuth } from "../services/zcodePlan.js";
+import { ZCODE_SYSTEM_PROMPTS } from "../services/zcodePrompt.js";
+import { zcodeTlsFetch } from "../services/zcodeTlsClient.js";
+import { hasNativeZcodeBinary, forwardToZcodeDaemon } from "../services/zcodeServiceBridge.js";
+import { FORMATS } from "../translator/formats.js";
 
-// Statuses that mean "this endpoint leg rejects the credential/request shape"
-// rather than "the provider is down". ZcodeExecutor advances to the next leg
-// (zcode-plan → bigmodel → api.z.ai) on these, mirroring the Kiro
-// gateway-first override. 400 stays terminal (malformed request), 429/5xx keep
-// base behavior.
-const ZCODE_ENDPOINT_FALLBACK_STATUSES = [401, 403, 404];
+const ZCODE_APP_VERSION = "3.16.3";
+const ZCODE_THIRD_SYSTEM_BLOCK = "Follow the user's instructions and use the available tools when helpful.";
 
-const EPHEMERAL = { type: "ephemeral" };
-
-function zcodeBlocks(model) {
-  const data = ZCODE_PLAN_SHAPE;
-  const env = data.environment;
-  const envLines = [
-    env.heading,
-    env.invokedLine,
-    `- ${env.cwdLabel}: /root`,
-    `- ${env.gitLabel}: ${env.gitNo}`,
-    `- ${env.platformLabel}: linux`,
-    `- ${env.shellLabel}: /bin/bash`,
-    `- ${env.osVersionLabel}: linux`,
-    `- ${env.poweredByLine.replace("{model}", model || "glm-5.3")}`,
-  ].join("\n");
-  const stable = data.stableSections.join("\n\n");
-  const dynamic = [
-    data.dynamicSections.beforeEnvironment,
-    envLines,
-    data.dynamicSections.afterEnvironment,
-  ].join("\n\n");
-  return [
-    { type: "text", text: data.cliPrefix, cache_control: EPHEMERAL },
-    { type: "text", text: stable, cache_control: EPHEMERAL },
-    { type: "text", text: `\n\n${dynamic}`, cache_control: EPHEMERAL },
-  ];
+function platformTag() {
+  const os = process.platform === "win32" ? "windows" : process.platform === "darwin" ? "darwin" : "linux";
+  return { platform: `${process.platform}-${process.arch}`, category: os };
 }
 
-/**
- * Rewire the claude-format body into the start-plan wire shape:
- * 1. system: prepend the 3 official ZCode blocks (client blocks preserved
- *    after, cache_control stripped to stay under the 4-breakpoint cap)
- * 2. messages: leading user turn carrying the currentDate context prefix
- *    wrapped in <system-reminder>, then the user's real messages
- * 3. metadata.user_id: account-scoped id (device/session blob in the real
- *    client; any stable string passes)
- */
-function injectZcodePlanShape(body, model, credentials) {
-  const jwt = credentials?.providerSpecificData?.zcodeJwtToken
-    || credentials?.accessToken
-    || credentials?.apiKey
-    || "zc";
-  // The start-plan gateway rejects any request whose system array is not
-  // EXACTLY the 3 ZCode identity blocks (4th block → 3012 "unusual activity",
-  // verified by bisect 2026-10-28). The desktop client folds extra system
-  // directives into the prefix <system-reminder> user turn instead.
-  const userSystemText = Array.isArray(body.system)
-    ? body.system.map(b => (typeof b?.text === "string" ? b.text : "")).filter(Boolean).join("\n\n")
-    : (typeof body.system === "string" && body.system.trim() ? body.system : "");
-  const messages = Array.isArray(body.messages) ? body.messages : [];
-  const date = new Date().toISOString().slice(0, 10);
-  const cp = ZCODE_PLAN_SHAPE.contextPrefix;
-  const sr = ZCODE_PLAN_SHAPE.systemReminder;
-  const currentDateSection = `${cp.currentDateHeading}\n${cp.currentDateLine.replace("{date}", date)}`;
-  const prefixParts = [cp.intro, currentDateSection, "", cp.outro];
-  if (userSystemText) prefixParts.push("", userSystemText);
-  const prefixText = prefixParts.join("\n");
-  return {
-    ...body,
-    system: zcodeBlocks(model),
-    metadata: { ...(body.metadata || {}), user_id: credentials?.providerSpecificData?.userId || `user_${jwt.slice(0, 8)}` },
-    messages: [
-      { role: "user", content: [{ type: "text", text: `${sr.open}\n${prefixText}\n${sr.close}` }] },
-      ...messages,
-    ],
-  };
+function stableDeviceMid(credentials) {
+  const seed = String(credentials?.providerSpecificData?.userId || credentials?.connectionId || credentials?.id || "zcode");
+  const bytes = createHash("sha256").update(seed).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
-/**
- * ZCode executor — GLM effort tiers (inherited) + endpoint-leg fallback.
- *
- * The zcode-plan leg (zcode.z.ai/api/v1/zcode-plan/anthropic) is the Start
- * Plan runtime surface; the ZCode app additionally signs its requests with a
- * client-signing handshake (X-Client-Sig / X-Client-Pow). A router request
- * without that signature can be rejected with an auth-shaped status even when
- * the derived coding key is valid on the other legs — so 401/403/404 on any
- * leg but the last advances to the next endpoint instead of hard-stopping.
- */
-export class ZcodeExecutor extends GlmExecutor {
-  constructor(provider = "zcode") {
-    super(provider);
-    this._urlIndex = 0;
+function sessionTag(connectionId, salt = "") {
+  const hash = createHash("sha256").update(`${connectionId || "zcode"}:${salt}`).digest("hex");
+  return `session_${hash.slice(0, 32)}`;
+}
+
+// The desktop client sends a time-ordered UUIDv7 as x-query-id; random v4 ids
+// stand out from its traffic profile.
+function uuidv7() {
+  const bytes = randomBytes(16);
+  const ms = BigInt(Date.now());
+  for (let i = 0; i < 6; i += 1) bytes[i] = Number((ms >> BigInt(8 * (5 - i))) & 0xffn);
+  bytes[6] = (bytes[6] & 0x0f) | 0x70;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+// Convert OpenAI-style tools to Anthropic-style tools
+function normalizeZcodeTools(tools) {
+  if (!Array.isArray(tools) || tools.length === 0) return undefined;
+  const result = [];
+  for (const tool of tools) {
+    if (!tool || typeof tool !== "object") continue;
+    const fn = tool.function || (tool.type === "function" ? tool : null);
+    const name = (fn?.name || tool.name || "").trim();
+    if (!name) continue;
+    const description = fn?.description || tool.description || "";
+    const rawSchema = fn?.parameters || tool.input_schema || tool.parameters || { type: "object", properties: {} };
+    const input_schema = typeof rawSchema === "object" && rawSchema !== null ? { ...rawSchema } : { type: "object", properties: {} };
+    delete input_schema.strict;
+    delete input_schema.$schema;
+
+    result.push({
+      name,
+      ...(description ? { description } : {}),
+      input_schema,
+    });
   }
+  return result.length > 0 ? result : undefined;
+}
 
-  /**
-   * Per-leg credential selection. The legs authenticate against different
-   * account surfaces:
-   *   - leg 0 (zcode-plan): the Start Plan session JWT (connection.apiKey —
-   *     the exact credential the ZCode app stores as options.apiKey), sent
-   *     unsigned exactly like the app does.
-   *   - legs 1-2 (bigmodel / api.z.ai coding plans): the derived coding-plan
-   *     key ("id.secret", providerSpecificData.codingApiKey). OAuth users
-   *     without coding-plan entitlement have no valid credential here — the
-   *     auth-error fallback moves on / surfaces the upstream billing error.
-   *
-   * Header shape mirrors ZCode's AI-SDK client (het + Fvo in the app bundle):
-   * the credential goes out TWICE — x-api-key (SDK default) AND
-   * Authorization: Bearer (Fvo wrapper prepends it for anthropic-kind
-   * providers). The zcode-plan leg validates the Bearer header; a request
-   * carrying only x-api-key is rejected 401.
-   */
-  buildHeaders(credentials, stream = true, model = null, opencodeIdentity = null, urlIndex = 0, body = null) {
-    // Track the leg even when the retry loop calls buildUrl() first (it sets
-    // this._urlIndex); urlIndex param wins when the caller passes it.
-    const leg = typeof urlIndex === "number" && urlIndex > 0 ? urlIndex : this._urlIndex;
-    const codingApiKey = credentials?.providerSpecificData?.codingApiKey;
-    const effective = leg >= 1 && codingApiKey
-      ? { ...credentials, apiKey: codingApiKey }
-      : credentials;
-    const headers = super.buildHeaders(effective, stream, model, opencodeIdentity);
-    const token = headers["x-api-key"];
-    if (leg === 0) {
-      // Start-plan leg validates ONLY the OAuth session JWT — the derived
-      // coding key gets 401 here. Prefer the JWT from providerSpecificData
-      // (oauth flow stores it there), fall back to the connection token.
-      const jwt = credentials?.providerSpecificData?.zcodeJwtToken
-        || credentials?.accessToken
-        || token;
-      if (jwt) headers["Authorization"] = `Bearer ${jwt}`;
-      delete headers["x-api-key"];
-      // Desktop-client runtime headers: the zcode-plan gateway fingerprints
-      // them (verified via zcode-agent-kit 3.11.2 mirror — without them the
-      // gateway answers 3012 "unusual activity").
-      headers["X-Device-Mid"] = credentials?.providerSpecificData?.deviceMid
-        || credentials?.providerSpecificData?.device_mid
-        || headers["X-Device-Mid"]
-        || "9r-" + (credentials?.id || "anon");
-      headers["X-Platform"] = "linux";
-      headers["X-ZCode-App-Version"] = "3.11.2";
-      headers["User-Agent"] = "ZCode/3.11.2";
-    } else if (token && !headers["Authorization"]) {
-      headers["Authorization"] = `Bearer ${token}`;
+// Convert OpenAI tool_choice to Anthropic tool_choice
+function normalizeZcodeToolChoice(toolChoice) {
+  if (!toolChoice) return undefined;
+  if (typeof toolChoice === "string") {
+    if (toolChoice === "auto") return { type: "auto" };
+    if (toolChoice === "required") return { type: "any" };
+    if (toolChoice === "none") return undefined;
+    return undefined;
+  }
+  if (typeof toolChoice === "object" && !Array.isArray(toolChoice)) {
+    if (toolChoice.type === "function" && (toolChoice.function?.name || toolChoice.name)) {
+      return { type: "tool", name: toolChoice.function?.name || toolChoice.name };
     }
-    return headers;
+    if (toolChoice.type === "tool" && toolChoice.name) {
+      return toolChoice;
+    }
+    if (["auto", "any"].includes(toolChoice.type)) {
+      return toolChoice;
+    }
+  }
+  return undefined;
+}
+
+// Convert OpenAI tool messages & assistant tool_calls to Anthropic blocks
+function normalizeZcodeMessages(messages) {
+  if (!Array.isArray(messages)) return messages;
+  const result = [];
+
+  for (const msg of messages) {
+    if (!msg || typeof msg !== "object") continue;
+
+    // Preserve system messages for alignZcodeSystem
+    if (msg.role === "system") {
+      result.push(msg);
+      continue;
+    }
+
+    // Role: 'tool' (OpenAI tool output) -> Anthropic user message with tool_result block
+    if (msg.role === "tool") {
+      const toolUseId = msg.tool_call_id || msg.id || "call_unknown";
+      let content = msg.content;
+      if (typeof content !== "string") {
+        try {
+          content = JSON.stringify(content ?? "");
+        } catch {
+          content = String(content ?? "");
+        }
+      }
+      result.push({
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: toolUseId,
+            content,
+          },
+        ],
+      });
+      continue;
+    }
+
+    // Role: 'assistant' with tool_calls
+    if (msg.role === "assistant" && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
+      const blocks = [];
+      if (typeof msg.content === "string" && msg.content) {
+        blocks.push({ type: "text", text: msg.content });
+      } else if (Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part && typeof part === "object") blocks.push(part);
+        }
+      }
+
+      for (const tc of msg.tool_calls) {
+        const fn = tc.function || tc;
+        let input = {};
+        if (typeof fn.arguments === "string") {
+          try {
+            input = JSON.parse(fn.arguments);
+          } catch {
+            input = { raw: fn.arguments };
+          }
+        } else if (typeof fn.arguments === "object" && fn.arguments !== null) {
+          input = fn.arguments;
+        }
+        blocks.push({
+          type: "tool_use",
+          id: tc.id || `call_${randomUUID().slice(0, 8)}`,
+          name: fn.name || "unknown_tool",
+          input,
+        });
+      }
+
+      result.push({
+        role: "assistant",
+        content: blocks,
+      });
+      continue;
+    }
+
+    result.push(msg);
   }
 
-  /**
-   * Multi-leg URL resolution. DefaultExecutor.buildUrl (inherited through
-   * GlmExecutor) resolves only config.baseUrl — it predates baseUrls chains,
-   * which only BaseExecutor.buildUrl (Kiro) walks. Without this override the
-   * retry loop would re-request leg 0 on every urlIndex.
-   */
-  buildUrl(model, stream, urlIndex = 0, credentials = null) {
-    this._urlIndex = urlIndex;
-    const baseUrls = this.getBaseUrls();
-    const leg = baseUrls[urlIndex] || baseUrls[0];
-    if (leg) return leg;
-    return super.buildUrl(model, stream, urlIndex, credentials);
+  // Anthropic requires strictly alternating user/assistant messages after system is stripped
+  const merged = [];
+  for (const msg of result) {
+    if (msg.role === "system") {
+      merged.push(msg);
+      continue;
+    }
+    const last = merged[merged.length - 1];
+    if (last && last.role === msg.role && last.role !== "system") {
+      const toBlocks = (c) => {
+        if (typeof c === "string") return [{ type: "text", text: c }];
+        if (Array.isArray(c)) return c;
+        return [{ type: "text", text: String(c ?? "") }];
+      };
+      last.content = [...toBlocks(last.content), ...toBlocks(msg.content)];
+    } else {
+      merged.push(msg);
+    }
   }
 
-  /**
-   * Start-plan body shape. The zcode-plan gateway content-inspects the request:
-   * without the ZCode identity system blocks it answers 3012 "method not
-   * allowed", without metadata.user_id / context-prefix it 3001s. Inject the
-   * desktop client's exact shape on leg 0 only (verified against the desktop
-   * bundle mirror in zcode-agent-kit 0.2.42). Other legs: untouched.
-   */
-  transformRequest(model, body, stream, credentials) {
-    const transformed = super.transformRequest(model, body, stream, credentials);
-    if (this._urlIndex !== 0 || !transformed || typeof transformed !== "object") return transformed;
-    return injectZcodePlanShape(transformed, model, credentials);
+  return merged;
+}
+
+// The plan gateway only accepts the desktop client's three-block system shape;
+// a fourth block is answered with HTTP 405 code 3012. Fold every client system
+// block (plus any system-role messages) into the single third block so the
+// request always carries at most [prompt, prompt, client system].
+function alignZcodeSystem(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const parts = [];
+  const existing = body.system;
+  if (Array.isArray(existing)) {
+    for (const block of existing) {
+      const text = typeof block === "string" ? block : block?.type === "text" ? block.text : "";
+      if (typeof text === "string" && text) parts.push(text);
+    }
+  } else if (typeof existing === "string" && existing) {
+    parts.push(existing);
+  }
+
+  const messages = [];
+  let hadSystemMessages = false;
+  if (Array.isArray(body.messages)) {
+    for (const message of body.messages) {
+      if (message && message.role === "system") {
+        hadSystemMessages = true;
+        if (Array.isArray(message.content)) {
+          for (const block of message.content) {
+            if (block && block.type === "text" && block.text) parts.push(block.text);
+          }
+        } else if (typeof message.content === "string" && message.content) {
+          parts.push(message.content);
+        }
+      } else {
+        messages.push(message);
+      }
+    }
+  }
+
+  const blocks = ZCODE_SYSTEM_PROMPTS.map((text) => ({ type: "text", text }));
+  blocks.push({ type: "text", text: parts.length ? parts.join("\n\n") : ZCODE_THIRD_SYSTEM_BLOCK });
+  const next = { ...body, system: blocks };
+  if (hadSystemMessages) next.messages = messages;
+  return next;
+}
+
+// Carry the account identity on the start-plan body (the thinking shape and
+// output_config.effort are produced by the unified thinking translator).
+function withStartPlanOptions(body, accountUserId, deviceMid = "", sessionId = "") {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const metadata = body.metadata && typeof body.metadata === "object" && !Array.isArray(body.metadata)
+    ? { ...body.metadata }
+    : {};
+
+  metadata.user_id = JSON.stringify({
+    device_id: deviceMid || accountUserId || "unknown",
+    account_uuid: "",
+    session_id: sessionId || "",
+  });
+
+  return { ...body, metadata };
+}
+
+function isGatewayActivityBlock(response) {
+  if (response?.status !== 405) return false;
+  return response
+    .clone()
+    .text()
+    .then((text) => /"code"\s*:\s*"?3012"?/.test(text) || /unusual activity/i.test(text))
+    .catch(() => false);
+}
+
+// The plan gateway reports business failures inside an HTTP 200 JSON envelope
+// (e.g. {"code":1005,"msg":"exceed quota limit"}); surface them as real errors
+// so the router can fail over instead of streaming an empty body.
+export function normalizeStartPlanResponse(response) {
+  const contentType = response?.headers?.get?.("content-type") || "";
+  if (!response?.ok || contentType.includes("event-stream") || !contentType.includes("json")) {
+    return response;
+  }
+  return response
+    .clone()
+    .text()
+    .then((text) => {
+      let json = null;
+      try {
+        json = text ? JSON.parse(text) : null;
+      } catch {
+        return response;
+      }
+      const code = typeof json?.code === "number" ? json.code : null;
+      const failed = (code !== null && code !== 0 && code !== 200) || json?.success === false || json?.type === "error";
+      if (!failed) return response;
+      const message = json?.msg || json?.message || json?.error?.message || text;
+      // Map 1005 (quota) AND 3009 (concurrency limit) to 429 so router fails over
+      const status = (code === 1005 || code === 3009) ? 429 : code === 3006 || code === 3001 ? 400 : 502;
+      return new Response(text, { status, statusText: String(message).slice(0, 120), headers: response.headers });
+    })
+    .catch(() => response);
+}
+
+class KeyedMutex {
+  constructor() {
+    this.chains = new Map();
+  }
+
+  async acquire(key, signal) {
+    if (signal?.aborted) {
+      throw new Error("Request aborted before acquiring lock");
+    }
+
+    let releaseCurrent;
+    const currentPromise = new Promise((resolve) => {
+      releaseCurrent = resolve;
+    });
+
+    const previousPromise = this.chains.get(key) || Promise.resolve();
+    this.chains.set(key, previousPromise.then(() => currentPromise, () => currentPromise));
+
+    let abortListener;
+    try {
+      if (signal) {
+        await Promise.race([
+          previousPromise,
+          new Promise((_, reject) => {
+            abortListener = () => reject(new Error("Request aborted in queue"));
+            signal.addEventListener("abort", abortListener, { once: true });
+          }),
+        ]);
+      } else {
+        await previousPromise;
+      }
+    } catch (err) {
+      releaseCurrent();
+      if (this.chains.get(key) === currentPromise) {
+        this.chains.delete(key);
+      }
+      throw err;
+    } finally {
+      if (signal && abortListener) {
+        signal.removeEventListener("abort", abortListener);
+      }
+    }
+
+    let released = false;
+    return () => {
+      if (!released) {
+        released = true;
+        // Pacing delay 1500ms before next queued request can acquire
+        setTimeout(() => {
+          releaseCurrent();
+          if (this.chains.get(key) === currentPromise) {
+            this.chains.delete(key);
+          }
+        }, 1500);
+      }
+    };
+  }
+}
+
+const zcodeMutex = new KeyedMutex();
+
+function hookStreamRelease(response, release, abortCtrl) {
+  const body = response?.body;
+  if (!body || typeof body.getReader !== "function") {
+    release();
+    return response;
+  }
+
+  const reader = body.getReader();
+  let doneOrCancelled = false;
+
+  const doRelease = () => {
+    if (!doneOrCancelled) {
+      doneOrCancelled = true;
+      release();
+    }
+  };
+
+  const hookedBody = new ReadableStream({
+    async pull(controller) {
+      try {
+        const { done, value } = await reader.read();
+        if (done) {
+          doRelease();
+          controller.close();
+          return;
+        }
+        controller.enqueue(value);
+      } catch (err) {
+        doRelease();
+        controller.error(err);
+      }
+    },
+    async cancel(reason) {
+      try {
+        abortCtrl?.abort(reason || "client_cancelled");
+        await reader.cancel(reason);
+      } catch {
+        // ignore
+      } finally {
+        doRelease();
+      }
+    }
+  });
+
+  return new Response(hookedBody, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: response.headers,
+  });
+}
+
+export class ZCodeExecutor extends DefaultExecutor {
+  constructor(providerName = "zcode") {
+    super(providerName);
   }
 
   async execute(args) {
-    // Store credentials for content-aware fallback decisions + error context.
-    this._lastCredentials = args?.credentials || {};
-    this._startPlanCaptchaBlocked = false;
-    return super.execute(args);
-  }
+    const lockKey = String(
+      args.credentials?.providerSpecificData?.userId ||
+      args.credentials?.providerSpecificData?.zcodeJwtToken ||
+      args.credentials?.accessToken ||
+      args.credentials?.apiKey ||
+      args.credentials?.connectionId ||
+      "zcode_default"
+    );
 
-  shouldRetry(status, urlIndex) {
-    if (ZCODE_ENDPOINT_FALLBACK_STATUSES.includes(status)) {
-      return urlIndex + 1 < this.getFallbackCount();
-    }
-    if (status === 400 && urlIndex === 0) {
-      // Captcha wall on the start-plan leg: leg 0's 400s are the Aliyun
-      // attestation (code 3007), never a client-body problem the coding legs
-      // would share. Fall through ONLY when the connection carries a coding
-      // key that can actually serve legs 1-2; Start-Plan-only connections get
-      // the terminal, actionable parseError message instead.
-      if (urlIndex + 1 < this.getFallbackCount() && this._lastCredentials?.providerSpecificData?.codingApiKey) {
-        this._startPlanCaptchaBlocked = true;
-        return true;
+    const upstreamAbortCtrl = new AbortController();
+    if (args.signal) {
+      if (args.signal.aborted) {
+        upstreamAbortCtrl.abort(args.signal.reason);
+      } else {
+        args.signal.addEventListener("abort", () => upstreamAbortCtrl.abort(args.signal.reason), { once: true });
       }
-      return false;
     }
-    return super.shouldRetry(status, urlIndex);
-  }
 
-  /**
-   * Captcha-aware error surfacing. The zcode-plan (Start Plan) leg is
-   * protected by Aliyun captcha attestation: the ZCode desktop app renders
-   * the captcha widget, and the engine attaches the resulting
-   * X-Aliyun-Captcha-Verify-Param as a runtime header before each model
-   * request (reason "model-request" / "captcha-retry" — verified in the app
-   * bundle). A router cannot mint that token, so HTTP 400 code 3007
-   * ("captcha verify failed") on this leg is terminal by design. Rewrite it
-   * into an actionable message instead of leaking the raw upstream body.
-   */
-  parseError(response, bodyText) {
-    const base = { status: response.status, message: bodyText || `HTTP ${response.status}` };
-    const CAPTCHA_NOTE =
-      " (Note: the ZCode Start Plan endpoint was skipped — it requires Aliyun captcha attestation only the ZCode desktop app provides, so Start Plan quota cannot be routed through a gateway. Route access needs a GLM Coding Plan key with an active plan.)";
-    if (this._startPlanCaptchaBlocked) {
-      return { ...base, message: `${base.message}${CAPTCHA_NOTE}` };
-    }
-    if (response.status !== 400) return base;
+    const releaseLock = await zcodeMutex.acquire(lockKey, upstreamAbortCtrl.signal);
+    let releaseCalled = false;
+    const safeRelease = () => {
+      if (!releaseCalled) {
+        releaseCalled = true;
+        releaseLock();
+      }
+    };
+
     try {
-      const parsed = JSON.parse(bodyText);
-      const msg = String(parsed?.msg || "");
-      if (parsed?.code === 3007 || /captcha/i.test(msg)) {
-        return {
-          status: response.status,
-          message:
-            "ZCode Start Plan endpoint requires Aliyun captcha attestation that only the ZCode desktop app can provide (it solves the captcha and attaches X-Aliyun-Captcha-Verify-Param). " +
-            "Start Plan quota cannot be routed through a gateway — use a GLM Coding Plan key (id.secret from api.z.ai or open.bigmodel.cn) for ExtremeRouter access.",
+      const resolved = await resolveZcodeAuth(args.credentials, { log: args.log });
+      if (args.credentials) {
+        args.credentials.providerSpecificData = {
+          ...(args.credentials.providerSpecificData || {}),
+          ...resolved.persist,
+          __zcodeAuth: resolved,
         };
       }
-    } catch { /* non-JSON body — return as-is */ }
-    return base;
+
+      const proxyOptions = args.proxyOptions;
+      const proxyUrl = (proxyOptions?.connectionProxyEnabled && proxyOptions?.connectionProxyUrl)
+        ? proxyOptions.connectionProxyUrl
+        : (args.credentials?.providerSpecificData?.connectionProxyEnabled && args.credentials?.providerSpecificData?.connectionProxyUrl)
+          ? args.credentials.providerSpecificData.connectionProxyUrl
+          : "";
+
+      // OPTION B: If native stripped ZCode binary engine is present and no proxy required,
+      // execute via native ZCode headless daemon bridge on port 29999.
+      const customFetch = (url, options, extra = {}) => {
+        const p = extra?.proxyUrl || options?.proxyUrl || proxyUrl;
+        if (!p && hasNativeZcodeBinary()) {
+          return forwardToZcodeDaemon(url, options.headers, options.body, options.signal).catch((err) => {
+            console.warn("[ZCodeExecutor] Native binary daemon failed, falling back to zcodeTlsFetch:", err.message);
+            return zcodeTlsFetch(url, {
+              method: options.method,
+              headers: options.headers,
+              body: options.body,
+            }, {
+              signal: options.signal,
+              proxy: p,
+              timeoutMs: args.stream ? 0 : undefined,
+            });
+          });
+        }
+        return zcodeTlsFetch(url, {
+          method: options.method,
+          headers: options.headers,
+          body: options.body,
+        }, {
+          signal: options.signal,
+          proxy: p,
+          timeoutMs: args.stream ? 0 : undefined,
+        });
+      };
+
+      const execArgs = {
+        ...args,
+        signal: upstreamAbortCtrl.signal,
+        directFetch: customFetch,
+        directFetchProxy: true,
+      };
+
+      let result = await super.execute(execArgs);
+      result.response = await normalizeStartPlanResponse(result.response);
+      result.responseFormat = FORMATS.CLAUDE;
+
+      // The edge occasionally answers a legitimate start-plan request with a
+      // transient 405/3012 anti-abuse block. Retry with backoff and a fresh
+      // session id and device mid.
+      if (resolved.lane === "start") {
+        const backoffMs = [2000, 6000];
+        for (let attempt = 0; attempt < backoffMs.length; attempt += 1) {
+          if (!(await isGatewayActivityBlock(result.response))) break;
+          try {
+            await result.response.body?.cancel?.();
+          } catch {
+            // Already consumed/closed.
+          }
+          await new Promise((resolve) => setTimeout(resolve, backoffMs[attempt]));
+          if (args.credentials) {
+            args.credentials.providerSpecificData = {
+              ...(args.credentials.providerSpecificData || {}),
+              __zcodeSessionSalt: randomBytes(8).toString("hex"),
+              userId: randomUUID(),
+            };
+          }
+          result = await super.execute(execArgs);
+          result.response = await normalizeStartPlanResponse(result.response);
+          result.responseFormat = FORMATS.CLAUDE;
+        }
+      }
+
+      if (!result?.response?.ok) {
+        safeRelease();
+        return result;
+      }
+
+      result.response = hookStreamRelease(result.response, safeRelease, upstreamAbortCtrl);
+      return result;
+    } catch (err) {
+      safeRelease();
+      throw err;
+    }
+  }
+
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    const resolved = credentials?.providerSpecificData?.__zcodeAuth;
+    const base = resolved?.baseUrl || credentials?.providerSpecificData?.zcodeBaseUrl || this.config.baseUrl;
+    return `${base.replace(/\/$/, "")}/v1/messages`;
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    const transformed = super.transformRequest(model, body, stream, credentials);
+    if (transformed && typeof transformed === "object") {
+      const rawModel = transformed?.model || model || "GLM-5.3-Flash";
+      if (typeof rawModel === "string") {
+        const lower = rawModel.toLowerCase();
+        if (lower.includes("flash")) transformed.model = "GLM-5.3-Flash";
+        else if (lower.includes("5.2")) transformed.model = "GLM-5.2";
+        else if (lower.includes("turbo")) transformed.model = "GLM-5-Turbo";
+        else if (lower.includes("5.3")) transformed.model = "GLM-5.3";
+        else transformed.model = "GLM-5.3-Flash";
+      }
+    }
+
+    // Normalize messages if needed (tool results, assistant tool_calls, alternating roles)
+    if (Array.isArray(transformed.messages)) {
+      transformed.messages = normalizeZcodeMessages(transformed.messages);
+    }
+
+    const aligned = alignZcodeSystem(transformed);
+    delete aligned.context_management;
+
+    // Normalize tools to Anthropic schema
+    if (Array.isArray(aligned.tools)) {
+      aligned.tools = normalizeZcodeTools(aligned.tools);
+    }
+
+    // Normalize tool_choice
+    if (aligned.tool_choice) {
+      aligned.tool_choice = normalizeZcodeToolChoice(aligned.tool_choice);
+    }
+
+    // Anthropic requirement: max_tokens must be set
+    aligned.max_tokens = aligned.max_tokens || aligned.max_completion_tokens || 4096;
+    delete aligned.max_completion_tokens;
+
+    // Strip OpenAI-only fields
+    delete aligned.stream_options;
+    delete aligned.presence_penalty;
+    delete aligned.frequency_penalty;
+    delete aligned.logit_bias;
+    delete aligned.user;
+    delete aligned.n;
+    delete aligned.seed;
+
+    const resolved = credentials?.providerSpecificData?.__zcodeAuth;
+    if (resolved?.lane === "start") {
+      const mid = stableDeviceMid(credentials);
+      const sid = sessionTag(credentials?.connectionId, credentials?.providerSpecificData?.__zcodeSessionSalt);
+      return withStartPlanOptions(aligned, credentials?.providerSpecificData?.userId, mid, sid);
+    }
+    return aligned;
+  }
+
+  buildHeaders(credentials, stream = true, url, model, body = null) {
+    const headers = super.buildHeaders(credentials, stream, url, model, body);
+    delete headers["anthropic-beta"];
+    delete headers["Anthropic-Beta"];
+    const resolved = credentials?.providerSpecificData?.__zcodeAuth;
+    const apiKey = resolved?.apiKey || credentials?.apiKey || credentials?.accessToken;
+    if (apiKey) {
+      if (resolved?.lane === "start") {
+        delete headers["x-api-key"];
+        headers.Authorization = `Bearer ${apiKey}`;
+      } else {
+        headers["x-api-key"] = apiKey;
+        headers.Authorization = `Bearer ${apiKey}`;
+        const zcodeJwt = credentials?.providerSpecificData?.zcodeJwtToken;
+        if (zcodeJwt) {
+          headers["X-ZCode-Authorization"] = `Bearer ${zcodeJwt}`;
+        }
+      }
+    }
+
+    const version = resolved?.clientVersion || ZCODE_APP_VERSION;
+    const { platform, category } = platformTag();
+    const sessionId = sessionTag(credentials?.connectionId, credentials?.providerSpecificData?.__zcodeSessionSalt);
+
+    if (credentials?.providerSpecificData?.__daemonTargetBaseUrl) {
+      headers["x-target-base-url"] = credentials.providerSpecificData.__daemonTargetBaseUrl;
+      headers["x-user-id"] = credentials.providerSpecificData.userId || "";
+      headers["x-device-mid"] = stableDeviceMid(credentials);
+    }
+
+    if (resolved?.lane === "start") {
+      // Start Plan gateway requires the lightweight 4-header client profile with 3.16.3 UA
+      Object.assign(headers, {
+        "User-Agent": `ZCode/${version} ai-sdk/anthropic/3.0.81`,
+      });
+      delete headers["anthropic-beta"];
+      delete headers["Anthropic-Beta"];
+    } else {
+      Object.assign(headers, {
+        "Origin": "https://zcode.z.ai",
+        "Referer": "https://zcode.z.ai/",
+        "User-Agent": `ZCode/${version}`,
+        "x-zcode-app-version": version,
+        "x-title": "Z Code@electron",
+        "x-release-channel": "production",
+        "x-client-language": "en-US",
+        "x-client-timezone": Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        "x-zcode-agent": "glm",
+        "x-platform": platform,
+        "x-os-category": category,
+        "x-os-version": release(),
+        "x-request-id": randomUUID(),
+        "x-device-mid": stableDeviceMid(credentials),
+        "x-zcode-session-type": "main",
+        "x-zcode-trace-id": randomUUID(),
+        "x-query-id": uuidv7(),
+        "x-zcode-query-source": "main_turn",
+        "x-session-id": sessionId,
+      });
+    }
+
+    if (resolved?.headers) Object.assign(headers, resolved.headers);
+    return headers;
+  }
+
+  async refreshCredentials(credentials, log) {
+    const psd = credentials?.providerSpecificData || {};
+    const family = psd.family === "bigmodel" ? "bigmodel" : "zai";
+    const businessToken = psd.oauthAccessToken || credentials?.accessToken;
+    if (family !== "zai" || !businessToken) return null;
+
+    try {
+      const refreshed = await refreshZcodeJwt(businessToken, { log });
+      if (!refreshed?.zcodeJwtToken) return null;
+
+      const nextPsd = { ...psd, zcodeJwtToken: refreshed.zcodeJwtToken };
+      const resolved = await resolveZcodeAuth(
+        { ...credentials, providerSpecificData: nextPsd },
+        { log, force: true }
+      );
+
+      return {
+        accessToken: credentials.accessToken,
+        providerSpecificData: { ...nextPsd, ...resolved.persist },
+      };
+    } catch (error) {
+      log?.warn?.("ZCODE", `credential refresh failed: ${error?.message || error}`);
+      return null;
+    }
   }
 }
 
-export default ZcodeExecutor;
+export default ZCodeExecutor;

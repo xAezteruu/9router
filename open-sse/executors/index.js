@@ -35,6 +35,7 @@ import { DevinCliExecutor } from "./devin-cli.js";
 import { FreebuffExecutor } from "./freebuff.js";
 import { PerplexityWebExecutor } from "./perplexity-web.js";
 import { DeepSeekWebExecutor } from "./deepseek-web.js";
+import { ZCodeExecutor } from "./zcode.js";
 
 const executors = {
   antigravity: new AntigravityExecutor(),
@@ -96,6 +97,8 @@ const executors = {
   "deepseek-web": new DeepSeekWebExecutor(),
   dsw: new DeepSeekWebExecutor(),
   "deepseek-cookie": new DeepSeekWebExecutor(),
+  zcode: new ZCodeExecutor(),
+  zc: new ZCodeExecutor(),
 };
 
 const defaultCache = new Map();
@@ -145,3 +148,4 @@ export { DevinCliExecutor } from "./devin-cli.js";
 export { FreebuffExecutor } from "./freebuff.js";
 export { PerplexityWebExecutor } from "./perplexity-web.js";
 export { DeepSeekWebExecutor } from "./deepseek-web.js";
+export { ZCodeExecutor } from "./zcode.js";

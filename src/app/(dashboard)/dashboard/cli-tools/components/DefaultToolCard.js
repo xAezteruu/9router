@@ -213,10 +213,10 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
         <Image
           src={tool.image}
           alt={tool.name}
-          width={32}
-          height={32}
-          className="size-8 object-contain rounded-lg"
-          sizes="32px"
+          width={44}
+          height={44}
+          className="size-full object-cover"
+          sizes="44px"
           onError={(e) => { e.target.style.display = "none"; }}
         loading="lazy"
         decoding="async"
@@ -234,10 +234,10 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
       <Image
         src={iconSrc}
         alt={tool.name}
-        width={32}
-        height={32}
-        className="size-8 object-contain rounded-lg"
-        sizes="32px"
+        width={44}
+        height={44}
+        className="size-full object-cover"
+        sizes="44px"
         onError={(e) => {
           markProviderIconMissing(toolId);
           e.target.style.display = "none";
@@ -252,7 +252,9 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
     <Card padding="xs" className="overflow-hidden overflow-x-hidden">
       <div className="flex items-center justify-between hover:cursor-pointer" onClick={onToggle}>
         <div className="flex items-center gap-3">
-          <div className="size-8 rounded-lg flex items-center justify-center shrink-0">
+          <div
+            className="size-11 overflow-hidden rounded-xl flex items-center justify-center shrink-0"
+          >
             {renderIcon()}
           </div>
           <div className="min-w-0">
