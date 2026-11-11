@@ -35,6 +35,7 @@ import { FreebuffExecutor } from "./freebuff.js";
 import { PerplexityWebExecutor } from "./perplexity-web.js";
 import { DeepSeekWebExecutor } from "./deepseek-web.js";
 import { ZCodeExecutor } from "./zcode.js";
+import { DeepAIExecutor } from "./deepai.js";
 
 const executors = {
   antigravity: new AntigravityExecutor(),
@@ -97,6 +98,8 @@ const executors = {
   "deepseek-cookie": new DeepSeekWebExecutor(),
   zcode: new ZCodeExecutor(),
   zc: new ZCodeExecutor(),
+  deepai: new DeepAIExecutor(),
+  dai: new DeepAIExecutor(),
 };
 
 const defaultCache = new Map();
@@ -147,3 +150,4 @@ export { FreebuffExecutor } from "./freebuff.js";
 export { PerplexityWebExecutor } from "./perplexity-web.js";
 export { DeepSeekWebExecutor } from "./deepseek-web.js";
 export { ZCodeExecutor } from "./zcode.js";
+export { DeepAIExecutor } from "./deepai.js";
