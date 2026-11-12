@@ -33,11 +33,11 @@ const DEFAULT_SETTINGS = {
     systemPrompts: { enabled: false, prompts: [] },
   },
   requireLogin: true,
-  requireApiKey: false,
-  // Custom-model editor: warn about name/owned_by that claim a vendor the
-  // target model does not match. Persisted so every administrator sees the
-  // same editor rather than each browser deciding for itself.
-  antiProbeMetadata: true,
+  requireApiKey: true,
+  // Prefix minted in front of every newly created API key ("sk-" by default).
+  // Validation is an exact database lookup, so changing this affects keys
+  // generated from now on; keys already issued keep working.
+  apiKeyPrefix: "sk-",
   // Site-wide theme (glass | dark). An administrator picks it once here instead
   // of every browser choosing its own: the value is rendered into the document
   // for all visitors, so the whole site matches what the admin selected.

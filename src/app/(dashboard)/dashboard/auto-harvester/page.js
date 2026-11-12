@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
-import { Badge, Button, Card, CardSkeleton, Input, PageShell } from "@/shared/components";
+import { Badge, Button, Card, CardSkeleton, Input, PageShell, Modal } from "@/shared/components";
 import { cn } from "@/shared/utils/cn";
 
 const LOOP_OPTIONS = [
@@ -28,7 +28,10 @@ export default function AutoHarvesterPage() {
   const [pools, setPools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [target, setTarget] = useState(10);
+  const [maxScan, setMaxScan] = useState(1000);
   const [loop, setLoop] = useState(0);
+  const [customFeedsText, setCustomFeedsText] = useState("");
+  const [showFeedsModal, setShowFeedsModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const timerRef = useRef(null);
 
@@ -38,9 +41,12 @@ export default function AutoHarvesterPage() {
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+        if (data.maxCandidates && !maxScan) {
+          setMaxScan(data.maxCandidates);
+        }
       }
     } catch {}
-  }, []);
+  }, [maxScan]);
 
   const fetchPools = useCallback(async () => {
     try {
@@ -82,16 +88,26 @@ export default function AutoHarvesterPage() {
     }
   };
 
-  const start = () => send({ action: "start", target: Number(target) || 10, loopMinutes: Number(loop) || 0 });
+  const start = () => send({
+    action: "start",
+    target: Number(target) || 10,
+    maxCandidates: Number(maxScan) || 1000,
+    loopMinutes: Number(loop) || 0,
+    customFeeds: customFeedsText.split("\n").map((s) => s.trim()).filter((s) => s.startsWith("http")),
+  });
   const stop = () => send({ action: "stop" });
 
   const running = status?.running;
   const lastAdded = status?.lastAdded ?? 0;
   const lastTested = status?.lastTested ?? 0;
   const targetCount = status?.targetCount ?? target;
+  const maxCandidatesCount = status?.maxCandidates ?? maxScan;
 
   const harvestedPools = useMemo(() => {
-    return pools.filter((p) => String(p.name || "").startsWith("FreeProxy"));
+    return pools.filter((p) => {
+      const n = String(p.name || "");
+      return n.startsWith("seren-") || n.startsWith("FreeProxy-");
+    });
   }, [pools]);
 
   const activeHarvested = useMemo(() => {
@@ -162,12 +178,27 @@ export default function AutoHarvesterPage() {
                 <input
                   type="number"
                   min="1"
-                  max="200"
+                  max="500"
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   disabled={running}
                   className="w-14 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-center font-mono text-xs text-text-main focus:border-primary focus:outline-none disabled:opacity-40"
-                  title="Target number of working proxies"
+                  title="Target number of working proxies to collect"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-xs">
+                <label className="text-text-muted font-mono whitespace-nowrap">Max Scan:</label>
+                <input
+                  type="number"
+                  min="50"
+                  max="50000"
+                  step="500"
+                  value={maxScan}
+                  onChange={(e) => setMaxScan(e.target.value)}
+                  disabled={running}
+                  className="w-16 rounded border border-border bg-surface-2 px-1.5 py-0.5 text-center font-mono text-xs text-text-main focus:border-primary focus:outline-none disabled:opacity-40"
+                  title="Maximum candidate proxies to scan before ending cycle"
                 />
               </div>
 
@@ -186,6 +217,16 @@ export default function AutoHarvesterPage() {
                   ))}
                 </select>
               </div>
+
+              <Button
+                size="sm"
+                variant="secondary"
+                icon="rss_feed"
+                onClick={() => setShowFeedsModal(true)}
+                title="Configure custom proxy feeds"
+              >
+                Custom Feeds{status?.customFeeds?.length ? ` (${status.customFeeds.length})` : ""}
+              </Button>
 
               {running ? (
                 <Button
@@ -313,6 +354,35 @@ export default function AutoHarvesterPage() {
           </Card>
         )}
       </div>
+
+      {/* Proxy Feeds Modal */}
+      <Modal
+        isOpen={showFeedsModal}
+        onClose={() => setShowFeedsModal(false)}
+        title="Custom Proxy Feeds"
+        size="md"
+        footer={
+          <Button onClick={() => setShowFeedsModal(false)}>
+            Done
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-3 text-xs">
+          <div>
+            <p className="text-sm font-semibold text-text-main">Custom Feed URLs</p>
+            <p className="text-text-muted mt-1 leading-relaxed">
+              Add your own raw HTTP or HTTPS proxy list URLs (one URL per line). The harvester will fetch candidates from them alongside the global feed pool.
+            </p>
+            <textarea
+              value={customFeedsText}
+              onChange={(e) => setCustomFeedsText(e.target.value)}
+              placeholder="https://example.com/proxies.txt&#10;https://raw.githubusercontent.com/user/repo/main/http.txt"
+              rows={6}
+              className="mt-3 w-full rounded-lg border border-border bg-surface-2 p-3 font-mono text-xs text-text-main focus:border-primary focus:outline-none resize-none"
+            />
+          </div>
+        </div>
+      </Modal>
     </PageShell>
   );
 }

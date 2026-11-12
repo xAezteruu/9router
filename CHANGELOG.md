@@ -1,3 +1,119 @@
+# v0.5.419 (2026-11-11)
+
+## What Looks Different?
+
+- Harvested proxy pools are now formatted with the `seren-` prefix (e.g. `seren-<ip>_<port>-[<loc>]`) instead of `FreeProxy-`.
+
+# v0.5.418 (2026-11-11)
+
+## What Looks Different?
+
+- Focused the Custom Proxy Feeds modal solely on operator input (removed the internal built-in feeds list section).
+- Expanded built-in feed catalog from 12 to 24 verified active public proxy repositories (adding Litport, Databay, Komutan, TuanMinPay, Moleway, VPSLab, Stormsia, MuRongPIG, and Zevtyardt), pulling from a pool of over 70,000+ proxy candidates.
+
+# v0.5.417 (2026-11-11)
+
+## What Looks Different?
+
+- **Customizable Harvester Scan Limit & Feed Sources**: Removed the hardcoded 500-candidate cap on the Proxy Harvester:
+  - Added **Max Scan** control: operators can specify any scan budget (from 50 up to 50,000 candidate proxies, default 1,000). The harvester continuously scans through the 70,000+ available candidates until the target live proxy count is met or the max scan budget is reached.
+  - Added **Feeds** manager modal: view the 12 active built-in public proxy feeds, and add custom raw HTTP/HTTPS proxy list URLs to expand discovery sources.
+
+# v0.5.416 (2026-11-11)
+
+## What Got Fixed?
+
+- **Proxy Harvester Freeze & Deadlock**: Fixed multiple critical bugs causing the auto-harvester daemon to stall and freeze indefinitely:
+  - Replaced graceful `await dispatcher.close()` with immediate `dispatcher.destroy()` in `probeProxy`, preventing hanging on half-open or unresponsive proxy tunnels.
+  - Used explicit `undiciFetch` with bound connect timeout (`connect: { timeout: timeoutMs }`) instead of Next.js's patched fetch.
+  - Added fallback timer to `tcpPrecheck` so dropped TCP SYN packets by remote firewalls immediately resolve as dead within 800ms.
+  - Replaced chunk-based `Promise.all` with a sliding worker pool (`runWithPool`), eliminating head-of-line blocking by slow straggler proxies.
+  - Reordered proxy feeds to prioritize high-yield active feeds (`monosans`, `sunny9577`, `vakhov`), discovering live proxies in seconds.
+  - Reset `_inCycle` state on manual stop so the worker can always be restarted cleanly.
+
+# v0.5.415 (2026-11-11)
+
+## What Looks Different?
+
+- The **Key Prefix** input in the Create Key modal now starts empty by default with an `sk-` placeholder. Manual hyphens are disallowed—only alphanumeric characters (letters and numbers) can be entered, and the trailing hyphen `-` is automatically appended to the minted key prefix.
+
+# v0.5.414 (2026-11-11)
+
+## What Looks Different?
+
+- On mobile API key items, removed the text label beside the edit pencil icon so all action buttons remain compact, clean, and uniformly icon-only.
+
+# v0.5.413 (2026-11-11)
+
+## What Looks Different?
+
+- Restored pure frosted glass backdrop blur across modals (`Modal`, `Create API Key`, `ChangelogModal`, `PricingModal`, `DonateModal`). The opaque dark black tint has been replaced with the standard theme scrim and `backdrop-blur-md`, allowing the background dashboard to blur smoothly and naturally without turning solid black.
+
+# v0.5.412 (2026-11-11)
+
+## What Looks Different?
+
+- All models under the **DeepAI Free** provider (`dai/*`) now display the official green **FREE** badge/tag across the provider models list, combo model picker, and `/v1/models` API responses.
+
+# v0.5.411 (2026-11-11)
+
+## What Looks Different?
+
+- **Multi-Device Responsive Polish**: Reflowed layout, spacing, and controls across phone (Android/iPhone), tablet, laptop, and desktop viewports:
+  - Header: Collapsed redundant desktop GitHub button on mobile (< md) and made the search input flexible, giving comfortable breathing room to notification and menu controls.
+  - Layout: Scaled outer content padding to `p-3.5 sm:p-6 lg:p-10`, recovering usable screen width on mobile viewports.
+  - Endpoint & API Keys: Reflowed API Key list items for mobile. Key tokens truncate cleanly instead of breaking into awkward vertical columns, and action icons collapse into a neat bottom action bar with finger-friendly tap targets on mobile while preserving the desktop row layout on wider screens.
+  - Modals: Increased overlay background opacity to eliminate bleed-through of bright background dashboard elements, and expanded modal max-height with generous bottom padding for smooth scrolling on small screens.
+  - Providers: Unified custom provider action button styles and converted them into a clean responsive row/grid.
+
+# v0.5.410 (2026-11-11)
+
+## What Looks Different?
+
+- The **Key Prefix** setting has moved into the **Create API Key** modal. The main API Keys card remains clean and uncluttered without an inline prefix section interrupting the key list. Operators can configure or view the leading prefix directly alongside the key name and expiry when creating a key.
+
+# v0.5.409 (2026-11-11)
+
+## What Looks Different?
+
+- The **Key Prefix** setting in the Endpoint page has been restyled into a dedicated control card with a badge icon, clean descriptive layout, and an inline visual token preview chip (`Format: prefix••••••••`). The Create API Key modal now also shows the active key prefix being minted.
+
+## What Got Fixed?
+
+- **OpenCode CLI Mode Singleton Daemon**: Instead of cold-booting `opencode run` one-shot per request (which took 15–20 seconds due to Bun runtime extraction and Git directory scanning), OpenCode CLI mode now leverages a persistent singleton daemon (`opencode serve`) running in an isolated workspace with session caching. Response latency drops to ~1.5s with zero 429 rate limit blocks and strict memory safety (~310 MB fixed RSS).
+
+# v0.5.408 (2026-11-11)
+
+## What Looks Different?
+
+- All models in the **DeepAI Free** provider catalog now have "Free" in their display names (for example, `DeepSeek V4.1 Flash Free`, `Claude Haiku 5.5 Free`, `GPT-6 Luna Free`), consistent with the naming style across other free-tier providers.
+
+## What Got Fixed?
+
+- OpenCode Free with a connected account no longer fails with `HTTP 403: {"type":"error","error":{"type":"permission_error","message":"Workspace selection is required"}}`. Account credentials from device sign-in now automatically resolve and attach the user's primary workspace ID via `x-opencode-org-id`.
+
+# v0.5.407 (2026-11-11)
+
+## What Looks Different?
+
+- The API Keys card on the Endpoint page has a **Key prefix** field. Whatever you type (sk-, 9r-, my-org-key, ...) becomes the start of every key created from then on, with a live preview of how the next key will read. Keys already issued keep their own prefix and keep working: validation looks the key up by exact match, so this only changes what gets minted. Empty input falls back to the classic sk-.
+
+# v0.5.406 (2026-11-10)
+
+## What Got Fixed?
+
+- DeepAI Free no longer claims capabilities it does not have. Its endpoint is text-only: vision, web search and a native reasoning channel were advertised because the model names (claude-haiku-5-5, gpt-6-luna...) matched generic patterns, and reasoning parameters sent upstream are ignored. The catalog now reports text + tool calling only, so combos and capability routing stop sending image or search requests there.
+
+# v0.5.405 (2026-11-10)
+
+## What Got Fixed?
+
+- **DeepAI Free tool calling works.** The endpoint is text-only, so a client that sent `tools` got prose back with `finish_reason: stop` and agents looped or gave up. The executor now folds the tool catalogue into the conversation (schema first, highest-priority reminder on the latest turn), flattens assistant `tool_calls` and `tool` results into readable turns, and parses the reply's tool_call block back into standard OpenAI `tool_calls` with `finish_reason: "tool_calls"` - streaming and non-streaming. Tool results round-trip, so a multi-step agent loop actually runs.
+- A tool result now carries an explicit stop condition (answer in plain text when the result already answers the request), and the "call a tool now" reminder is not re-appended on a result turn, so a multi-step loop finishes instead of repeating the same call.
+- DeepAI usage numbers are estimated from real prompt/output size instead of `prompt_tokens: 0`, and the stream now closes with exactly one `data: [DONE]`.
+- Tool protocol uses the fenced `tool_call` format on DeepAI, the shape its models actually emit.
+- A passthrough stream that already ended with `data: [DONE]` no longer gets a second one appended at flush, for every provider that streams that way, not just DeepAI.
+
 # v0.5.404 (2026-11-10)
 
 ## What Looks Different?
