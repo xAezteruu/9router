@@ -63,8 +63,9 @@ export default {
     { id: "gemini-2.5-flash-preview-tts", name: "Gemini 2.5 Flash TTS", kind: "tts" },
     { id: "gemini-2.5-pro-preview-tts", name: "Gemini 2.5 Pro TTS", kind: "tts" },
     { id: "embedding-001", name: "Embedding 001", dimensions: 768, kind: "embedding" },
+    { id: "gemini-decision-1", name: "Gemini Decision 1 (System One)", kind: "systemone" },
   ],
-  serviceKinds: ["llm","embedding","image","imageToText","webSearch","tts","stt"],
+  serviceKinds: ["llm","embedding","image","imageToText","webSearch","tts","stt","systemone"],
   ttsConfig: {
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/models",
     authType: "apikey",
@@ -79,6 +80,13 @@ export default {
   },
   embeddingConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models", authType: "apikey", authHeader: "key" },
   imageConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models" },
+  systemoneConfig: {
+    // Google Decisions API (gemini-decision-1): batched noul/choice/score questions,
+    // calibrated probabilities out. Auth uses the Google API key header, not Bearer.
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/decisions",
+    authType: "apikey",
+    authHeader: "x-goog-api-key",
+  },
   searchViaChat: {
     defaultModel: "gemini-2.5-flash",
     endpoint: "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",

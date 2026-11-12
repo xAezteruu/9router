@@ -3,6 +3,7 @@ import { HTTP_STATUS, FETCH_CONNECT_TIMEOUT_MS } from "../config/runtimeConfig.j
 import { PROVIDER_MEDIA } from "../providers/index.js";
 import { getModelUpstreamId } from "../config/providerModels.js";
 import { generateSessionId } from "../executors/opencode-zen.js";
+import { proxyAwareFetch } from "../utils/proxyFetch.js";
 
 const OPENCODE_PROVIDERS = new Set(["opencode", "opencode-zen"]);
 
@@ -62,8 +63,12 @@ export async function handleSystemoneCore({
   }
 
   // Validate input at the trust boundary; question-level shape is upstream's job.
-  if (body.state === undefined || body.state === null) {
-    return createErrorResult(HTTP_STATUS.BAD_REQUEST, "Missing required field: state");
+  // Google Decisions API uses "input" (Jev-style providers use "state").
+  const isGoogleDecisions = cfg?.authHeader === "x-goog-api-key";
+  const stateField = isGoogleDecisions ? "input" : "state";
+  const stateValue = body[stateField] ?? body.state;
+  if (stateValue === undefined || stateValue === null) {
+    return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Missing required field: ${stateField}`);
   }
   if (!body.questions || typeof body.questions !== "object" || Array.isArray(body.questions)) {
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, "Missing required field: questions");
@@ -73,26 +78,42 @@ export async function handleSystemoneCore({
   const token = credentials?.apiKey || credentials?.accessToken;
   const headers = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token
+      ? (isGoogleDecisions ? { "x-goog-api-key": token } : { Authorization: `Bearer ${token}` })
+      : {}),
     ...(cfg.headers || {}),
     // Zen lanes expect the official client session header; other providers don't need it.
     ...(OPENCODE_PROVIDERS.has(provider) ? { "x-opencode-session": generateSessionId() } : {}),
   };
   // Cloudflare validates the body model as a short selector (e.g. "clef-flash"), not the full id.
-  const requestBody = { ...body, model: getModelUpstreamId(provider, model) || model };
+  // Google Decisions takes no model field in the body (model is implied by the API surface).
+  const requestBody = isGoogleDecisions
+    ? { ...body, [stateField]: stateValue, model: getModelUpstreamId(provider, model) || model }
+    : { ...body, model: getModelUpstreamId(provider, model) || model };
 
   log?.debug?.("SYSTEMONE", `${provider.toUpperCase()} | ${model}`);
 
+  // Connection-level proxy (providerSpecificData) so geo/blocked egress lanes work.
+  const proxyOptions = {
+    connectionProxyEnabled: credentials?.providerSpecificData?.connectionProxyEnabled === true,
+    connectionProxyUrl: credentials?.providerSpecificData?.connectionProxyUrl || "",
+    connectionNoProxy: credentials?.providerSpecificData?.connectionNoProxy || "",
+    vercelRelayUrl: credentials?.providerSpecificData?.vercelRelayUrl || "",
+    proxyPoolId: credentials?.providerSpecificData?.connectionProxyPoolId || null,
+    strictProxy: credentials?.providerSpecificData?.strictProxy === true,
+    connectionProxyAlternates: credentials?.providerSpecificData?.connectionProxyAlternates || [],
+  };
+
   let providerResponse;
   try {
-    providerResponse = await fetch(targetUrl, {
+    providerResponse = await proxyAwareFetch(targetUrl, {
       method: "POST",
       headers,
       body: JSON.stringify(requestBody),
       ...(typeof AbortSignal?.timeout === "function"
         ? { signal: AbortSignal.timeout(FETCH_CONNECT_TIMEOUT_MS) }
         : {}),
-    });
+    }, proxyOptions);
   } catch (error) {
     const errMsg = formatProviderError(error, provider, model, HTTP_STATUS.BAD_GATEWAY);
     log?.debug?.("SYSTEMONE", `Fetch error: ${errMsg}`);

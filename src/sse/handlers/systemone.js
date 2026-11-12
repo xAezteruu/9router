@@ -67,8 +67,11 @@ async function _handleSystemone(request) {
     log.warn("SYSTEMONE", "Missing model");
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing model");
   }
-  if (body.state === undefined || body.state === null) {
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: state");
+  // Google Decisions lane uses "input" for the state field; Jev providers use "state".
+  const hasState = body.state !== undefined && body.state !== null
+    || body.input !== undefined && body.input !== null;
+  if (!hasState) {
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: state (or input)");
   }
   if (!body.questions || typeof body.questions !== "object" || Array.isArray(body.questions)) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: questions");
