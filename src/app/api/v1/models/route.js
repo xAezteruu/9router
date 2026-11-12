@@ -13,6 +13,7 @@ import { getProviderConnections, getCombos, getCustomModels, getModelAliases, ge
 import { getAllowedModelsOfKey, matchesAllowedModels } from "@/lib/db/repos/apiKeysRepo.js";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
 import { buildStudioTargetIndex } from "@/shared/utils/studioModelVisibility";
+import { isOpencodeFreeModel } from "@/shared/utils/modelTier";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
 import { resolveQoderModels, routableQoderModels } from "open-sse/services/qoderModels.js";
