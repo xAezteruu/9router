@@ -86,10 +86,15 @@ export async function handleSystemoneCore({
     ...(OPENCODE_PROVIDERS.has(provider) ? { "x-opencode-session": generateSessionId() } : {}),
   };
   // Cloudflare validates the body model as a short selector (e.g. "clef-flash"), not the full id.
-  // Google Decisions takes no model field in the body (model is implied by the API surface).
-  const requestBody = isGoogleDecisions
-    ? { ...body, [stateField]: stateValue, model: getModelUpstreamId(provider, model) || model }
-    : { ...body, model: getModelUpstreamId(provider, model) || model };
+  // Lane normalization: Google rejects 'state' as an unknown param; Jev providers reject 'input'.
+  const requestBody = { ...body, model: getModelUpstreamId(provider, model) || model };
+  if (isGoogleDecisions) {
+    requestBody[stateField] = stateValue;
+    delete requestBody.state;
+  } else {
+    requestBody.state = stateValue;
+    delete requestBody.input;
+  }
 
   log?.debug?.("SYSTEMONE", `${provider.toUpperCase()} | ${model}`);
 
