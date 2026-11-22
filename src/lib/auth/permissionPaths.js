@@ -152,6 +152,7 @@ const PAGE_PERMISSION_RULES = [
   { prefix: "/dashboard/basic-chat", permissions: [] },
   { prefix: "/dashboard/profile", permissions: [] },
   { prefix: "/dashboard/experiments", permissions: [] },
+  { prefix: "/dashboard/agy-accounts", permissions: [] },
   // The dashboard index renders the endpoint page, so it follows the same permission.
   // Exact, so a page added later stays admin-only until it is named above.
   { prefix: "/dashboard", permissions: ["manageApiKeys"], exact: true },

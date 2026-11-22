@@ -340,6 +340,13 @@ export default function Sidebar({ onClose }) {
                 active={isActive('/dashboard/experiments')}
                 onClick={onClose}
               />
+              <NavLink
+                href='/dashboard/agy-accounts'
+                icon='smart_toy'
+                label='AGY Bridge Accounts'
+                active={isActive('/dashboard/agy-accounts')}
+                onClick={onClose}
+              />
               </>
               )}
             </div>
