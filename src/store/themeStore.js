@@ -36,8 +36,14 @@ const useThemeStore = create((set) => ({
 export function applyTheme(_theme = THEME_ID) {
   if (typeof window === "undefined") return;
   const root = document.documentElement;
-  root.classList.remove("dark", "glass", "brutalist");
+  root.classList.remove("glass", "brutalist");
   root.classList.add(THEME_ID);
+  // Preserve the user's dark-mode choice (set in HeaderMenu / pre-paint script).
+  try {
+    const stored = localStorage.getItem("freepi-theme");
+    const dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", dark);
+  } catch {}
 }
 
 export default useThemeStore;

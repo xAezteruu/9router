@@ -467,3 +467,181 @@ html.neobrutalism select option { background: var(--neo-white); color: var(--neo
     animation-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   DARK MODE — neobrutalism night
+   Ink-and-paper inverted: night paper, cream ink. Accents stay
+   loud; outlines and offset shadows flip to a soft black chalk.
+   ============================================================ */
+html.neobrutalism.dark {
+  color-scheme: dark;
+
+  --neo-ink: #ece4d4;          /* ink becomes cream */
+  --neo-paper: #191715;        /* night paper */
+  --neo-paper-deep: #211e1b;
+  --neo-white: #262320;        /* "white" surfaces become raised dark */
+  --color-surface-2: #2e2a25;
+  --color-surface-3: #1f2a2c;
+  --color-sidebar: #1d1a17;
+  --color-border-subtle: #6b6154;
+  --color-text-muted: #b3a995;
+  --color-text-subtle: #8f8672;
+  --color-danger: #ff7a85;
+  --color-success: #b5e56a;
+  --color-warning: #ffd45c;
+  --color-info: #6fd3e8;
+  --color-primary: var(--neo-coral);
+  --color-primary-hover: #ff8a6e;
+
+  --color-bg: var(--neo-paper);
+  --color-bg-alt: var(--neo-paper-deep);
+  --color-surface: var(--neo-white);
+  --color-bg-hover: color-mix(in srgb, var(--neo-ink) 8%, transparent);
+  --color-border-hover: var(--neo-ink);
+  --color-text-main-dark: var(--neo-ink);
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  --edge-highlight: transparent;
+  --state-hover: color-mix(in srgb, var(--neo-sun) 22%, var(--neo-white));
+  --state-press: color-mix(in srgb, var(--neo-coral) 30%, var(--neo-white));
+
+  /* Shadows flip: cream-lifted glow reads as "chalk on slate" */
+  --shadow-soft: 4px 4px 0 rgba(0, 0, 0, 0.85);
+  --shadow-warm: 4px 4px 0 var(--neo-coral);
+  --shadow-elevated: 6px 6px 0 rgba(0, 0, 0, 0.85);
+  --shadow-elev: 6px 6px 0 rgba(0, 0, 0, 0.85);
+  --shadow-focus: 0 0 0 3px var(--neo-cyan);
+  --elev-1: 4px 4px 0 rgba(0, 0, 0, 0.85);
+  --elev-2: 6px 6px 0 rgba(0, 0, 0, 0.85);
+  --elev-3: 8px 8px 0 rgba(0, 0, 0, 0.85);
+  --elev-2-hover: 7px 7px 0 rgba(0, 0, 0, 0.85);
+  --neo-card-lift: 5px;
+}
+
+/* Body + halftone dots: cream specks on night paper */
+html.neobrutalism.dark body {
+  color: var(--neo-ink);
+  background-color: var(--neo-paper);
+  background-image: radial-gradient(circle, rgba(236, 228, 212, 0.16) 0.8px, transparent 1px) !important;
+  background-size: 20px 20px;
+  background-attachment: fixed;
+}
+html.neobrutalism.dark .dot-grid-bg {
+  background-image: radial-gradient(circle, rgba(236, 228, 212, 0.16) 0.8px, transparent 1px) !important;
+  background-size: 20px 20px !important;
+}
+
+/* Utility overrides that hardcode light surfaces */
+html.neobrutalism.dark [class*="bg-surface/"] { background-color: var(--neo-white) !important; }
+html.neobrutalism.dark [class~="bg-surface"] { background-color: var(--neo-white) !important; }
+html.neobrutalism.dark [class~="bg-surface-2"] { background-color: var(--color-surface-2) !important; }
+html.neobrutalism.dark [class~="bg-surface-3"] { background-color: var(--color-surface-3) !important; }
+html.neobrutalism.dark [class~="bg-bg"] { background-color: var(--neo-paper) !important; }
+html.neobrutalism.dark [class~="bg-bg-alt"],
+html.neobrutalism.dark [class~="bg-bg-subtle"] { background-color: var(--neo-paper-deep) !important; }
+html.neobrutalism.dark [class~="bg-vibrancy"],
+html.neobrutalism.dark [class~="bg-sidebar"] { background-color: var(--color-sidebar) !important; }
+html.neobrutalism.dark [class*="bg-brand-500/"],
+html.neobrutalism.dark [class*="bg-primary/"] { background-color: #4a3b12 !important; }
+html.neobrutalism.dark [class*="bg-success/"],
+html.neobrutalism.dark [class*="bg-green-"] { background-color: #2c3d17 !important; }
+html.neobrutalism.dark [class*="bg-danger/"],
+html.neobrutalism.dark [class*="bg-red-"] { background-color: #46201f !important; }
+html.neobrutalism.dark [class*="bg-info/"],
+html.neobrutalism.dark [class*="bg-blue-"],
+html.neobrutalism.dark [class*="bg-cyan-"] { background-color: #16333b !important; }
+html.neobrutalism.dark [class*="text-danger"],
+html.neobrutalism.dark [class*="text-red-"] { color: #ff8a93 !important; }
+html.neobrutalism.dark [class*="text-success"],
+html.neobrutalism.dark [class*="text-green-"] { color: #c3ee7d !important; }
+html.neobrutalism.dark [class*="text-info"],
+html.neobrutalism.dark [class*="text-blue-"],
+html.neobrutalism.dark [class*="text-cyan-"] { color: #83dce8 !important; }
+html.neobrutalism.dark [class*="text-yellow-"],
+html.neobrutalism.dark [class*="text-amber-"] { color: #ffd45c !important; }
+
+/* Gradient blocks stay solid but muted-dark */
+html.neobrutalism.dark [class*="bg-gradient-"] {
+  background-image: none !important;
+  background-color: #37314a !important;
+}
+
+/* Gradient clip text back to cream ink */
+html.neobrutalism.dark [class*="bg-clip-text"] {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--neo-ink) !important;
+}
+html.neobrutalism.dark .proxy-text-gradient { color: var(--neo-coral) !important; -webkit-text-fill-color: var(--neo-coral) !important; }
+
+/* Headings */
+html.neobrutalism.dark h1,
+html.neobrutalism.dark h2,
+html.neobrutalism.dark h3 { color: var(--neo-ink); }
+
+/* Sidebar nav states */
+html.neobrutalism.dark .neo-sidebar nav a:not([aria-current="page"]):hover,
+html.neobrutalism.dark .neo-sidebar nav button:hover {
+  background: color-mix(in srgb, var(--neo-sun) 26%, var(--neo-white)) !important;
+  color: #14120f !important;
+  border-color: var(--neo-ink) !important;
+}
+html.neobrutalism.dark .neo-sidebar [aria-current="page"] {
+  color: #14120f !important;
+  background: var(--neo-coral) !important;
+}
+
+/* Buttons keep ink outline (cream) with dark base */
+html.neobrutalism.dark .neo-button { color: var(--neo-ink); }
+html.neobrutalism.dark .neo-button:disabled,
+html.neobrutalism.dark .neo-button.shadow-none { color: var(--color-text-muted); }
+
+/* Form controls: dark raised surfaces */
+html.neobrutalism.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.neobrutalism.dark select,
+html.neobrutalism.dark textarea {
+  background: var(--neo-white) !important;
+  color: var(--neo-ink) !important;
+  border-color: var(--neo-ink) !important;
+}
+html.neobrutalism.dark input::placeholder,
+html.neobrutalism.dark textarea::placeholder { color: #8f8672 !important; opacity: 1; }
+html.neobrutalism.dark input:disabled,
+html.neobrutalism.dark select:disabled,
+html.neobrutalism.dark textarea:disabled {
+  background: #2a2622 !important;
+  color: #8f8672 !important;
+  box-shadow: 2px 2px 0 #4a4339 !important;
+}
+
+/* Tables */
+html.neobrutalism.dark thead th { background: color-mix(in srgb, var(--neo-sun) 24%, var(--neo-white)) !important; color: #14120f !important; }
+html.neobrutalism.dark tbody tr:hover td { background: #2e2a25 !important; }
+
+/* Panels/dialogs keep cream outline, dark fill */
+html.neobrutalism.dark .neo-panel,
+html.neobrutalism.dark .neo-inset,
+html.neobrutalism.dark .card-soft,
+html.neobrutalism.dark .card-elev { background-color: var(--neo-white) !important; }
+html.neobrutalism.dark .neo-inset { background-color: var(--color-surface-2) !important; }
+html.neobrutalism.dark [role="dialog"],
+html.neobrutalism.dark dialog,
+html.neobrutalism.dark [role="menu"],
+html.neobrutalism.dark [role="listbox"] { background-color: var(--neo-white) !important; }
+
+/* Topbar/sidebar/chrome */
+html.neobrutalism.dark .neo-topbar { background: var(--neo-paper) !important; }
+html.neobrutalism.dark .neo-sidebar { background: var(--color-sidebar) !important; }
+
+/* Provider logo stage: dark sun */
+html.neobrutalism.dark .provider-logo-frame { background-color: #3d3313; }
+
+/* Selection, scrollbar */
+html.neobrutalism.dark ::selection { color: #14120f; background: var(--neo-lime); }
+html.neobrutalism.dark select,
+html.neobrutalism.dark select option { color-scheme: dark; }
+html.neobrutalism.dark select option { background: var(--neo-white); color: var(--neo-ink); }
+
+/* Search highlight in dark */
+html.neobrutalism.dark .neo-mark,
+html.neobrutalism.dark mark { background: var(--neo-sun); color: #14120f; }

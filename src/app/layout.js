@@ -31,10 +31,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Lock the neobrutalist theme before first paint */}
+        {/* Lock the neobrutalist theme before first paint. Dark variant from
+            localStorage (freepi-theme), else system prefers-color-scheme. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `var r=document.documentElement;r.classList.remove('dark','glass','brutalist');r.classList.add('neobrutalism');`,
+            __html: `var r=document.documentElement;r.classList.remove('glass','brutalist');r.classList.add('neobrutalism');try{var t=localStorage.getItem('freepi-theme');var dk=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(dk){r.classList.add('dark')}}catch(e){}`,
           }}
         />
         <script

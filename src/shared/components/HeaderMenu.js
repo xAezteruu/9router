@@ -6,6 +6,24 @@ import ChangelogModal from "./ChangelogModal";
 import { ConfirmModal } from "./Modal";
 import { useSessionStore } from "@/store/sessionStore";
 
+function useDarkTheme() {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    setIsDark(root.classList.contains("dark"));
+  }, []);
+  const toggle = () => {
+    const root = document.documentElement;
+    const next = !root.classList.contains("dark");
+    root.classList.toggle("dark", next);
+    try {
+      localStorage.setItem("freepi-theme", next ? "dark" : "light");
+    } catch {}
+    setIsDark(next);
+  };
+  return { isDark, toggle };
+}
+
 function MenuItem({ icon, label, onClick, trailing, danger }) {
   return (
     <button
@@ -38,6 +56,7 @@ export default function HeaderMenu({ onLogout }) {
   // Same rule: a key session is a guest, not an operator, so
   // it never sees shutdown (the route refuses it anyway).
   const canShutdown = role !== "apikey";
+  const { isDark, toggle } = useDarkTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [shutdownOpen, setShutdownOpen] = useState(false);
@@ -82,6 +101,11 @@ export default function HeaderMenu({ onLogout }) {
 
         {isOpen && (
           <div className="absolute right-0 top-full mt-2 w-60 bg-surface border border-border-subtle rounded-xl shadow-[var(--shadow-elev)] z-50 slide-in-top overflow-hidden py-1">
+            <MenuItem
+              icon={isDark ? "light_mode" : "dark_mode"}
+              label={isDark ? "Light Mode" : "Dark Mode"}
+              onClick={() => { toggle(); }}
+            />
             <MenuItem
               icon="history_toggle_off"
               label="Change Log"
