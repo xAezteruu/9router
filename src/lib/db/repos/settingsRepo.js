@@ -38,10 +38,8 @@ const DEFAULT_SETTINGS = {
   // Validation is an exact database lookup, so changing this affects keys
   // generated from now on; keys already issued keep working.
   apiKeyPrefix: "sk-",
-  // Site-wide theme (glass | dark). An administrator picks it once here instead
-  // of every browser choosing its own: the value is rendered into the document
-  // for all visitors, so the whole site matches what the admin selected.
-  theme: "glass",
+  // Site-wide theme is locked to neobrutalism across the entire UI.
+  theme: "neobrutalism",
   tunnelDashboardAccess: true,
   authMode: "password",
   ssoType: "oidc",
@@ -104,7 +102,7 @@ async function readRaw() {
 
 // Merge raw settings with defaults; backward-compat for missing keys
 export function mergeWithDefaults(raw) {
-  const merged = { ...DEFAULT_SETTINGS, ...(raw || {}), theme: "glass" };
+  const merged = { ...DEFAULT_SETTINGS, ...(raw || {}), theme: "neobrutalism" };
   for (const [key, defVal] of Object.entries(DEFAULT_SETTINGS)) {
     if (merged[key] === undefined) {
       if (
